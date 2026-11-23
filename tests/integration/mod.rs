@@ -16,6 +16,7 @@ mod data_root;
 mod double_slots;
 
 mod expiry;
+mod failure_orders;
 mod handed_sends;
 mod handoffs;
 mod handovers;

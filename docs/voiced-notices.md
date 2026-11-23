@@ -116,10 +116,15 @@ agent that answers the room says the line.
   content no session rewords.
 - **Room settings.** The owner's in-chat setting commands are acknowledged by that chat's session after the
   setting has changed, so a change that relaunches the session is acknowledged by the new one.
-- **A broken run.** A chat turn of the agent's own that died, or a job that failed while it worked, is handed to
-  the agent's session in the owner's chat as an order: the facts read where it broke, and an instruction to find
-  the cause and fix it at the root. The agent tells the owner in its own words; the receiver sends a fixed line
-  only when the agent cannot answer at all. A round that failed, and a round that ended with nothing said, send
+- **A broken run.** A chat turn that died, or a job that failed while it worked, is handed to the default
+  answerer's session as an order: the facts read where it broke, and an instruction to find the cause and fix it
+  at the root. A chat turn's order stands in the room it broke in where the default answerer answers that room;
+  a turn that broke in a room it does not answer — a person's own supervisor's in their room, a group's own BMO's —
+  is ordered in the owner's private room, naming the agent and the room by its title, under a kind of that room's
+  own, as a job that failed in another room is told to the owner (the agency's `docs/agent-control.md`, 「An
+  item's change is told to its orderer」): the platform's operator keeps every room's broken runs in view. The
+  order carries the agent, the room's title and the cause the agency gave, never the room's words. The agent tells
+  the owner in its own words; the receiver sends a fixed line only when the agent cannot answer at all. A round that failed, and a round that ended with nothing said, send
   no line to their room. A turn somebody stopped says nothing anywhere: the room that was watching the agent
   type hears nothing, the owner hears nothing at all, and nothing is recorded to recover from: a stop is not a
   failure.
@@ -401,7 +406,8 @@ web unit's language packs (`POST /words/render`, `docs/boundary-api.md`, 「The 
   were rendered, with the kind `fixed-line` and the line it was said from, its code and its fields, so a screen
   reading the room knows what the line is without matching its words (`docs/api.md`, 「Messages」). This holds for
   each line in the table below the receiver says on its own: the rest, a broken run's last resort, a shut room, a
-  memory being tidied and a room's members by account. A draw's line goes out as the agent's send and the
+  memory being tidied, a room's members by account, and a person's supply left empty, which the agency asks for
+  beside the instruction it queues (`docs/api.md`, 「Instructions」, its `line`). A draw's line goes out as the agent's send and the
   going-down notices as system notices under the service's mark (「System notices」), so neither carries the kind.
 
 | Line | Why it stays fixed |
@@ -412,5 +418,6 @@ web unit's language packs (`POST /words/render`, `docs/boundary-api.md`, 「The 
 | `chat-denied` | The room is being shut; its session is not woken for it. |
 | `going-down`, `going-down-for-update` (the system notices above) | The service is stopping. |
 | `account-let-in`, `accounts-let-in`, `unit-let-in`, `account-left`, `account-taken-out` (an account let into a room, several let in at once, an organisation unit's members let in, an account leaving or taken out, each naming the accounts by their keys, `docs/receiver.md`, 「Console rooms and accounts」) | It records who did it, as it was done, for every member to read; no session is woken for it. |
+| `supply-closed` (a person's run found no supply source left, said once into the room the run answers while it stays so, with why) | No turn can go out in the room until a source opens, so no session can tell the person; the supply fact the agency queues there only rides a round that never comes. |
 | `draw` (a fair draw's room line) | A gate that rewrote it would make the draw impossible to check (`docs/random-draw.md`). |
 | A login's end (「What each path says」) | The agency composed it from its policy, and the model whose login ended may be the one that would say it. |

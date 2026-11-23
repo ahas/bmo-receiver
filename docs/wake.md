@@ -418,6 +418,10 @@ A quiet instruction reaches an agent's session as `docs/bmo-window.md`, 「Quiet
   oldest first. The moment is kept under the session's setting (`docs/store.md`): the agent's one session across
   its rooms where its registration says so, else the room's own. A session never briefed reads as briefed the
   restart policy's fresh while ago (`fresh_minutes`). Where none went live since, nothing is written.
+- **Only an agent that answers the owner's private room briefs him,** by the rule 「Who reaches the session」 reads
+  who answers a room. A round of any other agent — a person's own supervisor in their room, a group's BMO — looks
+  for nothing and writes nothing, and its moment stays unset: a row for an agent that does not answer the owner's
+  room would never be handed there. Where who answers cannot be read, nothing is written either.
 - **One instruction names them,** in the restart policy's words (`restart.toml`, `briefing`): what went live
   since the last briefing, one clause a unit naming its unit, version, deploy message or subject, commit and the
   moment it went live, as the deployment record holds them. Its row is of the sort `briefing` and the kind

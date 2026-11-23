@@ -74,7 +74,7 @@ is written.
 | A job's question for the supervisor to judge — settle it itself, talk it over with the job or put it to the owner — withdrawn once it is settled or put to the owner | `POST /instructions`, from `bmo job ask` in the job's own process | instruction table | `round` | opens | `question-for-supervisor` |
 | A question put to the owner that he has not been told of, for the supervisor to put to him, withdrawn once a reply settles it | `POST /instructions`, from `bmo job ask` for a question whose notice to the supervisor was let go untaken, or from the agency for one asked any other way | instruction table | `round` | opens | `question-awaits-answer` |
 | A fact a unit tells the owner as a code and its parameters, with no words of its own: a chat service's road standing down, an event of the testbed's | that unit's `POST /instructions` in the owner's private room `GET /owner` names | instruction table | `round` | opens | the unit's own, named by its kind |
-| A failure order for a broken run of the agent's own | the conversation's failure check | instruction table | `round` | opens | — |
+| A failure order for a broken chat turn, the default answerer's: in the room the turn broke in where it answers that room, else in the owner's private room naming the agent and the room (`docs/voiced-notices.md`, 「What each path says」) | the conversation's failure check | instruction table | `round` | opens | `failure-order`, and `failure-order:<room>` in the owner's private room for another room's |
 | The back-up line after a deployment | start-up | instruction table | `round` | rides, for the restart's while | — |
 | The back-up line after a restart no deployment announced | start-up | instruction table | `round` | opens | — |
 | The deployment briefing: the deployments since the owner was last briefed, asking the agent to brief him (`docs/wake.md`, 「Quiet instructions」) | the round's start | instruction table | `round` | rides, the owner's next round | — |
@@ -292,11 +292,15 @@ round.
     (`docs/wake.md`, 「Quiet instructions」).
   - A fact of a person's supply the agency tells their own supervisor — a run moved to another source, a key the
     provider refused, no source left — rides for good, in its own room's rounds: while no source is left a turn of
-    that supervisor can only fail, so the fact never opens one, and the person hears it at the next round that
-    goes out.
+    that supervisor can only fail, so the fact never opens one, and the supervisor reads it at the next round that
+    goes out. No source left is not left to that round: its instruction carries the `supply-closed` fixed line,
+    which the room hears at once as the service's own, saying why (`docs/voiced-notices.md`, 「Lines that stay
+    fixed」).
   - The deployment briefing rides the owner's next round, written just before that round asks for its riders, for
     the restart's while. A round of another room that finds deployments since the last briefing writes the row for
-    the owner's chat and does not carry it.
+    the owner's chat and does not carry it. Only an agent that answers the owner's chat, as the wake reads who
+    answers a room (`docs/wake.md`, 「Who reaches the session」), writes the briefing; a round of an agent that does not,
+    a person's own supervisor in their room among them, writes none.
 - **What never rides:** anything the owner must not hear late (a job's ending, a failure, a road that moved or
   closed, a question or a stop, a deployment's outcome, a result somebody asked for) and anything that is the machine's only wake for work to
   move: an item awaiting its launch or its approval, a job waiting for a road or a slot. Those turns often do their work in tool

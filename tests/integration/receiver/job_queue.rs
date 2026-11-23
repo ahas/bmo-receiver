@@ -546,3 +546,73 @@ async fn a_unit_declared_a_holder_keeps_its_declaration_and_declaring_again_repl
       .contains("warns"),
   );
 }
+
+// A console room on the record, where a line said into it is kept.
+const PERSONS_ROOM: i64 = -9_000_000_000_124;
+
+// The person's room standing on the record road, as the console opened it.
+async fn on_record(scratch: &Scratch) {
+  registered(scratch, PERSONS_ROOM).await;
+  scratch
+    .run(
+      r#"INSERT INTO "provider_rooms" ("provider", "room_id", "chat_id", "title") VALUES ('record', $1, $2, 'a person')"#,
+      vec![PERSONS_ROOM.to_string().into(), PERSONS_ROOM.into()],
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn a_supply_closed_line_is_said_once_into_the_room_as_its_instruction_is_written() {
+  let scratch = Scratch::new().await;
+  let front = stood(&scratch, OWNER).await;
+
+  on_record(&scratch).await;
+
+  let line = json!({ "code": "supply-closed", "why": "no-lendable", "until": null });
+  let body = json!({
+    "agentName": AGENT, "room": PERSONS_ROOM, "said": { "fact": "No supply is left for this run." },
+    "sort": "notice", "kind": "supply:supply-closed:agent-a", "ridesForGood": true, "line": line,
+  });
+  let (made, first) = post(&front, "/instructions", body.clone()).await;
+
+  assert_eq!(made, StatusCode::CREATED, "{first}");
+
+  let (_, again) = post(&front, "/instructions", body).await;
+
+  assert_eq!(again["id"], first["id"], "the repeat writes no second row");
+  assert_eq!(
+    texts(
+      &scratch,
+      &format!(r#"SELECT "text" || ' | ' || "kind" || ' | ' || "line" FROM "messages" WHERE "chat_id" = {PERSONS_ROOM}"#)
+    )
+    .await,
+    [format!(
+      "supply-closed in en | fixed-line | {}",
+      json!({ "code": "supply-closed", "fields": { "why": "no-lendable", "until": null } })
+    )],
+    "the room hears the line once, kept as the fixed line it is",
+  );
+  assert_eq!(front.kicked.times(), 0, "a row riding for good opens no turn");
+}
+
+#[tokio::test]
+async fn an_instruction_carrying_a_line_no_unit_may_ask_for_is_refused_and_writes_nothing() {
+  let scratch = Scratch::new().await;
+  let front = stood(&scratch, OWNER).await;
+
+  on_record(&scratch).await;
+
+  for line in [json!({ "code": "chat-denied" }), json!({ "code": "supply-closed" })] {
+    let (status, _) = post(
+      &front,
+      "/instructions",
+      json!({ "room": PERSONS_ROOM, "said": { "fact": "a fact" }, "sort": "notice", "line": line }),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{line}");
+  }
+
+  assert_eq!(rows(&scratch, r#"SELECT COUNT(*) FROM "instructions""#, vec![]).await, 0);
+  assert_eq!(rows(&scratch, r#"SELECT COUNT(*) FROM "messages""#, vec![]).await, 0);
+}

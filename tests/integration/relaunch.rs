@@ -265,3 +265,38 @@ async fn the_briefing_goes_to_the_owners_private_room_where_one_is_named_and_no_
     "the chat service's one-to-one hears nothing of it"
   );
 }
+
+#[tokio::test]
+async fn only_an_agent_that_answers_the_owners_room_writes_his_briefing() {
+  let scratch = Scratch::new().await;
+  let data = tempdir().unwrap();
+  let roots = tempdir().unwrap();
+  let standing = unrun(scratch.db(), DataRoot::new(data.path()), vec![], deployment());
+  let receiver = standing.receiver.clone();
+  let around = Around::new(receiver.clone()).reading_deploys(Some(roots.path().to_path_buf()));
+
+  deployed(
+    roots.path(),
+    "bmo-unit-a",
+    json!({ "commit": "a".repeat(40), "subject": "subject a", "at": now_ms() - 60_000 }),
+    None,
+  );
+
+  // A person's own supervisor, answering a room of theirs and not the owner's, writes nothing and keeps no moment.
+  around.riders("agent-b", ROOM).await;
+  assert!(
+    rows(&scratch, OWNER).await.is_empty(),
+    "no briefing for an agent the owner's room never hands to"
+  );
+  assert!(
+    scratch
+      .texts(r#"SELECT "key" FROM "settings" WHERE "key" LIKE 'agent-b_briefed_at%'"#)
+      .await
+      .is_empty(),
+    "its moment stays unset"
+  );
+
+  // The agent that answers the owner's room briefs him as before.
+  around.riders(AGENT, ROOM).await;
+  assert_eq!(rows(&scratch, OWNER).await.len(), 1);
+}

@@ -20,6 +20,8 @@ pub struct Notice {
 #[serde(deny_unknown_fields)]
 pub struct Order {
   pub what: String,
+  /// A broken chat turn of another agent's: with `{agent}` and `{where}`.
+  pub another: String,
   pub check_seconds: u64,
 }
 

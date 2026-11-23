@@ -10,6 +10,7 @@ use receiver_policy::fill_marks;
 
 use super::conversation::{BoxFuture, Failure};
 use super::instructions::{Queued, queue as queue_row};
+use crate::receiver::wake::agents;
 use crate::receiver::wake::rest::{resting, road_answers};
 use crate::receiver::{Receiver, rows};
 use crate::store::Fault;
@@ -35,9 +36,14 @@ pub async fn road_rests(receiver: &Receiver, agent: &str) -> bool {
   resting(receiver).await.unwrap_or(false) && !road_answers(receiver, agent).await.unwrap_or(false)
 }
 
-/// The order a broken run raises in its room, as a quiet instruction row the round opens on.
+/// The order a broken run of `agent`'s raises for `answerer`, the default answerer, as a quiet instruction row the
+/// round opens on: in the room it broke in where the answerer answers that room, by the wake's rule of who answers
+/// a room; else in the owner's private room, naming the agent and the room, under a kind of that room's own so one
+/// room's order never replaces another's (docs/voiced-notices.md, 「What each path says」). It carries the room's
+/// title and the cause, never the room's words.
 pub async fn raise_order(
   receiver: &Receiver,
+  answerer: &str,
   agent: &str,
   chat_id: i64,
   reason: Option<&str>,
@@ -47,9 +53,24 @@ pub async fn raise_order(
     .ok()
     .flatten()
     .unwrap_or(chat_id.to_string());
-  let text = fill_marks(&CHAT_HEALTH.order.what, &[("where", &where_)]);
+  let answered = match agents::answers(receiver, answerer, chat_id).await {
+    Ok(answered) => answered,
+    Err(why) => {
+      eprintln!(
+        "chat {chat_id}: whether {answerer} answers it could not be read, so the order goes to the owner: {why}"
+      );
+      false
+    }
+  };
+  let what = if agent == answerer { &CHAT_HEALTH.order.what } else { &CHAT_HEALTH.order.another };
+  let text = fill_marks(what, &[("where", &where_), ("agent", agent)]);
+  let (room, kind) = if answered {
+    (chat_id, ORDER_KIND.to_owned())
+  } else {
+    (receiver.owner_room(), format!("{ORDER_KIND}:{chat_id}"))
+  };
   let row = Queued {
-    kind: Some(ORDER_KIND),
+    kind: Some(&kind),
     events: vec![],
     rides_until_ms: None,
     rides_session: false,
@@ -63,7 +84,7 @@ pub async fn raise_order(
     publisher: Some("receiver"),
   };
 
-  queue_row(receiver.db(), agent, chat_id, &text, &row).await.map(drop)
+  queue_row(receiver.db(), answerer, room, &text, &row).await.map(drop)
 }
 
 /// The health of the rooms, as the conversations hold it.
@@ -87,7 +108,13 @@ impl crate::chat::conversation::Health for RoomHealth {
 
   /// A stop is not a failure and says nothing; a broken run raises the order the agent investigates, and the
   /// agent tells the owner in its own words.
-  fn failed<'a>(&'a self, receiver: &'a Receiver, chat_id: i64, failure: &'a Failure) -> BoxFuture<'a, ()> {
+  fn failed<'a>(
+    &'a self,
+    receiver: &'a Receiver,
+    agent: &'a str,
+    chat_id: i64,
+    failure: &'a Failure,
+  ) -> BoxFuture<'a, ()> {
     Box::pin(async move {
       if matches!(failure, Failure::Stopped) {
         return;
@@ -100,7 +127,7 @@ impl crate::chat::conversation::Health for RoomHealth {
         _ => None,
       };
 
-      if let Err(why) = raise_order(receiver, &self.0.default_answerer(), chat_id, reason).await {
+      if let Err(why) = raise_order(receiver, &self.0.default_answerer(), agent, chat_id, reason).await {
         eprintln!("chat {chat_id}: the failure order: {}", why.detail);
       }
     })

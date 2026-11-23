@@ -452,7 +452,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 
 | Route | Body or query | Answers |
 |---|---|---|
-| `POST /instructions` | `agentName?`, `room?`, `said` (`fact` or `order`), `sort`, `summary?`, `kind?`, `cause?` (`reply` or `housekeeping`), `events?`, `agentOnly?`, `ridesUntil?`, `ridesForGood?`, `via?`, `run?`, `publisher?` | 201, `{id}` |
+| `POST /instructions` | `agentName?`, `room?`, `said` (`fact` or `order`), `sort`, `summary?`, `kind?`, `cause?` (`reply` or `housekeeping`), `events?`, `agentOnly?`, `ridesUntil?`, `ridesForGood?`, `via?`, `run?`, `publisher?`, `line?` | 201, `{id}` |
 | `GET /instructions/{instructionId}` | | `id`, `state` (`pending`, `handed` or `delivered`); 404 where the row was let go — withdrawn, replaced, or ended without a turn carrying it (`docs/bmo-window.md`, 「Quiet instruction」) — though the row stays kept |
 | `DELETE /instructions/{instructionId}` | | 204 |
 | `POST /owner/instructions` | `chatId`, `text` | 204 |
@@ -481,6 +481,13 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 - **A rider** waits for the next round its room opens for something else and goes in with it, never opening a turn
   of its own while it rides (`docs/bmo-window.md`, 「Rows that ride」): `ridesUntil` names the moment after which it
   opens one itself, and `ridesForGood` (`true`) has it ride its room's rounds with no such moment.
+- **Its `line`** is a fixed line (`docs/codes.md`, 「Fixed lines」), its `code` beside its fields, that the room the
+  row names hears at once, said by the receiver as its own and kept as a `fixed-line` message
+  (`docs/voiced-notices.md`, 「Lines that stay fixed」): for a fact a person must not wait for a round to hear, such
+  as a run of theirs finding no supply left while no turn can go out in the room. It is said once, as the row is
+  written: an instruction repeated says nothing again, and a row for a room whose registration is gone says no line.
+  Only a line a unit composes is taken, `supply-closed` alone; any other, and one that does not read as its code's
+  fields, is refused 400 `bad-request`.
 - **An instruction repeated is not queued again** (`docs/bmo-window.md`, 「Quiet instruction」): one whose agent,
   room, publisher, kind, sort, events, run and words are those of a row still waiting, or of a row let go as
   failed within the instruction policy's `repeat_minutes`, writes nothing and is answered 201 with that row's id.

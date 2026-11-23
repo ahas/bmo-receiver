@@ -251,6 +251,7 @@ session once the setting has changed, one waiting per setting.
 | `account-taken-out` | `account`, `by` | an account taken out of a room in the console by another |
 | `accounts-let-in` | `accounts` (a list of account keys), `by` | several accounts let into a room in the console by another in one call, the list naming those it let in |
 | `unit-let-in` | `unit` (the unit's number), `unitName` (its name as the web unit answered it then), `accounts` (a list of account keys), `by` | the members of an organisation unit, as they stood at that moment, let into a room in the console by another, the list naming those it let in |
+| `supply-closed` | `why` (the reason as the agency names it, a kebab-case word), `until` (epoch seconds, or null) | a person's run found no supply source left; the agency asks for it beside the supply fact it queues in the run's room, so the person hears why while no turn can go out there (the agency's `docs/supply.md`, 「The facts told」) |
 
 ## Kinds
 

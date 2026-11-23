@@ -1036,6 +1036,10 @@ pub struct InstructionRequest {
   /// is read by the first word of its kind.
   #[serde(default)]
   pub publisher: Option<String>,
+  /// A fixed line the room hears at once as the service's own as the row is written, its `code` and fields
+  /// (docs/codes.md, 「Fixed lines」): one a unit may ask for alone, `supply-closed`.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub line: Option<Value>,
 }
 
 /// Whether somebody waits on an instruction (docs/wake.md, 「Quiet instructions」).

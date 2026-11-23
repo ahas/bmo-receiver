@@ -13,6 +13,7 @@ use super::conversation::unified_session;
 use super::instructions::{Cause, Queued, queue};
 use crate::now_ms;
 use crate::receiver::Receiver;
+use crate::receiver::wake::agents;
 use crate::store::settings;
 
 // The folder a unit's deploy root is named by, before the unit's name.
@@ -158,11 +159,26 @@ impl Briefings {
 
   /// At a round's start: where deployments went live since the agent's session last briefed the owner, the
   /// owner's briefing written naming them and the moment moved to now. A session never briefed reads as briefed
-  /// the restart policy's fresh while ago, and starts its moment from now.
+  /// the restart policy's fresh while ago, and starts its moment from now. Only an agent that answers the owner's
+  /// private room, by the rule the wake reads who answers a room by, briefs him: another agent's rounds write
+  /// nothing, since a row for an agent that does not answer a room is never handed there.
   pub async fn note(&self, receiver: &Receiver, agent: &str, chat_id: i64) {
     let Some(roots) = &self.roots else {
       return;
     };
+    let owner = receiver.owner_room();
+
+    match agents::answers(receiver, agent, owner).await {
+      Ok(true) => {}
+      Ok(false) => return,
+      Err(why) => {
+        eprintln!(
+          "chat {chat_id}: whether {agent} answers the owner's room could not be read, so no briefing: {why}"
+        );
+        return;
+      }
+    }
+
     let said = &RESTART.briefing;
     let key = match unified_session(receiver, agent).await {
       true => format!("{agent}_briefed_at"),
@@ -187,7 +203,6 @@ impl Briefings {
       return;
     }
 
-    let owner = receiver.owner_room();
     let queued = Queued {
       kind: Some(&said.kind),
       sort: Some(&said.sort),

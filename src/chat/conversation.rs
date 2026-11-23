@@ -312,7 +312,13 @@ pub trait Noting: Send + Sync {
 pub trait Health: Send + Sync {
   fn silenced<'a>(&'a self, receiver: &'a Receiver, agent: &'a str, chat_id: i64) -> BoxFuture<'a, bool>;
   fn road_rests<'a>(&'a self, receiver: &'a Receiver, agent: &'a str) -> BoxFuture<'a, bool>;
-  fn failed<'a>(&'a self, receiver: &'a Receiver, chat_id: i64, failure: &'a Failure) -> BoxFuture<'a, ()>;
+  fn failed<'a>(
+    &'a self,
+    receiver: &'a Receiver,
+    agent: &'a str,
+    chat_id: i64,
+    failure: &'a Failure,
+  ) -> BoxFuture<'a, ()>;
   fn orders(&self, receiver: &Receiver);
 }
 
@@ -1891,7 +1897,7 @@ impl Conversations {
       "detail": said,
     }));
 
-    self.0.health.failed(&self.0.receiver, chat_id, &failure).await;
+    self.0.health.failed(&self.0.receiver, self.agent(), chat_id, &failure).await;
   }
 
   // The road this turn's answer goes back on, as the roads its words came in on and its instructions were asked

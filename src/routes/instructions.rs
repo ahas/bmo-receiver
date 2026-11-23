@@ -15,10 +15,11 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
+use receiver_codes::{Code, FixedLine};
 use receiver_policy::chat_round::CHAT_ROUND;
 
 use super::{Accepted, Answered, Refusal, Served, answered, query, read, refused, store};
-use crate::chat::instructions::{Cause, Queued, queue};
+use crate::chat::instructions::{Cause, Queued, queue, queue_told};
 use crate::receiver::notices::frame;
 use crate::receiver::wake::agents;
 use crate::receiver::{NotReceived, Receiver, rows};
@@ -87,6 +88,10 @@ struct Instruction {
   /// The unit that published it, kept with the row and named in every turn it rides.
   #[serde(default)]
   publisher: Option<String>,
+  /// A fixed line the room hears at once as the service's own, as the row is written, for a fact a person must not
+  /// wait for a round to hear.
+  #[serde(default)]
+  line: Option<Value>,
 }
 
 /// One notice as a room voices it.
@@ -172,6 +177,7 @@ async fn destination(
 /// room, opening with the room's number (docs/receiver.md, 「Removing a room's registration」).
 pub async fn queue_instruction(State(served): State<Served>, body: Bytes) -> Accepted {
   let asked = read::<Instruction>(&body)?;
+  let line = asked.line.clone().map(asked_line).transpose()?;
   let receiver: Receiver = (*served.receiver).clone();
   let room_id = asked.room.unwrap_or(receiver.owner_room());
   let room = rows::kept_work_room(receiver.db(), room_id, receiver.owner_room())
@@ -218,7 +224,15 @@ pub async fn queue_instruction(State(served): State<Served>, body: Bytes) -> Acc
 
     (room.chat_id, agent)
   };
-  let id = queue(receiver.db(), &agent, chat_id, &text, &queued).await.map_err(store)?;
+  let (id, written) = queue_told(receiver.db(), &agent, chat_id, &text, &queued).await.map_err(store)?;
+
+  // The line is said once, with the row written, into the room the row names: a repeat says nothing again, and a
+  // removed room's row goes to the owner's room, where the line is not his to hear.
+  if let Some(line) = line.filter(|_| written && room.removed.is_none())
+    && let Err(why) = receiver.speech().say_line(chat_id, &line).await
+  {
+    println!("chat {chat_id}: the {} line beside instruction {id} went unsaid: {why}", line.code());
+  }
 
   // A room reply, or a quiet instruction, opens the agent's turn there at once; housekeeping and a row that rides
   // wait for the pass.
@@ -234,6 +248,23 @@ pub async fn queue_instruction(State(served): State<Served>, body: Bytes) -> Acc
   }
 
   Ok((StatusCode::CREATED, axum::Json(json!({ "id": id }))))
+}
+
+/// A fixed line an instruction carries, refused 400 where it is no line a unit may ask the room to hear.
+fn asked_line(line: Value) -> Result<FixedLine, Refusal> {
+  match serde_json::from_value::<FixedLine>(line) {
+    Ok(line) if line.asked_by_unit() => Ok(line),
+    Ok(line) => Err(refused(
+      StatusCode::BAD_REQUEST,
+      "bad-request",
+      &format!("the {} line is the receiver's own to say", line.code()),
+    )),
+    Err(why) => Err(refused(
+      StatusCode::BAD_REQUEST,
+      "bad-request",
+      &format!("the line does not read: {why}"),
+    )),
+  }
 }
 
 /// The words the session is handed: an order as it was given, a fact in the notice's frame.

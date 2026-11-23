@@ -17,10 +17,13 @@ fact = "The usage limit's rest is over: the window has reset and you answer agai
 intent = "say you are back from the rest and answering again."
 kind = "rest-lifted"
 
-# What a failure order names a broken chat turn as, by where it was ({where}), and how often, in seconds, the
-# orders nobody took up are looked over for the receiver's own last line.
+# What a failure order names a broken chat turn as, by where it was ({where}): the default answerer's own, and
+# another agent's ({agent}), which the order brings to the owner's private room where the default answerer does not
+# answer that room. And how often, in seconds, the orders nobody took up are looked over for the receiver's own last
+# line.
 [order]
 what = "a chat turn of your own in {where}"
+another = "a chat turn of {agent} in {where}"
 check_seconds = 60
 
 # The cache warmer's touch of a quiet room's session: the chat touch target as the receiver declares it to the

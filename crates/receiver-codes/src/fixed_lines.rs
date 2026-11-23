@@ -50,6 +50,10 @@ pub enum FixedLine {
     accounts: Vec<i64>,
     by: i64,
   },
+  /// A person's run found no supply source left, said straight to the room the run answers so the person hears why
+  /// while no turn can go out there: `why` names the reason as the agency gives it, a kebab-case word the web unit's
+  /// packs carry a sentence for, and `until` the moment the source reopens in epoch seconds, where one is named.
+  SupplyClosed { why: String, until: Option<i64> },
 }
 
 coded!(FixedLine);
@@ -59,5 +63,12 @@ impl FixedLine {
   /// files as the service's own line with the system mark.
   pub fn is_system_notice(&self) -> bool {
     matches!(self, Self::GoingDownForUpdate { .. } | Self::GoingDown)
+  }
+
+  /// Whether another unit may ask the receiver to say the line into a room, beside an instruction it queues there
+  /// (docs/api.md, 「Instructions」): the lines a unit composes and no session can say, and none of the receiver's
+  /// own.
+  pub fn asked_by_unit(&self) -> bool {
+    matches!(self, Self::SupplyClosed { .. })
   }
 }

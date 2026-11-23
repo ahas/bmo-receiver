@@ -1009,6 +1009,17 @@ pub async fn queue(
   text: &str,
   queued: &Queued<'_>,
 ) -> Result<i64, Fault> {
+  queue_told(db, agent, chat_id, text, queued).await.map(|(id, _)| id)
+}
+
+/// The same, answering beside the id whether the row was written now rather than repeated.
+pub async fn queue_told(
+  db: &DatabaseConnection,
+  agent: &str,
+  chat_id: i64,
+  text: &str,
+  queued: &Queued<'_>,
+) -> Result<(i64, bool), Fault> {
   let transaction = db.begin().await.map_err(Fault::from)?;
   let publisher = queued
     .publisher
@@ -1020,7 +1031,7 @@ pub async fn queue(
   if let Some(id) = repeated(&transaction, agent, chat_id, text, queued, &publisher).await? {
     transaction.commit().await.map_err(Fault::from)?;
 
-    return Ok(id);
+    return Ok((id, false));
   }
 
   if let Some(kind) = queued.kind {
@@ -1064,7 +1075,7 @@ pub async fn queue(
 
   transaction.commit().await.map_err(Fault::from)?;
 
-  Ok(id)
+  Ok((id, true))
 }
 
 /// The rooms the pass hands to, with the rows of every agent held for an agency that did not answer kept back as a

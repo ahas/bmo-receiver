@@ -2048,6 +2048,11 @@ export interface components {
             /** @default null */
             kind: string | null;
             /**
+             * @description A fixed line the room hears at once as the service's own as the row is written, its `code` and fields
+             *     (docs/codes.md, 「Fixed lines」): one a unit may ask for alone, `supply-closed`.
+             */
+            line?: unknown;
+            /**
              * @description The unit or source that published the row, kept with it and named in every turn it rides; a row naming none
              *     is read by the first word of its kind.
              * @default null
