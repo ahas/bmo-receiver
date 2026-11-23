@@ -33,6 +33,9 @@ fn samples() -> Vec<(&'static str, String)> {
     ),
     ("hf-token", format!("hf{}{}", "_", "aB3".repeat(12))),
     ("telegram-bot-token", format!("{}:{}", "123456789", "AA".to_owned() + &"x9Y".repeat(11))),
+    ("url-password", format!("postgres://app:{}@db.example.com/app", "hunter2")),
+    ("basic-auth", format!("Authorization: Basic {}{}", "dGVzdGVyOmh1", "bnRlcjI=")),
+    ("bearer-token", format!("Bearer {}", "q7Wm".repeat(6))),
     ("session-string", format!("1{}", "BVtsOK4Bu1".repeat(35))),
     ("hex-64", "0123456789abcdef".repeat(4)),
     ("named-value", format!("{}={}", "DB_PASSWORD", "correcthorsebattery")),
@@ -225,4 +228,116 @@ fn a_secret_in_a_link_s_query_or_set_as_a_value_is_still_taken_out() {
     !redacted(&elsewhere).contains("app-prod-user.secret"),
     "only a room's page is a request link"
   );
+}
+
+// A base64 run as long as a session string, written the way a link carries a redirect target: the base64 of
+// `https://ads.example.com/`, again and again.
+fn base64_run() -> String {
+  "aHR0cHM6Ly9hZHMuZXhhbXBsZS5jb20v".repeat(15)
+}
+
+// "A run of three hundred base64 letters inside a link is the link's own ... It stands"
+#[test]
+fn a_long_base64_run_inside_a_link_stands_whole() {
+  let run = base64_run();
+
+  for link in [
+    format!("https://shop.example.com/bridge/go.php?sLink={run}&minPrice=1130000&adKeyword=NAS+HDD+8TB"),
+    format!("https://ads.example.com/v1/{}?c=shop.ch9&t=0", &run[..320]),
+    format!("http://parts.example.com/filter/739?s={run}%2BlRLOC"),
+  ] {
+    for words in [format!("here it is: {link}"), format!("[the offer]({link})\nask me again")] {
+      assert_eq!(redact(&words).runs, 0, "{words}");
+      assert_eq!(redacted(&words), words);
+    }
+  }
+}
+
+// "a marker an earlier shape left inside it included": the spare spells the policy's marker, so a link a narrower
+// shape already took a run out of keeps its long base64 run, and this fails where the two part.
+#[test]
+fn a_long_base64_run_stands_in_a_link_an_earlier_shape_took_a_run_out_of() {
+  let run = base64_run();
+  let link = format!("https://tester:{}@shop.example.com/bridge?sLink={run}", "hunter2pw");
+
+  assert_eq!(
+    redacted(&link),
+    format!("https://tester:{}@shop.example.com/bridge?sLink={run}", marker())
+  );
+}
+
+// "a run of three hundred or more base64 letters" outside a link is still a session string, a link just
+// before it included.
+#[test]
+fn a_long_base64_run_beside_a_link_is_still_taken_out() {
+  let run = base64_run();
+
+  assert_eq!(
+    redacted(&format!("see https://shop.example.com/a then {run}")),
+    format!("see https://shop.example.com/a then {}", marker())
+  );
+}
+
+// "Every other shape still reads the link": a signed link's signature, its session token and a token set by its
+// name are taken out of a link a long base64 run stands in.
+#[test]
+fn a_secret_in_a_link_is_taken_out_while_its_long_base64_run_stands() {
+  let run = base64_run();
+  let hex = "0123456789abcdef";
+
+  for (name, value) in [
+    ("access_token", "zyxwvutsrqponm1234".to_owned()),
+    ("sig", "kP3e".repeat(11)),
+    ("Signature", "Zm9vYmFy".repeat(4)),
+    ("X-Amz-Signature", hex.repeat(4)),
+    ("X-Goog-Signature", hex.repeat(32)),
+    ("X-Amz-Security-Token", "FwoGZXIvYXdzE".repeat(25)),
+  ] {
+    let link = format!("https://store.example.com/o?go={run}&{name}={value}");
+    let read = redacted(&link);
+
+    assert!(!read.contains(&value), "{name}: {read}");
+    assert!(read.contains(&format!("go={run}&{name}=")), "{name}: {read}");
+  }
+}
+
+#[test]
+fn a_password_in_a_link_s_user_part_is_taken_out_and_the_link_stands() {
+  let words = format!("connect to {}://app:{}@db.example.com:5432/app", "postgres", "s3cr3t!pw");
+
+  assert_eq!(
+    redacted(&words),
+    format!("connect to postgres://app:{}@db.example.com:5432/app", marker())
+  );
+
+  for words in [
+    "https://example.com:8443/a/b?x=1",
+    "write to tester@example.com",
+    "https://example.com/@tester/posts",
+  ] {
+    assert_eq!(redacted(words), words);
+  }
+}
+
+#[test]
+fn a_bearer_token_and_basic_credentials_are_taken_out_and_a_placeholder_stands() {
+  let token = "q7Wm.x_2-".repeat(4);
+
+  assert_eq!(
+    redacted(&format!("curl -H 'Authorization: Bearer {token}' https://api.example.com")),
+    format!("curl -H 'Authorization: Bearer {}' https://api.example.com", marker())
+  );
+  assert_eq!(
+    redacted(&format!("\"authorization\": \"Basic {}{}\"", "dGVzdGVyOmh1", "bnRlcjI=")),
+    format!("\"authorization\": \"Basic {}\"", marker())
+  );
+
+  for words in [
+    "Authorization: Bearer <token>",
+    "Authorization: Bearer $TOKEN",
+    "the bearer of bad news came early",
+    "a basic authorization scheme",
+  ] {
+    assert_eq!(redacted(words), words);
+  }
 }

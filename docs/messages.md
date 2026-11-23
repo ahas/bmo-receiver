@@ -82,17 +82,28 @@ and when a room sees it typing.
   Anthropic alike), GitHub's personal, OAuth and app tokens, Slack's tokens, an AWS access key id, a Google API key
   and a Hugging Face token; a JWT; a Telegram bot token; the session strings Telethon and Pyrogram write, a run of
   three hundred or more base64 letters; a PEM private key block, to its end or to the end of the words where it has
-  none; and a name ending in `key`, `token`, `secret`, `password` or `passwd`, in any case, set with `=` or `:` to
-  a value of twelve or more characters. Each is narrow enough that an ordinary sentence in any script, and a
-  commit's forty-character hash, stand as they were written.
+  none; the password in a link's user part, `scheme://user:password@host`; the credentials after `Authorization:
+  Basic` and the token after `Bearer`, twenty or more characters; and a name ending in `key`, `token`, `secret`,
+  `password`, `passwd`, `sig` or `signature`, in any case, set with `=` or `:` to a value of twelve or more
+  characters, which takes a signed link's signature (`sig`, `Signature`, `X-Amz-Signature`, `X-Goog-Signature`)
+  and its session token (`X-Amz-Security-Token`) as it takes an `access_token` or an `api_key`. Each is narrow
+  enough that an ordinary sentence in any script, and a commit's forty-character hash, stand as they were written.
 - **A shape may name the runs it spares,** each a regular expression of its own: a run of the shape that lies
-  wholly inside a run of one it spares stands, and every other shape still reads it. The named value spares a
-  console secret-request link, which carries no secret but names one: a link to the console's page of a room,
-  `…/rooms/<room>?…`, whose `secret` query parameter is a secret's file name (letters, digits, dots, dashes,
-  underscores and percent-encoded characters), with nothing beside it but the `kind`, `fields`, `for` and `user` parameters. The console reads
-  the file name and the fields off the link, so the link stands whole. A link carrying any other parameter is no
-  such link, and a key, token or password value written in a link's query or as `KEY=VALUE` anywhere else is taken
-  out as before.
+  wholly inside a run of one it spares stands, and every other shape still reads it.
+- **The session string spares an http(s) link.** A run of three hundred or more base64 letters inside a link is the
+  link's own: a redirect target written in base64 (a price site's bridge to a shop), an ad click's path, a page's
+  saved search. It stands, and the link opens where the record and the console show it. Every other shape still
+  reads the link, so a value set by a secret's name, a signed link's signature, a JWT, a 64-character hexadecimal
+  run, a provider key, a password in the user part and every narrower shape is taken out of a link as it is out
+  of a sentence.
+- **A link's `key` parameter is taken out as any named value is,** whatever the link: a service's API key goes by
+  that name as often as a news article's or a shared page's id does, and the words alone cannot tell them apart.
+- **The named value spares a console secret-request link,** which carries no secret but names one: a link to the
+  console's page of a room, `…/rooms/<room>?…`, whose `secret` query parameter is a secret's file name (letters,
+  digits, dots, dashes, underscores and percent-encoded characters), with nothing beside it but the `kind`,
+  `fields`, `for` and `user` parameters. The console reads the file name and the fields off the link, so the link
+  stands whole. A link carrying any other parameter is no such link, and a key, token or password value written in
+  a link's query or as `KEY=VALUE` anywhere else is taken out.
 - **The value is kept nowhere and handed to no one:** no row, no copy carried to a provider, no turn and no log
   line carries it. Every row the record writes holds its words and its transcript as the shapes leave them, an
   agent's own answer among them, though what an agent sends is its own words and goes out as it wrote them. For a
