@@ -1243,6 +1243,9 @@ impl Receiver {
       eprintln!("bmo-receiver: the file of message {message_id} in room {chat_id} was not kept: {reason}");
     } else {
       files::keep(&self.db, &self.data_root, &inbound, &patch.files).await?;
+      // The row now holds the file its screen drew it without, a sticker marked as one: the screen reads it again
+      // (docs/room-files.md, 「Message files」).
+      self.told_kept(&inbound);
     }
 
     let room = self.roads().room_facts(chat_id).await;

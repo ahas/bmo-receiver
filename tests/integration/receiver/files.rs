@@ -3,7 +3,8 @@
 //! or a video with no name named for what it is; the same file, by its message and id, kept once and two files of one
 //! name kept apart; a file that arrived in the spool moved in by a link and one standing elsewhere copied; a sticker
 //! or an animation that moves kept as it came, a still sticker keeping its transparency and a sticker's message
-//! marked whatever the sticker's type; and a file that could not be written leaving its row for a later hand-over.
+//! marked whatever the sticker's type; a file a gathering promised telling the room's screen once it is kept; and a
+//! file that could not be written leaving its row for a later hand-over.
 
 use std::collections::HashSet;
 use std::io::Cursor;
@@ -402,6 +403,44 @@ async fn a_sticker_and_an_animation_keep_their_own_kind_and_a_sticker_file_marks
   handed(&standing, 41, &[kinded("1", "", "video/mp4", ChatFileKind::Animation)]).await;
 
   assert_eq!(message_kind(&scratch, 41).await, "");
+}
+
+#[tokio::test]
+async fn a_sticker_a_gathering_promised_tells_the_rooms_screen_once_it_is_kept() {
+  let (scratch, _data, standing) = stood().await;
+  let gathering = Context {
+    carries_file: true,
+    gathering: true,
+    ..Context::default()
+  };
+
+  // The message stands under its placeholder before its bytes, told once as it is kept.
+  standing
+    .receiver
+    .attachment(&inbound(ROOM, 42, 55, "[sticker]"), &gathering, Room::default(), &[] as &[MessageFile])
+    .await
+    .unwrap();
+
+  assert_eq!(standing.heard.told(), [(ROOM, 42)]);
+  assert_eq!(message_kind(&scratch, 42).await, "");
+
+  // A gathering that failed writes nothing on the row and tells nothing.
+  let failed = GatheredPatch::not_kept("the platform refused the file");
+
+  standing.receiver.gathered(ROOM, 42, "road-a", &failed).await.unwrap();
+
+  assert_eq!(standing.heard.told(), [(ROOM, 42)]);
+
+  // The scene it promised, kept, marks the message a sticker and tells the screen to read the row again.
+  let scene = GatheredPatch::kept(vec![handed_as(
+    ChatFileKind::Sticker,
+    file("1", "sticker-1.tgs", "application/x-tgsticker", b"scene".to_vec()),
+  )]);
+
+  standing.receiver.gathered(ROOM, 42, "road-a", &scene).await.unwrap();
+
+  assert_eq!(message_kind(&scratch, 42).await, "sticker");
+  assert_eq!(standing.heard.told(), [(ROOM, 42), (ROOM, 42)]);
 }
 
 #[tokio::test]

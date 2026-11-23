@@ -643,7 +643,8 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   `run-progress`, then the typing marks that stand and the presence known in the rooms, then sends each as an event
   named for its kind, a `: ping` comment every fifteen seconds, and `event: stopping` when the service stops on
   purpose.
-- **What goes into the stream:** a message the receiver kept or wrote again as `message.created`, a room's window
+- **What goes into the stream:** a message the receiver kept or wrote again — its words edited, or the file a
+  chat service's `gathering` promised kept under it — as `message.created`, a room's window
   opened or restarted as `window.opened`, a room's window for an agent closed as `window.closed`, carrying the room,
   the agent and the moment it closed, a verdict the receiver wrote of a round as `judgement.created`, carrying the
   room, the message it stands under or null, the stage, the verdict and its detail, a room whose registration was

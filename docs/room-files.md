@@ -26,6 +26,11 @@ keeps what a message carried and whom a kept file wakes, and the tools that put 
   or asked of the service again on its route of a message's files (bmo-chat's `docs/protocol.md`): for a
   replied-to picture (`docs/pictures.md`, 「Whether an agent looks」) and for a row filled in later (「Files filled
   in later」).
+- **A file a gathering promised tells the room's screen once it is kept.** The message stood on the record before
+  its bytes, under its placeholder and with no file, and a screen showing the room drew it so; keeping the file
+  writes the message again, a sticker marked as one, so the stream tells it as a message written again
+  (`docs/api.md`, 「Events and the live board」) and the screen reads the row afresh and draws the file it now
+  holds. A gathering that failed changes nothing on the row and tells nothing.
 - **A file a chat service carries as a part arrives on the disk:** the base library writes it, as its bytes come,
   into the spool, the folder `.spool/` in the message-file store, whether it comes with a hand-over, with a
   gathering's patch or in the answer of a fetch of a message's files (bmo-chat's `docs/contract.md`, 「A file's
