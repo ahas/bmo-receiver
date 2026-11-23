@@ -75,9 +75,10 @@ and when a room sees it typing.
   (`docs/receiver.md`, 「The owner's words」), the progress lines a working turn's picture carries
   (`docs/receiver.md`, 「The event stream」), and the thinking block that picture carries (「A working turn's
   thinking」 below).
-- **The shapes are data,** the policy's `secret-shapes.toml` (`docs/policy.md`), read in the order it lists them,
-  each a regular expression with a name; where a shape names a part of its run `secret`, that part alone is
-  replaced, so a `name=value` keeps its name and loses its value. As it stands it holds a platform's 64-character
+- **The shapes are the base library `bmo-secret-shapes`'s** (bmo-chat's `docs/secret-shapes.md`), read in the order
+  it lists them, each a regular expression with a name; where a shape names a part of its run `secret`, that part
+  alone is replaced, so a `name=value` keeps its name and loses its value. The marker is the library's own,
+  which the receiver takes as it stands. As it stands the library holds a platform's 64-character
   hexadecimal token; the provider keys written `sk-` and a run after it (OpenAI, OpenRouter, DeepSeek and
   Anthropic alike), GitHub's personal, OAuth and app tokens, Slack's tokens, an AWS access key id, a Google API key
   and a Hugging Face token; a JWT; a Telegram bot token; the session strings Telethon and Pyrogram write, a run of

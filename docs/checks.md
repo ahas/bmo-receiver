@@ -9,7 +9,7 @@ folders that stand; the dependencies check reads every manifest against the base
 names; the personal-data check reads every tracked file for the five kinds `docs/PERSONAL-DATA.md` names.
 
 - **Dependencies.** No package of the workspace depends on a `bmo-*` package but the base libraries,
-  `bmo-chat`, `bmo-chat-client` and `bmo-ui`, nor on a crate named after a shared crate of the single
+  `bmo-chat`, `bmo-chat-client`, `bmo-secret-shapes` and `bmo-ui`, nor on a crate named after a shared crate of the single
   repository this one was separated from (`archive-pool`, `archive-read`, `bmo-lang`, `bmo-markup`,
   `bmo-policy`, `bmo-tool`, `room-acts`, `seoul-clock`, `harness-providers`, `agent-host`, `test-support`).
   No package of the workspace takes one of those names either. What such a crate held that the receiver

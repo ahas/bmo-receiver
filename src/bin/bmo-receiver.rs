@@ -184,9 +184,6 @@ struct Up {
 /// receiver's own table carries — until the process is told to stop, when the streams are told first and the
 /// going-down line said after.
 async fn serve(config: &Config) -> Result<(), String> {
-  // A secret shape that does not compile stops the start, not the first message it would have read.
-  bmo_receiver::secrets::ready();
-
   let db = config.connect().await?;
 
   // The double's slots the store still keeps are read before the migration that drops their table, to be given
