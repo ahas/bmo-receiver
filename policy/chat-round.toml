@@ -260,14 +260,16 @@ every_ms = 4000
 # The instruction pass (docs/bmo-window.md, 「The agent's queue」): its regular tick in seconds, how often it looks
 # for a row another process wrote in milliseconds, the least gap between two cold wakes in milliseconds, how
 # many failures the agency answered a row and the words a round took go through before they are let go (a failure
-# where the agency was unreachable counts none), the marker and the line a row given back opens with
-# and the rule the marker stands for in the room's block, and the line a row queued for a room whose registration
-# is gone opens with in the owner's private chat, `{room}` the room's number.
+# where the agency was unreachable counts none), how many minutes a row let go as failed keeps a row of the same
+# agent, room, publisher, kind, sort, events, run and words from being queued again, the marker and the line a row
+# given back opens with and the rule the marker stands for in the room's block, and the line a row queued for a
+# room whose registration is gone opens with in the owner's private chat, `{room}` the room's number.
 [instructions]
 tick_seconds = 15
 watch_ms = 1000
 cold_wake_gap_ms = 10000
 failure_limit = 3
+repeat_minutes = 10
 restarted_marker = "HANDED BEFORE."
 restarted = "This instruction was handed to you before, and the round that took it did not end: the service restarted or the round failed."
 restarted_rule = "WHEN A QUIET INSTRUCTION IS MARKED {marker} — part of it may already be done: look at what is there before you repeat anything that has an effect."

@@ -2054,6 +2054,11 @@ export interface components {
              */
             publisher: string | null;
             /**
+             * @description Whether it rides its room's rounds for good, opening no turn of its own.
+             * @default false
+             */
+            ridesForGood: boolean;
+            /**
              * Format: int64
              * @default null
              */

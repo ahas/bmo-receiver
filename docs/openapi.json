@@ -1268,6 +1268,11 @@
               "null"
             ]
           },
+          "ridesForGood": {
+            "default": false,
+            "description": "Whether it rides its room's rounds for good, opening no turn of its own.",
+            "type": "boolean"
+          },
           "ridesUntil": {
             "default": null,
             "format": "int64",
@@ -1324,6 +1329,7 @@
           "events",
           "agentOnly",
           "ridesUntil",
+          "ridesForGood",
           "via",
           "run",
           "publisher"

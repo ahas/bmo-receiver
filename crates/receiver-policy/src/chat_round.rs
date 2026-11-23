@@ -302,6 +302,9 @@ pub struct Instructions {
   pub watch_ms: u64,
   pub cold_wake_gap_ms: i64,
   pub failure_limit: i64,
+  /// How many minutes a row let go as failed keeps a row of the same agent, room, publisher, kind, sort, events,
+  /// run and words from being queued again.
+  pub repeat_minutes: i64,
   /// The marker a row given back by a restart carries, its line as data, and the rule the marker stands for in
   /// the room's block.
   pub restarted_marker: String,

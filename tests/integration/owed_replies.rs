@@ -149,6 +149,91 @@ async fn a_failed_round_gives_back_every_row_and_counts_only_a_failure_the_agenc
 }
 
 #[tokio::test]
+async fn a_notice_repeated_is_queued_once_and_one_let_go_as_failed_is_not_queued_again() {
+  let scratch = Scratch::new().await;
+  let notice = Queued {
+    kind: Some("supply:supply-closed:agent-a:1"),
+    sort: Some("notice"),
+    publisher: Some("agency"),
+    ..Queued::default()
+  };
+  let rows = || scratch.count(r#"SELECT count(*) FROM "instructions""#, vec![]);
+
+  // The same words while the first still waits are the first row: nothing new is written.
+  let first = queue(scratch.db(), AGENT, OWNER, "no supply is left", &notice).await.unwrap();
+
+  assert_eq!(queue(scratch.db(), AGENT, OWNER, "no supply is left", &notice).await.unwrap(), first);
+  handed(&scratch, first).await;
+  assert_eq!(queue(scratch.db(), AGENT, OWNER, "no supply is left", &notice).await.unwrap(), first);
+  assert_eq!(rows().await, 1);
+
+  // Let go as failed, its like is still not queued again within the policy's while.
+  for _ in 0..CHAT_ROUND.instructions.failure_limit {
+    give_back(scratch.db(), "round-a", &[first], true).await.unwrap();
+    handed(&scratch, first).await;
+  }
+
+  assert_eq!(stood(&scratch, first).await.4, Some("failed".to_owned()));
+  assert_eq!(queue(scratch.db(), AGENT, OWNER, "no supply is left", &notice).await.unwrap(), first);
+  assert_eq!(rows().await, 1);
+
+  // Past the while, or with other words, another kind or another room, a row is queued as ever.
+  let past = now_ms() - (CHAT_ROUND.instructions.repeat_minutes + 1) * 60_000;
+
+  scratch
+    .run(
+      r#"UPDATE "instructions" SET "delivered_at" = $2 WHERE "id" = $1"#,
+      vec![first.into(), past.into()],
+    )
+    .await;
+
+  let again = queue(scratch.db(), AGENT, OWNER, "no supply is left", &notice).await.unwrap();
+  let other_kind = Queued {
+    kind: Some("supply:supply-closed:agent-a:2"),
+    sort: Some("notice"),
+    publisher: Some("agency"),
+    ..Queued::default()
+  };
+
+  assert_ne!(again, first);
+  assert_ne!(queue(scratch.db(), AGENT, OWNER, "a key was refused", &notice).await.unwrap(), again);
+  assert_ne!(
+    queue(scratch.db(), AGENT, OWNER, "no supply is left", &other_kind).await.unwrap(),
+    again
+  );
+  assert_ne!(
+    queue(scratch.db(), AGENT, OWNER + 1, "no supply is left", &notice).await.unwrap(),
+    again
+  );
+}
+
+#[tokio::test]
+async fn a_row_that_rides_for_good_never_opens_a_turn_of_its_own() {
+  let scratch = Scratch::new().await;
+  let data = tempfile::tempdir().unwrap();
+  let chat = Arc::new(StandInChat::new("road-a").owners(OWNER));
+  let standing = woken(unrun(scratch.db(), DataRoot::new(data.path()), vec![chat], deployment()));
+  let rooms = Recorded::default();
+  let mut last = 0;
+  let rider = Queued {
+    rides_for_good: true,
+    ..Queued::default()
+  };
+
+  standing.agency.registering(vec![registration(AGENT, "Agent A", vec![], None)]);
+
+  let id = queue(scratch.db(), AGENT, OWNER, "no supply is left", &rider).await.unwrap();
+
+  // Long after it was queued, the pass hands it to nobody: it waits for a round its room opens.
+  deliver_pending(&standing.receiver, &rooms, &mut last, now_ms() + 86_400_000, 0)
+    .await
+    .unwrap();
+
+  assert!(rooms.handed.lock().unwrap().is_empty(), "a rider for good opened a turn");
+  assert_eq!(stood(&scratch, id).await, (false, false, 0, 0, None));
+}
+
+#[tokio::test]
 async fn a_round_settles_only_the_rows_a_turn_carried_and_a_restart_deletes_none() {
   let scratch = Scratch::new().await;
   let carried = queue(scratch.db(), AGENT, OWNER, "a job's ending", &Queued::default()).await.unwrap();

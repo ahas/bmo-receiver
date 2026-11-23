@@ -77,6 +77,9 @@ struct Instruction {
   agent_only: bool,
   #[serde(default)]
   rides_until: Option<i64>,
+  /// Whether it rides its room's rounds for good, opening no turn of its own.
+  #[serde(default)]
+  rides_for_good: bool,
   #[serde(default)]
   via: Option<String>,
   #[serde(default)]
@@ -180,6 +183,7 @@ pub async fn queue_instruction(State(served): State<Served>, body: Bytes) -> Acc
     events: asked.events.clone(),
     rides_until_ms: asked.rides_until,
     rides_session: false,
+    rides_for_good: asked.rides_for_good,
     agent_only: asked.agent_only,
     cause: Cause::of_word(asked.cause.as_deref().unwrap_or_default()),
     sort: Some(&asked.sort),
@@ -218,7 +222,10 @@ pub async fn queue_instruction(State(served): State<Served>, body: Bytes) -> Acc
 
   // A room reply, or a quiet instruction, opens the agent's turn there at once; housekeeping and a row that rides
   // wait for the pass.
-  let replies = queued.cause == Cause::Reply && !queued.agent_only && queued.rides_until_ms.is_none();
+  let replies = queued.cause == Cause::Reply
+    && !queued.agent_only
+    && queued.rides_until_ms.is_none()
+    && !queued.rides_for_good;
 
   if (replies || matches!(asked.sort.as_str(), "watch" | "reminder"))
     && let Some(pass) = receiver.pass()

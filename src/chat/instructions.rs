@@ -929,6 +929,9 @@ pub struct Queued<'a> {
   /// Whether it rides a round of any room its session answers rather than its own room's alone: such a row rides
   /// until `rides_until_ms`, and for good where that names no moment.
   pub rides_session: bool,
+  /// Whether it rides its own room's rounds for good where `rides_until_ms` names no moment, so it never opens a
+  /// turn of its own.
+  pub rides_for_good: bool,
   /// Whether this is an agent-only notice: a record the agent reads and no room hears. A round carrying only such
   /// rows sends no message (docs/bmo-window.md, 「Quiet instruction」).
   pub agent_only: bool,
@@ -949,8 +952,47 @@ fn rides(queued: &Queued<'_>) -> i64 {
   match (queued.rides_session, queued.rides_until_ms) {
     (true, _) => 2,
     (false, Some(_)) => 1,
+    (false, None) if queued.rides_for_good => 1,
     (false, None) => 0,
   }
+}
+
+// A row repeated (docs/bmo-window.md, 「Quiet instruction」): one of the same agent, room, publisher, kind, sort,
+// events, run and words still waiting, or let go as failed within the policy's while; the row's id where one
+// stands.
+async fn repeated<C: sea_orm::ConnectionTrait>(
+  db: &C,
+  agent: &str,
+  chat_id: i64,
+  text: &str,
+  queued: &Queued<'_>,
+  publisher: &str,
+) -> Result<Option<i64>, Fault> {
+  let since = now_ms() - CHAT_ROUND.instructions.repeat_minutes.max(0) * 60_000;
+  let row = one(
+    db,
+    r#"SELECT "id" FROM "instructions"
+       WHERE "agent" = $1 AND "chat_id" = $2 AND "text" = $3 AND "sort" IS NOT DISTINCT FROM $4
+         AND "publisher" = $5 AND "kind" IS NOT DISTINCT FROM $8
+         AND COALESCE("events", '') = $9 AND "run_id" IS NOT DISTINCT FROM $10
+         AND ("delivered_at" IS NULL OR ("let_go" = $6 AND "delivered_at" >= $7))
+       ORDER BY "id" DESC LIMIT 1"#,
+    vec![
+      agent.into(),
+      chat_id.into(),
+      text.into(),
+      queued.sort.into(),
+      publisher.into(),
+      why::FAILED.into(),
+      since.into(),
+      queued.kind.into(),
+      queued.events.join(",").into(),
+      queued.run_id.into(),
+    ],
+  )
+  .await?;
+
+  Ok(row.map(|row| row.try_get::<i64>("", "id")).transpose()?)
 }
 
 // The cause a row is written with: housekeeping for a row the agent alone reads, else what the producer named.
@@ -959,7 +1001,7 @@ fn cause_of(queued: &Queued<'_>) -> Cause {
 }
 
 /// The instruction written for one agent's session in the chat with everything it carries, a pending row of the
-/// same kind in the chat replaced; its id.
+/// same kind in the chat replaced; its id. A row repeated is not written again, and answers the row it repeats.
 pub async fn queue(
   db: &DatabaseConnection,
   agent: &str,
@@ -968,6 +1010,18 @@ pub async fn queue(
   queued: &Queued<'_>,
 ) -> Result<i64, Fault> {
   let transaction = db.begin().await.map_err(Fault::from)?;
+  let publisher = queued
+    .publisher
+    .map(str::trim)
+    .filter(|publisher| !publisher.is_empty())
+    .map(str::to_owned)
+    .unwrap_or_else(|| publisher_of(queued.kind));
+
+  if let Some(id) = repeated(&transaction, agent, chat_id, text, queued, &publisher).await? {
+    transaction.commit().await.map_err(Fault::from)?;
+
+    return Ok(id);
+  }
 
   if let Some(kind) = queued.kind {
     run(
@@ -979,12 +1033,6 @@ pub async fn queue(
     .await?;
   }
 
-  let publisher = queued
-    .publisher
-    .map(str::trim)
-    .filter(|publisher| !publisher.is_empty())
-    .map(str::to_owned)
-    .unwrap_or_else(|| publisher_of(queued.kind));
   let written = one(
     &transaction,
     r#"INSERT INTO "instructions" ("agent", "chat_id", "text", "created_at", "kind", "via", "events", "rides", "ride_until", "sort", "summary", "agent_only", "run_id", "cause", "publisher")

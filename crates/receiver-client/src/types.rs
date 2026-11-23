@@ -1025,6 +1025,9 @@ pub struct InstructionRequest {
   pub agent_only: bool,
   #[serde(default)]
   pub rides_until: Option<i64>,
+  /// Whether it rides its room's rounds for good, opening no turn of its own.
+  #[serde(default)]
+  pub rides_for_good: bool,
   #[serde(default)]
   pub via: Option<String>,
   #[serde(default)]

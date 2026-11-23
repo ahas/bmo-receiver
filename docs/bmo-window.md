@@ -160,6 +160,11 @@ that session without the room hearing it.
   Where they name no item, the block says how many arrived (`repeat`); where they name one, its line carries the
   count (`subject_times`). Where the same words come for different items, the words stand once and one line
   names each item with its identifier (`subject`).
+- **A notice repeated is queued once.** A row whose agent, room, publisher, kind, sort, events, run and words are
+  those of a row still waiting — pending or handed, not yet settled — is not written: the producer is answered
+  with the row that waits, which says it once. Nor is one whose like was let go as failed within the instruction
+  policy's `repeat_minutes`: a notice no round could take is not handed to the next round to fail again, so a
+  producer that tells the same failure on every failed turn does not wake the agent turn after turn.
 - **Some are for the agent alone.** A row marked `agent_only` is a record the agent reads and no room hears: a
   round carrying only such rows is a quiet turn whose reply is dropped, and no room message is sent. The tool
   list's notes, a failure order of a broken run, a run past its clock and a document reload are marked so; a
@@ -274,7 +279,7 @@ round.
 - **The producer decides, per row.** A row is queued either to open a turn or to ride, and a rider names how
   long it rides (for good, or until a moment after which it opens a turn itself) and whose rounds may carry it:
   its own room's alone, or any room's its session answers. The queue keeps no list of which roads ride; each
-  producer says so on the row it writes (`ridesUntil` on the routes that queue one).
+  producer says so on the row it writes (`ridesUntil` or `ridesForGood` on the routes that queue one).
 - **What rides:**
   - A document reload rides for good, in a round of any room its session answers. The new text is read with the
     session's next turn, which is when it is first needed; a session that never speaks again never needs it. A
@@ -285,6 +290,10 @@ round.
     that tells no outcome leaves the line to open its own turn when the while is up.
   - A change of the tool host's tools rides for good, in a round of any room the default answerer's session answers
     (`docs/wake.md`, 「Quiet instructions」).
+  - A fact of a person's supply the agency tells their own supervisor — a run moved to another source, a key the
+    provider refused, no source left — rides for good, in its own room's rounds: while no source is left a turn of
+    that supervisor can only fail, so the fact never opens one, and the person hears it at the next round that
+    goes out.
   - The deployment briefing rides the owner's next round, written just before that round asks for its riders, for
     the restart's while. A round of another room that finds deployments since the last briefing writes the row for
     the owner's chat and does not carry it.
