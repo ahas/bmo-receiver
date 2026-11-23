@@ -1,0 +1,126 @@
+# What installing the receiver on a fresh machine needs, read by the testbed's install verb (bmo-testbed's
+# docs/install.md, 「The install declaration」).
+
+install = 1
+
+restart = "systemctl --user restart bmo-receiver.service"
+
+[[needs]]
+program = "pg_isready"
+what = "PostgreSQL, the server the receiver's store stands on, reached on its local socket by the user the install runs as: the `postgresql` package."
+
+[[needs]]
+program = "systemctl"
+what = "systemd's user manager, which runs the receiver's unit and restarts it once its owner's room is named: part of systemd."
+
+[[port]]
+name = "receiver.server"
+number = 3212
+
+# The receiver's own token, which every unit calling it holds; kept as its own file for the units that read it there.
+[[token]]
+name = "receiver.service"
+file = "env/receiver.token"
+
+# The console relay's own credential, apart from the receiver's token (docs/boundary-api.md, 「Configuration」).
+[[token]]
+name = "receiver.console"
+file = "env/receiver-console.token"
+
+[[input]]
+name = "receiver.owner-sender"
+what = "The owner's own number on the chat service installed beside the console, which the receiver files the owner's words under: the same number given as telegram.owner-id (the owner's Telegram user id) or discord.owner-id (the owner's Discord user id)."
+file = "install/inputs/receiver.owner-sender"
+
+[[input]]
+name = "receiver.language"
+what = "The language the rooms are spoken in, as a language code such as en or ko, which a fixed line is rendered in."
+file = "install/inputs/receiver.language"
+default = "en"
+
+[[database]]
+name = "bmo_receiver"
+
+# The receiver's configuration (docs/boundary-api.md, 「Configuration」), which each release links as its
+# settings.toml. The `[roads]` table stands last and empty: each chat service's install declaration adds its own
+# road to it as one line, `<road>={ base = "...", token = "..." }`, which falls into the table since it is the
+# file's last. No table may follow it.
+[[settings]]
+file = "env/receiver.toml"
+text = '''
+listen = "127.0.0.1:{{port.receiver.server}}"
+token = "{{token.receiver.service}}"
+database = "postgres:///bmo_receiver?host=/var/run/postgresql"
+data_root = "{{data_root}}"
+owner = {{input.receiver.owner-sender}}
+agent = "{{value.agent.name}}"
+sender_name = "{{value.agent.label}}"
+language = "{{input.receiver.language}}"
+document_tree = "{{home}}/.local/share/bmo-agency/deploy"
+
+[console]
+token = "{{token.receiver.console}}"
+
+[agency]
+base = "http://127.0.0.1:{{port.agency.control}}"
+token = "{{token.agency.control}}"
+
+[gate]
+base = "http://127.0.0.1:{{port.gate.server}}"
+token = "{{token.gate.service}}"
+
+[job]
+base = "http://127.0.0.1:{{port.job.server}}"
+token = "{{token.job.receiver}}"
+
+[web]
+base = "http://127.0.0.1:{{port.web.server}}"
+token = "{{token.web.server}}"
+
+[warmer]
+base = "http://127.0.0.1:{{port.cache-warmer.server}}"
+token = "{{file.~/.local/share/bmo-cache-warmer/data/token}}"
+
+[brain]
+base = "http://127.0.0.1:{{port.brain.server}}"
+token = "{{token.brain.service}}"
+
+[roads]
+'''
+
+# The console reaches the receiver under its own credential, which alone files a person's words.
+[[line]]
+file = "env/web-console.env"
+key = "RECEIVER_ADDRESS"
+value = "http://127.0.0.1:{{port.receiver.server}}"
+
+[[line]]
+file = "env/web-console.env"
+key = "RECEIVER_TOKEN"
+value = "{{token.receiver.console}}"
+
+# The owner's private room stood up on the record alone (docs/boundary-api.md, `owner-room`), titled with the
+# agent's label, named as `owner_room` at the head of the configuration, ahead of every table, and the service
+# restarted on it.
+[[after]]
+id = "owner-room"
+run = '''
+set -eu
+settings="${BMO_DATA_DIR:-$HOME/.local/share/bmo/data}/env/receiver.toml"
+deploy="$HOME/.local/share/bmo-receiver/deploy"
+title="$(sed -n 's/^sender_name = "\(.*\)"$/\1/p' "$settings")"
+room="$("$deploy/bin/bmo-receiver" --config "$deploy/settings.toml" owner-room --title "$title")"
+if ! grep -q '^owner_room *=' "$settings"; then
+  written="$(mktemp "$settings.XXXXXX")"
+  { printf 'owner_room = %s\n' "$room"; cat "$settings"; } > "$written"
+  chmod 600 "$written"
+  mv "$written" "$settings"
+fi
+systemctl --user restart bmo-receiver.service
+'''
+done = '''grep -q '^owner_room *=' "${BMO_DATA_DIR:-$HOME/.local/share/bmo/data}/env/receiver.toml"'''
+
+[[verify]]
+id = "owner-room-say"
+what = "words for the owner's private room reach the receiver and are handed to the room's supervisor"
+run = '''"$HOME/.local/share/bmo-receiver/deploy/bin/bmo-receiver" room say --text "The install has finished: greet the owner in one short line."'''

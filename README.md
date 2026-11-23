@@ -24,7 +24,8 @@ library `bmo-chat-client`; every other unit over HTTP, as `docs/api.md` and `doc
 
 At the root stand the Cargo workspace manifest, which is also the service's package, the version in
 `VERSION`, `testbed.toml` (the testbed's declaration of how this repository is tested, checked, built and
-deployed), `rustfmt.toml`, `CLAUDE.md`, `settings.example.toml` (the checked-in example of the
+deployed), `install.toml` (what installing it on a fresh machine needs, which `bmo install` reads), `rustfmt.toml`,
+`CLAUDE.md`, `settings.example.toml` (the checked-in example of the
 configuration, which the deployment's own file stands under the data root) and `korean-ledger.json` (the Korean
 left in a code file, which the testbed's Korean sweep holds every file to; no code file of this repository
 holds any).

@@ -21,7 +21,7 @@
 | `docs/` | 关于服务行为的规范文档 |
 
 根目录下有同时也是服务包的 Cargo 工作区清单、`VERSION` 中的版本、`testbed.toml`（测试平台关于如何测试、检查、
-构建和部署本仓库的声明）、`rustfmt.toml`、`CLAUDE.md`、`settings.example.toml`（签入的配置示例，部署自身的配置
+构建和部署本仓库的声明）、`install.toml`（在新机器上安装所需内容的声明，由 `bmo install` 读取）、`rustfmt.toml`、`CLAUDE.md`、`settings.example.toml`（签入的配置示例，部署自身的配置
 文件位于数据根目录下）以及 `korean-ledger.json`（记录代码文件中保留的韩语，测试平台的韩语检查以它为准检查每个
 文件；本仓库的代码文件中没有任何韩语）。
 
