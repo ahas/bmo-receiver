@@ -23,8 +23,8 @@ use super::conversation::{
 };
 use super::mid_turn::{Push, paragraph};
 use super::sentinels::{
-  FOLD, Mark, SKIP, Skip, appended, appends, asks_fold, is_skip, is_wait, keeps, round_marks, sent_now,
-  skip, without_round_marks,
+  FOLD, Mark, SKIP, Skip, appended, appends, asks_fold, is_skip, is_wait, keeps, kept_marks, round_marks,
+  sent_now, skip, without_round_marks,
 };
 use super::turn_mark::{self, TurnMark};
 use super::turnover::note_session;
@@ -89,8 +89,9 @@ impl Spanned {
 /// The answer of a turn of the process, built from the answers of the program's turns it spanned
 /// (docs/instruction.md, 「What it is」): a turn opened by words handed over replaces it, unless it carries the
 /// append mark and adds its words after it; a turn the program opened on its own adds to it; and a turn whose answer
-/// says nothing never displaces an answer that says something; one of nothing but marks, the keep mark among them,
-/// leaves it standing with its marks added. Where the agency handed no turns, the answer it built stands.
+/// says nothing never displaces an answer that says something; one of nothing but marks leaves it standing with its
+/// marks added, and one carrying the keep mark leaves it standing whatever words it writes beside the mark, its
+/// marks added and its words left out. Where the agency handed no turns, the answer it built stands.
 pub fn spanned_answer(built: &str, turns: &[Spanned]) -> String {
   if turns.is_empty() {
     return built.to_owned();
@@ -101,6 +102,8 @@ pub fn spanned_answer(built: &str, turns: &[Spanned]) -> String {
       standing
     } else if usable(&standing) && without_round_marks(&turn.text).is_empty() {
       format!("{standing}\n\n{}", turn.text)
+    } else if usable(&standing) && keeps(&turn.text) && !appends(&turn.text) {
+      format!("{standing}\n\n{}", kept_marks(&turn.text))
     } else if usable(&standing) && turn.handed && appends(&turn.text) {
       appended(&standing, &turn.text)
     } else if standing.is_empty() || turn.handed {
@@ -768,10 +771,13 @@ pub fn stage_verdict(said: &str, ended: Answered, standing: &str) -> Answered {
 impl Run<'_> {
   // An answer with the marks it sets on the messages shown to the round kept and taken out of it, and whether it keeps
   // the message that stands or adds to it. The fold mark is the message's own and stays in its words, but a fold
-  // asked of no words makes an answer of marks alone, as the keep mark does.
+  // asked of no words makes an answer of marks alone, as the keep mark does. Once a message stands, an answer
+  // carrying the keep mark and not the append mark keeps it whole: the words it writes beside the mark are none of
+  // the message's, so a lead-in and a second copy written after the mark never reach the room.
   fn marked(&mut self, text: &str) -> String {
     let marks = round_marks(text);
-    let bare = without_round_marks(text);
+    let keeping = self.standing && keeps(text) && !appends(text);
+    let bare = if keeping { String::new() } else { without_round_marks(text) };
     let folded = asks_fold(&bare);
     let bare = if folded && crate::js::trim(&bare.replace(FOLD, "")).is_empty() {
       String::new()

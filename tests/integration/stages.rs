@@ -265,6 +265,30 @@ async fn a_stage_that_answers_pass_sends_pass_as_the_message() {
   );
 }
 
+// A stage that answers the keep mark and writes words of its own beside it — a lead-in naming a correction and the
+// message again after it — keeps the message that stands, and none of those words reach the room
+// (docs/instruction.md, 「What it is」).
+#[tokio::test]
+async fn a_stage_that_keeps_beside_a_correction_sends_the_message_that_stands() {
+  let corrected = format!("<<KEEP>>\n\nCorrection, full message:\n\n{REVISED}");
+  let round =
+    Staged::run(StandInSession::new(SESSION, "unused").answering(&[WRITTEN, &corrected, ""])).await;
+  let sent = round.sent();
+
+  assert_eq!(sent.len(), 1, "{sent:?}");
+  assert!(sent[0].contains(WRITTEN), "the message that stands goes out: {sent:?}");
+  assert!(!sent[0].contains("Correction"), "the lead-in never reaches the room: {sent:?}");
+  assert!(
+    !sent[0].contains(REVISED),
+    "the words beside the keep mark are none of the message: {sent:?}"
+  );
+  assert!(!sent[0].contains("KEEP"), "the mark never reaches the room: {sent:?}");
+  assert_eq!(
+    round.log().await,
+    ["turn message answered", "stage names pass", "stage facts pass", "end  message"]
+  );
+}
+
 #[tokio::test]
 async fn a_stage_whose_run_failed_sends_nothing() {
   let session = StandInSession::new(SESSION, "unused").answering(&[WRITTEN, ""]).failing(FACTS.1);

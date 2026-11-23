@@ -212,6 +212,22 @@ pub fn round_marks(text: &str) -> Vec<(Mark, i64)> {
     .collect()
 }
 
+/// What a keeping answer leaves after the message that stands: the keep mark and the marks it sets on the messages
+/// shown to the round, each written as the round reads it, and none of its words. An answer that keeps the message
+/// keeps it whole, so the words it carries beside the mark are no part of what goes out (docs/instruction.md, 「What
+/// it is」).
+pub fn kept_marks(text: &str) -> String {
+  std::iter::once(KEEP.to_owned())
+    .chain(round_marks(text).into_iter().map(|(mark, id)| match (mark, id) {
+      (Mark::Done, id) => format!("<<DONE #{id}>>"),
+      (Mark::Separate, id) => format!("<<SEPARATE #{id}>>"),
+      (Mark::Reply, 0) => "<<REPLY>>".to_owned(),
+      (Mark::Reply, id) => format!("<<REPLY #{id}>>"),
+    }))
+    .collect::<Vec<_>>()
+    .join(" ")
+}
+
 static ROUND_MARK_SPACED: LazyLock<Regex> = LazyLock::new(|| {
   Regex::new(r"[ \t]?<<(?:(?:DONE|SEPARATE|REPLY) #-?[0-9]+|REPLY(?::-?[0-9]+)?|KEEP|APPEND)>>")
     .expect("a round mark")

@@ -267,6 +267,31 @@ fn a_pushed_turn_keeps_the_reply_with_the_keep_mark_and_adds_to_it_with_the_appe
   );
 }
 
+// A pushed turn carrying the keep mark beside words of its own keeps the reply that stands, its marks added and its
+// words left out (docs/instruction.md, 「What it is」).
+#[test]
+fn a_pushed_turn_that_keeps_beside_words_of_its_own_keeps_the_reply_that_stands() {
+  let sent = "The reply to the first words.";
+  let kept = spanned_answer(
+    "x",
+    &[
+      handed(sent),
+      handed("<<KEEP>>\n\nCorrection, full message:\n\nAnother reply. <<DONE #7>>"),
+    ],
+  );
+
+  assert_eq!(kept, "The reply to the first words.\n\n<<KEEP>> <<DONE #7>>");
+  assert_eq!(
+    bmo_receiver::chat::sentinels::kept_marks("Words <<KEEP>> <<SEPARATE #-3>> <<REPLY>> `<<DONE #2>>`"),
+    "<<KEEP>> <<SEPARATE #-3>> <<REPLY>>",
+    "a mark quoted as code is no mark"
+  );
+
+  let (text, ended, _) = read_answer(&bmo_receiver::chat::sentinels::without_round_marks(&kept));
+
+  assert_eq!((text.as_str(), ended), (sent, Answered::Answered), "{kept:?}");
+}
+
 #[test]
 fn the_answers_of_a_turns_end_are_read_with_what_opened_each() {
   let ended = serde_json::json!({

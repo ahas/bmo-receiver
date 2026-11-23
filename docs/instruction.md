@@ -74,7 +74,8 @@ record each turn of it leaves. A quiet instruction is a different thing — a ro
   from them as the agency does — a turn opened by words handed over replaces it, a turn the program opened on its own adds
   to it — save that a turn whose answer says nothing, a skip of either shape, a wait or no words, never displaces an
   answer that says something: the answer written before it stands and is read as above. A turn whose answer is nothing
-  but marks, the keep mark among them, leaves that answer standing too, its marks added to it. A turn opened by words
+  but marks leaves that answer standing too, its marks added to it, and so does one carrying the keep mark and not the
+  append mark, whatever words it writes beside the mark, which are left out. A turn opened by words
   handed over whose answer carries the append mark adds its words after the answer that stands, the mark taken out, so
   the part for the new words is the one written; with no answer standing, its words are the answer. A line that carries its program's
   background apart, as the chat line does, reads its rounds with notices apart: a turn its program opens on a background
@@ -89,7 +90,11 @@ record each turn of it leaves. A quiet instruction is a different thing — a ro
 - **The keep mark keeps the message that stands, in every round where one stands.** Once a message stands — after the
   message turn's answer that said something, in a turn opened by words pushed into it, in the closing check, the audit and
   every stage — an answer of `<<KEEP>>`, like one with no words or with nothing but marks, leaves that message as it stood,
-  and the last answer that said something is what goes out. Every rule that tells the agent how to keep the message names
+  and the last answer that said something is what goes out. The mark keeps the message whole wherever it stands outside
+  a code span or fence and the append mark does not: an answer that carries it beside words of its own — a lead-in
+  naming a correction, a copy of the message rewritten after the mark — keeps the message that stands, and none of
+  those words reach the room, since the agent's program writes the mark as its verdict and the words beside it
+  contradict it. Every rule that tells the agent how to keep the message names
   the keep mark (`instruction.toml`, `answer_rule`, `arrived` and the default stage's words; `chat-round.toml`, `[push]`),
   since the mark is an answer the agent's program writes: a turn of a stage or of the closing check whose program writes no
   answer at all is a turn its agency reads as ending with none, which fails the round (「The stages before the send」). No
