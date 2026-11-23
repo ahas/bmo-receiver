@@ -50,13 +50,13 @@ file = "env/receiver.toml"
 text = '''
 listen = "127.0.0.1:{{port.receiver.server}}"
 token = "{{token.receiver.service}}"
-database = "postgres:///bmo_receiver?host=/var/run/postgresql"
+database = "postgres:///bmo_receiver?host={{postgres.host}}&port={{postgres.port}}"
 data_root = "{{data_root}}"
 owner = {{input.receiver.owner-sender}}
 agent = "{{value.agent.name}}"
 sender_name = "{{value.agent.label}}"
 language = "{{input.receiver.language}}"
-document_tree = "{{home}}/.local/share/bmo-agency/deploy"
+document_tree = "{{prefix}}/bmo-agency/deploy"
 
 [console]
 token = "{{token.receiver.console}}"
@@ -79,7 +79,7 @@ token = "{{token.web.server}}"
 
 [warmer]
 base = "http://127.0.0.1:{{port.cache-warmer.server}}"
-token = "{{file.~/.local/share/bmo-cache-warmer/data/token}}"
+token = "{{file.prefix:bmo-cache-warmer/data/token}}"
 
 [brain]
 base = "http://127.0.0.1:{{port.brain.server}}"
@@ -107,7 +107,7 @@ id = "owner-room"
 run = '''
 set -eu
 settings="${BMO_DATA_DIR:-$HOME/.local/share/bmo/data}/env/receiver.toml"
-deploy="$HOME/.local/share/bmo-receiver/deploy"
+deploy="$BMO_INSTALL_PREFIX/bmo-receiver/deploy"
 title="$(sed -n 's/^sender_name = "\(.*\)"$/\1/p' "$settings")"
 room="$("$deploy/bin/bmo-receiver" --config "$deploy/settings.toml" owner-room --title "$title")"
 if ! grep -q '^owner_room *=' "$settings"; then
@@ -123,4 +123,4 @@ done = '''grep -q '^owner_room *=' "${BMO_DATA_DIR:-$HOME/.local/share/bmo/data}
 [[verify]]
 id = "owner-room-say"
 what = "words for the owner's private room reach the receiver and are handed to the room's supervisor"
-run = '''"$HOME/.local/share/bmo-receiver/deploy/bin/bmo-receiver" room say --text "The install has finished: greet the owner in one short line."'''
+run = '''"$BMO_INSTALL_PREFIX/bmo-receiver/deploy/bin/bmo-receiver" room say --text "The install has finished: greet the owner in one short line."'''
