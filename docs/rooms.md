@@ -37,10 +37,9 @@ command also has a plain form that is the same in every language, given below.
 
 ## Delegations
 
-- **A grant is made or taken away on the owner's own message in the room,** through the web unit's grants
-  (`POST /grants`, `DELETE /grants`): the granter is the sender of the message the grant is made on, and the web
-  unit checks that they may grant what they give. What is in force in a room is read the same way, and the
-  `bmo room rules` command shows it.
+- **What the owner delegates in a room is his room rules,** the `rule` memories of the agent's brain about the room
+  (`docs/unified-bmo.md`, 「Delegations」): the agent writes one on the owner's own message there and closes one the
+  same way, and the room's block carries every one standing.
 
 ## Mute
 

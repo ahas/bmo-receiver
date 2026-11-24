@@ -1,6 +1,6 @@
 //! The brain's port against a stand-in of the brain's published routes (the brain's `docs/boundary-api.md`).
 
-use receiver_ports::brain::{BrainUnit, HttpBrain};
+use receiver_ports::brain::{BrainUnit, HttpBrain, RoomRule};
 use receiver_ports::{Peer, PortFailure};
 use serde_json::json;
 
@@ -104,4 +104,82 @@ async fn a_brain_that_does_not_listen_ends_the_call_at_once() {
   let failure = brain.due("agent-a").await.unwrap_err();
 
   assert!(matches!(failure, PortFailure::Unreachable { .. }), "{failure:?}");
+}
+
+#[tokio::test]
+async fn a_rooms_rules_are_read_without_a_use_recorded_and_stand_however_often_they_are_read() {
+  let unit = StandIn::start().await;
+  let brain = HttpBrain::new(&unit.peer("t"));
+  let rule = json!({
+    "id": 31,
+    "type": "rule",
+    "text": "Every member may ask about the system.",
+    "status": "active",
+    "subjects": [{ "id": 5, "type": "room", "key": "-7" }, { "id": 6, "type": "person", "key": "42" }],
+  });
+  let other = json!({
+    "id": 30,
+    "type": "rule",
+    "text": "Member 43 may file items.",
+    "status": "active",
+    "subjects": [{ "id": 5, "type": "room", "key": "-7" }],
+  });
+
+  one_brain(&unit, 9);
+  unit.answer(
+    "GET /brains/9/subjects",
+    200,
+    json!({ "items": [{ "id": 5, "type": "room", "key": "-7" }] }),
+  );
+  unit.answer("GET /brains/9/memories", 200, json!({ "items": [rule, other], "more": false }));
+
+  let first = brain.room_rules("agent-a", -7).await.unwrap().unwrap();
+  let second = brain.room_rules("agent-a", -7).await.unwrap().unwrap();
+
+  assert_eq!(
+    first,
+    [
+      RoomRule {
+        id: 30,
+        persons: vec![],
+        text: "Member 43 may file items.".to_owned(),
+      },
+      RoomRule {
+        id: 31,
+        persons: vec!["42".to_owned()],
+        text: "Every member may ask about the system.".to_owned(),
+      },
+    ],
+    "the rules come lowest id first, each with the people it is about"
+  );
+  assert_eq!(second, first, "a rule read once is read again");
+
+  let rules = call(
+    "GET /brains/9/memories",
+    "type=rule&status=active&subjectId=5&record=false&limit=500",
+    None,
+  );
+
+  assert_eq!(
+    unit.took(),
+    [
+      call("GET /brains", "agentKey=agent-a&limit=2", None),
+      call("GET /brains/9/subjects", "type=room&key=-7&limit=1", None),
+      rules.clone(),
+      call("GET /brains/9/subjects", "type=room&key=-7&limit=1", None),
+      rules,
+    ],
+    "the read records no use and moves no rule: nothing but reads is asked"
+  );
+}
+
+#[tokio::test]
+async fn a_room_the_brain_holds_no_subject_of_has_no_rules() {
+  let unit = StandIn::start().await;
+  let brain = HttpBrain::new(&unit.peer("t"));
+
+  one_brain(&unit, 9);
+  unit.answer("GET /brains/9/subjects", 200, json!({ "items": [] }));
+
+  assert_eq!(brain.room_rules("agent-a", -7).await.unwrap(), Some(vec![]));
 }

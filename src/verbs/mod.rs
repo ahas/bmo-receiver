@@ -12,7 +12,6 @@ pub mod messages;
 pub mod photo_repair;
 pub mod reload;
 pub mod room_files;
-pub mod room_rules;
 pub mod room_switches;
 pub mod sends;
 pub mod talk;

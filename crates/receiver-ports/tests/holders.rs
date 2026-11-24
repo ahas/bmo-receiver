@@ -23,7 +23,7 @@ async fn a_holder_is_asked_behind_the_token_of_the_unit_configured_at_its_origin
   unit.answer(
     "GET /rooms/-7/holdings",
     200,
-    json!({ "holdings": [{ "code": "room_grants", "count": 6 }] }),
+    json!({ "holdings": [{ "code": "room_records", "count": 6 }] }),
   );
 
   let held = HttpHolders::new(vec![elsewhere(), configured]).holdings(&declared, -7).await.unwrap();
@@ -31,7 +31,7 @@ async fn a_holder_is_asked_behind_the_token_of_the_unit_configured_at_its_origin
   assert_eq!(
     held,
     [Holding {
-      code: "room_grants".to_owned(),
+      code: "room_records".to_owned(),
       count: 6
     }]
   );

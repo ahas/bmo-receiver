@@ -122,7 +122,7 @@ tool call failed it hands the words to the room's supervisor, who writes them as
   room on the record alone, read the rooms a supervisor answers, and name a room's answerers.
 - **`room_add` adds a chat-service room in `record-only` mode on the owner's word in the turn.** It answers where
   the receiver marked every new message of the turn the owner's, and refuses any other turn with one sentence,
-  since no grant in force names adding a room. It takes the provider's key and one of `roomId`, `contactId` or
+  since no room rule may delegate adding a room. It takes the provider's key and one of `roomId`, `contactId` or
   `contactIds` under `title`; a call naming none answers the provider's rooms and contacts, each by its name and
   with whether the receiver already holds it, so the owner picks.
 - **The addition is the receiver's own `POST /rooms`** (`docs/api.md`, 「Rooms」), and its refusals are the

@@ -666,7 +666,6 @@ async fn a_rule_subjects_file_wakes_only_on_the_grounds_words_do_and_rides_the_c
   standing
     .agency
     .registering([registration(AGENT, "Agent A", vec![ADDRESS], None)].to_vec());
-  standing.web.granting(-140, 55, "rule".into());
 
   // The rule names the sender, which is heard in owner-only mode but is no ground: with no caption and the
   // window closed, neither the picture nor the document wakes anybody.
@@ -911,7 +910,7 @@ async fn a_chat_service_member_with_an_account_calls_their_own_supervisor_into_a
 }
 
 #[tokio::test]
-async fn one_who_is_no_member_calls_their_own_supervisor_only_where_the_room_grants_them_ask() {
+async fn one_who_is_no_member_of_the_room_calls_no_supervisor_into_it() {
   let (scratch, _data, standing) = stood(&[-163]).await;
   let outsider = 9413;
   let on_the_record = |message_id: i64| Inbound {
@@ -928,18 +927,11 @@ async fn one_who_is_no_member_calls_their_own_supervisor_only_where_the_room_gra
     .registering(vec![registration(AGENT, "Agent A", vec![ADDRESS], None), own]);
   everyone_heard(&scratch).await;
 
-  // Words on the record of an account the room does not hold among its members wake nobody without the grant.
+  // Words on the record of an account the room does not hold among its members wake nobody, called by name or
+  // not: membership is the call right, and no grant stands in for it.
   standing.receiver.message(&on_the_record(1), &Context::default(), room()).await.unwrap();
-  assert!(standing.taken.handed().is_empty(), "{:?}", standing.taken.handed());
-
-  // Granted ask in the room, the same call reaches the person's own supervisor.
-  standing.web.granting(-163, outsider, "ask".to_owned());
   standing.receiver.message(&on_the_record(2), &Context::default(), room()).await.unwrap();
-
-  let woken = standing.taken.handed();
-
-  assert_eq!(woken.len(), 1, "{woken:?}");
-  assert_eq!(woken[0].message_id, 2);
+  assert!(standing.taken.handed().is_empty(), "{:?}", standing.taken.handed());
 }
 
 #[tokio::test]
@@ -948,7 +940,6 @@ async fn a_supervisor_of_an_account_whose_machine_is_gone_is_woken_nowhere() {
   let member = 9412;
 
   standing.web.linking(member, "82".to_owned());
-  standing.web.granting(-162, member, "ask".to_owned());
 
   let mut own = registration("agent-c", "Agent C", vec!["agent-c"], None);
   own.row.insert("ownerAccount".to_owned(), json!(82));

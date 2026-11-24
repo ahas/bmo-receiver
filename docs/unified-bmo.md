@@ -483,28 +483,31 @@ at those moments and tells the brain of a fold it asks of the session itself.
 - **The same absolute rules also cover:** not carrying room talk elsewhere; refusing questions about privacy and
   about the system itself; and none of those refusals reaching the owner's own request, by the owner's recorded
   sender, in any room. A question about the system is answered beside him only to a sender the room's current
-  grants or rules name for it, within their scope.
+  rules name for it, within their scope.
 
 ### Delegations
 
-- **Where they live:** the room's rules are `rule` memories in the agent's brain, read for a turn by the gate, and once the
-  account model is in force (`GET /accounts/model` on the web unit), the grants the web unit keeps, a room rule
-  being a standing-rule grant to the subject's user with the owner's words beside it.
-- **The agent saves them where its turns read them.** In a room on the account model it saves what the owner
-  allows a person or the room's members with agency's `bmo/room_grant`, on the owner's message of the turn, and
-  says it is in force only once the grant it reads back stands; it keeps none as a brain memory there. Asking
-  about the system itself is a relation of its own, `system`, which a person or the room's members may hold.
-- **Commands,** each on the basis of an owner message in that room (`--message <id>`):
-  - read with `bmo room rules --chat <id> --list`;
-  - add a room rule with `--set <rule-id> --subject <userId> --text <work and target project>`;
-  - revoke one with `--delete <rule-id> --subject <userId>`;
-  - on the account model, grant one relation alone with
-    `--grant <relation> --subject <userId | members> [--until <time>] [--text <words>]`, and take it back with
-    `--revoke <relation> --subject …`; off it the verb refuses these.
-- **Only current entries:** neither place keeps a revocation history or inactive entries. The original chat
-  record is separate.
+- **Where they live:** a room's delegations are the owner's room rules and nothing else: the live `rule` memories of
+  the agent's own brain about the room, its subject of type `room` keyed by the chat number, each also about the
+  people it names, their subjects of type `person` keyed by their sender numbers. A rule names whom it is for by
+  those people or in its words, every member of the room among them, and says in its words what they may have the
+  agent do, the owner's words beside it where he gave them.
+- **The agent saves them where its turns read them.** On the owner's own message in the room it writes a rule with
+  its brain tool's learning (type `rule`, its subjects the room and the people it names, its source the owner's),
+  and takes one back by moving it closed; it says a rule is in force only once a later turn's block shows it.
+  Asking about the system itself is delegated the same way, by a rule saying so.
+- **Read, never spent.** The receiver reads a room's rules with no use recorded and moves none, and the brain ends
+  a memory only on a release condition coming true or a writer's move (the brain's `docs/design.md`, 「Recall」); a
+  room rule carries no release condition, so it stands however often a block carries it, until the owner takes it
+  back.
+- **Only current entries:** the brain's live rows are the rules in force; a rule taken back is closed, and none
+  stands as an inactive entry. The original chat record is separate.
 - **Delivery:**
-  - The receiver includes what is in force in the room-switch block.
+  - The receiver includes what is in force in the room-switch block, as the `ACTIVE OWNER ROOM RULES` the policy
+    words, one JSON row a rule: its `id`, the sender numbers of the people it is about (`persons`, none where its
+    words say whom) and its `text`. The set is complete; an agent or a deployment keeping no brain carries it
+    empty, and a brain that does not answer carries the policy's line that nobody but the owner holds delegated
+    authority in the room until it does.
   - When it changes, even in the same room, it is replaced whole with a new block.
   - A delegation left in earlier conversation or a summary is no basis for rights.
 - **Scope:** a rule applies only to its named user, work and project.

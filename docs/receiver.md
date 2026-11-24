@@ -75,7 +75,7 @@ flowchart TD
 - **What it does not carry:** a chat service's platform (its reading, its sending, its gathering of files and its
   numbering are the chat service's, behind bmo-chat), the agent sessions and the road each supervisor stands on
   (the agency's), the gate stage (the gate's), the memories and digests (the brain's), reminders, waits and watches (the wait tool's,
-  run through bmo-cli's `bmo use`, `docs/reminders.md`), the job queue (bmo-job's), the accounts and grants (the web unit's), the voice (the voice
+  run through bmo-cli's `bmo use`, `docs/reminders.md`), the job queue (bmo-job's), the accounts (the web unit's), the voice (the voice
   unit's), and the keepalive pass (the cache warmer's).
 - **A woken agent's turn is its conversations' own:** the message goes into its room's queue with the files
   leading up to it ahead of it, opening the window where its ground does. A turn the rest's gate closed is taken
@@ -278,7 +278,7 @@ flowchart TD
   answering it (`docs/api.md`, 「Messages」).
 - **A supervisor adds a chat-service room only on the owner's word and only in `record-only` mode,** through the
   `rooms` tool's `room_add` entry or `bmo room add` (`docs/chat-mcp.md`, 「The rooms tool」): it answers on the
-  turn the receiver marked the owner's, and refuses a turn that is not, since no grant in force names adding a
+  turn the receiver marked the owner's, and refuses a turn that is not, since no room rule may delegate adding a
   room. A call naming no room, a contact or the contacts of a group answers the provider's rooms and contacts by
   name, each with whether the receiver holds it, so the owner picks; the addition is the receiver's own
   `POST /rooms` (`docs/api.md`, 「Rooms」) and its refusals are the receiver's own. Avatar mode and an existing
@@ -350,7 +350,7 @@ flowchart TD
 ```
 
 - **The console's road is not the owner's road.** What is granted to the owner hangs on his sender, which the web
-  unit links to his account, and never on words having come through the console: his commands, a grant made on
+  unit links to his account, and never on words having come through the console: his commands, a room rule saved on
   his message, his wake in his private chat, the owner's directive a round owes an answer to, the turn marked his
   that files work as asked by the owner, his answer to a job's open question, `sender-is-owner` and `owner-spoke`,
   and his own voice on a messenger. `POST /owner/messages`, `POST /owner/message-files` and

@@ -45,7 +45,6 @@ pub mod message_acts;
 pub mod owner_sends;
 pub mod room_accounts;
 pub mod room_addition;
-pub mod room_grants;
 pub mod room_members;
 pub mod room_mode;
 pub mod room_reads;
@@ -66,7 +65,6 @@ pub use message_acts::MessageActRefusal;
 pub use owner_sends::{FileUnsent, OwnerSendRefusal};
 pub use room_accounts::RoomAccountRefusal;
 pub use room_addition::RoomAdditionRefusal;
-pub use room_grants::RoomGrantRefusal;
 pub use room_members::RoomMembersRefusal;
 pub use room_mode::RoomModeRefusal;
 pub use room_reads::RoomReadRefusal;
@@ -101,8 +99,6 @@ pub enum ReceiverError {
   #[error(transparent)]
   RoomAddition(#[from] RoomAdditionRefusal),
   #[error(transparent)]
-  RoomGrant(#[from] RoomGrantRefusal),
-  #[error(transparent)]
   RoomMembers(#[from] RoomMembersRefusal),
   #[error(transparent)]
   RoomMode(#[from] RoomModeRefusal),
@@ -126,7 +122,6 @@ impl ReceiverError {
       Self::OwnerSend(refusal) => refusal,
       Self::RoomAccount(refusal) => refusal,
       Self::RoomAddition(refusal) => refusal,
-      Self::RoomGrant(refusal) => refusal,
       Self::RoomMembers(refusal) => refusal,
       Self::RoomMode(refusal) => refusal,
       Self::RoomRead(refusal) => refusal,

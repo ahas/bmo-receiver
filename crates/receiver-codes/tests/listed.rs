@@ -10,9 +10,9 @@ use receiver_codes::draws::{DrawAsked, DrawLine, DrawResult};
 use receiver_codes::{
   AvatarRefusal, Code, Fact, FileFillRefusal, FileUnsent, FixedLine, HandoverCause, HealthFact,
   MessageActRefusal, OwnerSendRefusal, ReceiverError, Refused, RemovalLeft, RoomAccountRefusal,
-  RoomAdditionRefusal, RoomGrantRefusal, RoomMembersRefusal, RoomModeRefusal, RoomReadRefusal,
-  RoomRemovalRefusal, RoomRemovalWarning, RunTitle, SendRefusal, SessionReason, SettingFact, SkipReason,
-  SupervisorFact, SupervisorRefusal, TalkRefusal, TurnOpening, VoiceFact, VoiceRefusal,
+  RoomAdditionRefusal, RoomMembersRefusal, RoomModeRefusal, RoomReadRefusal, RoomRemovalRefusal,
+  RoomRemovalWarning, RunTitle, SendRefusal, SessionReason, SettingFact, SkipReason, SupervisorFact,
+  SupervisorRefusal, TalkRefusal, TurnOpening, VoiceFact, VoiceRefusal,
 };
 use serde_json::json;
 use strum::VariantNames;
@@ -38,7 +38,6 @@ fn enums() -> Vec<(&'static str, Names, &'static [&'static str])> {
     ("VoiceRefusal", Codes, VoiceRefusal::VARIANTS),
     ("RoomRemovalRefusal", Codes, RoomRemovalRefusal::VARIANTS),
     ("SendRefusal", Codes, SendRefusal::VARIANTS),
-    ("RoomGrantRefusal", Codes, RoomGrantRefusal::VARIANTS),
     ("RoomAccountRefusal", Codes, RoomAccountRefusal::VARIANTS),
     ("RoomAdditionRefusal", Codes, RoomAdditionRefusal::VARIANTS),
     ("RoomMembersRefusal", Codes, RoomMembersRefusal::VARIANTS),
@@ -326,7 +325,6 @@ fn a_kind_is_its_kebab_case_word() {
     .code(),
     "voiceless"
   );
-  assert_eq!(RoomGrantRefusal::NotOwnersMessage.code(), "not-owners-message");
   assert_eq!(RoomRemovalRefusal::OwnersChat.code(), "owners-chat");
   assert_eq!(
     SupervisorRefusal::Seeded {

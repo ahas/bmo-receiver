@@ -126,7 +126,7 @@ the operations machine's:
 |---|---|---|
 | `room say` | `[--chat <id>] [--by <who>] [--reply] [--reply-to <id>] [--text <words>]` | `POST /sends`, the act `say`; the words come from standard input where `--text` names none, and the room is the owner's private room where `--chat` names none; `--reply-to` names the message the line replies to; `--by` names the chat that set it off, the turn's own room where none is named; `--reply` asks that room's answer back; it answers at once with the line saying to whom the words were handed and the order's number, or the refusal (`words-in-answer` for words asked in the shell's own round into that round's room), and where the receiver has not answered within a minute it ends with an error saying so (`docs/chat-mcp.md`, 「How a call runs」) |
 | `room registration` | `--room <id> --by <administrator> [--mode record-only\|avatar]` | `GET /rooms/{roomId}/registration` where no mode is named, printing the mode, the providers and whether the list was chosen, whether the room is read-only and by which chat services, and the answerers; a mode named goes through `PUT /rooms/{roomId}/registration`, and the registration as it now stands is printed the same way |
-| `room add` | `--provider <key> [--room-id <id> \| --contact-id <id> \| --contact-ids <id,…>] [--title <words>]` | `POST /rooms` in `record-only` mode, carrying `provider` and the one of `roomId`, `contactId` or `contactIds` named, with `title` where one is; a call naming none prints the provider's rooms and contacts by name, each with whether the receiver holds it, through `GET /providers`, `GET /providers/{key}/rooms` and `GET /providers/{key}/contacts`; the room's refusals are the receiver's own. Only the owner's word in the turn is served, and no grant names it |
+| `room add` | `--provider <key> [--room-id <id> \| --contact-id <id> \| --contact-ids <id,…>] [--title <words>]` | `POST /rooms` in `record-only` mode, carrying `provider` and the one of `roomId`, `contactId` or `contactIds` named, with `title` where one is; a call naming none prints the provider's rooms and contacts by name, each with whether the receiver holds it, through `GET /providers`, `GET /providers/{key}/rooms` and `GET /providers/{key}/contacts`; the room's refusals are the receiver's own. Only the owner's word in the turn is served, and no room rule delegates it |
 | `room fill-files` | `--room <id> [--rows <n>] [--dry-run]` | `POST /rooms/{roomId}/file-fills` (`docs/room-files.md`, 「Files filled in later」): one line for each row the pass reached, its number, what the road answered and the kinds and bytes kept, and a last line counting the rows filled and the bytes; `--dry-run` prints the rows it would ask and asks nothing |
 | `talk` | the words of `room say`, and `[--voice <name>] [--spoken <words>]` | `POST /sends`, the act `say` where no voice is named, and the act `talk` where `--voice` names a trained voice, carrying the voice, the words and the `--spoken` words where given (taken only with `--voice`); either is handed or refused as `room say` is, and nothing is synthesised |
 | `photo` | `[--chat <id>] --url <url> [--url <url> …] [--label <word> …] [--caption <words>]` | `POST /sends`, the act `photo`; the nth label is drawn into the nth picture; a caption is words, refused in the shell's own round for that round's room and handed elsewhere |
@@ -154,7 +154,7 @@ the operations machine's:
   prints the line the receiver answered with, naming the agent it was handed to, and ends 0. The address and token
   come from the process's environment, else from the data root's `env/receiver.env` (「Its tools」).
 - **`room add` is the owner's own, wherever it runs.** It answers only where the turn is the owner's, and refuses a
-  job, a worker or any turn not the owner's in one sentence, since no grant in force names adding a room. A call
+  job, a worker or any turn not the owner's in one sentence, since no room rule may delegate adding a room. A call
   naming no room, contact or contacts prints the provider's rooms and contacts instead, each by name, and writes
   nothing.
 - **A spoken `talk` is handed as its words.** The voice, the written words and the spoken words go to the room's
@@ -282,9 +282,10 @@ over them by path.
 Its `docs/boundary-api.md`, in camelCase and behind its token, at the `brain` the configuration names or the
 address its `env/brain.env` gives. The receiver reaches it for the two moments the brain's consolidation answers
 to (the brain's `docs/design.md`, 「Consolidation」), for what it holds of the people a round's audit names
-(`docs/instruction.md`, 「The audit before the stages」), and for nothing the agent reads or writes itself: what the
-agent remembers it writes with its own brain tool, and what a turn is handed of the brain is the gate's choice
-(「The gate」 below).
+(`docs/instruction.md`, 「The audit before the stages」), for the owner's room rules a room's block carries
+(`docs/unified-bmo.md`, 「Delegations」), and for nothing else the agent reads or writes: what the agent remembers
+it writes with its own brain tool, and the rest a turn is handed of the brain is the gate's choice (「The gate」
+below).
 
 | Call | Route | Sends | Answers |
 |---|---|---|---|
@@ -294,6 +295,8 @@ agent remembers it writes with its own brain tool, and what a turn is handed of 
 | a person's subject | `GET /brains/{brainId}/subjects?type=person&key=&limit=1` | the person's sender number | `items`, of which the receiver reads `id` and `name`: none where the brain holds nothing of them, and a name where one of their records is a `name` memory |
 | whether the brain holds records of a person | `GET /brains/{brainId}/memories?subjectId=&status=active&limit=1` | the person's subject | `items`: none where no live record is about them |
 | whom memories are about | `GET /brains/{brainId}/memories?ids=&limit=` | the memories a session loaded, at most 200 | `items`, of which the receiver reads each one's `subjects`, `type` and `key`: the people of type `person` |
+| a room's subject | `GET /brains/{brainId}/subjects?type=room&key=&limit=1` | the room's chat number | `items`, of which the receiver reads `id`: none where the brain holds nothing of the room, which then has no rules |
+| a room's owner room rules | `GET /brains/{brainId}/memories?type=rule&status=active&subjectId=&record=false&limit=500` | the room's subject | `items`, of which the receiver reads each one's `id`, `text` and the keys of its `subjects` of type `person`; `record=false`, so the read records no use, and nothing the receiver asks moves a rule |
 
 - **The agent's brain is kept for the process,** by the agent's name, once a lookup has found it: the next
   call for the agent uses the kept id and asks no lookup. A call on a kept id that the brain answers 404 lets
@@ -312,8 +315,11 @@ agent remembers it writes with its own brain tool, and what a turn is handed of 
   the turn's tools as `BMO_RUN_NAME`, which the brain's tool reports its own `brain_fold` under. No run's name
   outlives its turn, so none names the session a fold ends; the session's id is the one key that stays the same
   across its turns.
+- **The room rules:** each time the room's block is composed the receiver reads the room's rules whole for the
+  turn's agent (`docs/unified-bmo.md`, 「Delegations」). A read that fails puts the line saying nothing is delegated
+  in their place and holds nothing up.
 - **Offered once.** A call on the brain is never offered again, a refused connection included: neither the due
-  line nor a fold's report is worth holding a turn or a fold for.
+  line, a fold's report nor a room's rules is worth holding a turn or a fold for.
 
 What the brain reads of the receiver it reads over this service's own routes (`docs/api.md`), and its documents
 stand under the brain root a document reload reads.
@@ -392,8 +398,7 @@ read again at every connection. Where no socket can be named, nothing is heard o
 ### The web unit
 
 Its `docs/boundary.md` and `docs/openapi.json`, in the common format: the account model, a sender's user, a user
-and its senders, the grants in a room, a sender's relation in a room, a message's sender's relation, a user's
-relation on an object, making and revoking a grant, a fixed line's words, the machine a user's account is bound to,
+and its senders, a user's relation on an object, a fixed line's words, the machine a user's account is bound to,
 whether it is attached and whether the account has left (`GET /users/{user}/node`, answering `agent`, `attached` and
 `left`), whether one user heads
 another's unit (`GET /users/{user}/unit`, then `POST /checks/unit`), the company a user stands in (`GET
@@ -403,9 +408,7 @@ another's unit (`GET /users/{user}/unit`, then `POST /checks/unit`), the company
 user an account's key as decimal text, its `members` still holding an account that has left, so letting a unit in
 reads each person's `GET /users/{user}/node` for its `left`), and the rooms the console has open:
 `GET /watching` answers `rooms` and the moment the console last reported, which the restart's backlog reads before
-it serves an open room. The port reads the model as
-`inForce`, a grant's holder as `subjectKey` and a grant's lapse as `expiresAt`, and sends a grant's lapse as
-`expiresAt`.
+it serves an open room. The port reads the model as `inForce`.
 
 ### The voice engine
 

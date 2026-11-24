@@ -19,12 +19,11 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 
 use crate::Fault;
+use crate::all;
 use crate::js;
 use crate::receiver::{Receiver, rows};
 use crate::roads::{Facts, Road};
-use crate::{all, now_ms};
 use receiver_ports::agency::Agent;
-use receiver_ports::web::GrantRow;
 
 // The folder a room's documents are kept in, under the data root the configuration names.
 pub struct Trees {
@@ -191,107 +190,23 @@ pub fn capability_context(trees: &Trees, road: &Facts, home: Option<&Facts>) -> 
   Ok(joined(parts, "\n\n"))
 }
 
-#[derive(serde::Serialize, serde::Deserialize)]
-struct RoomRule {
-  id: String,
-  subject: i64,
-  text: String,
-}
-
-// The room rules document, off the account model: every rule standing in the room.
-fn room_rules_document(data_root: &Path, chat_id: i64) -> Result<String, Fault> {
-  let path = data_root.join("room-rules").join(format!("{chat_id}.json"));
-  let rows: Vec<RoomRule> = match std::fs::read_to_string(&path) {
-    Ok(text) => serde_json::from_str(&text)
-      .map_err(|why| Fault::new(format!("{}: invalid room rules document: {why}", path.display())))?,
-    Err(_) => vec![],
-  };
-  let rows = serde_json::to_string(&rows).map_err(|why| Fault::new(why.to_string()))?;
-
-  Ok(fill_marks(&CHAT_LINE.rules.room_rules, &[("rows", &rows)]))
-}
-
-// The grants standing in the room, on the account model.
-async fn grants_block(receiver: &Receiver, chat_id: i64) -> Result<String, Fault> {
+/// What is in force in a room: the owner's room rules, every live `rule` memory of the agent's brain about the room,
+/// one JSON row each (docs/unified-bmo.md, 「Delegations」). The block is complete, so an agent or a deployment
+/// keeping no brain carries it empty, and a brain that does not answer carries the line saying nothing is
+/// delegated until it does.
+pub async fn room_rules(receiver: &Receiver, agent: &str, chat_id: i64) -> Result<String, Fault> {
   let said = &CHAT_LINE.rules;
-  let rows: Vec<GrantRow> = receiver.units().web.room_grants(chat_id).await.unwrap_or_default();
-  let now = now_ms();
-  let mut lines = vec![];
+  let read = match receiver.units().brain.as_ref() {
+    Some(brain) => brain.room_rules(agent, chat_id).await,
+    None => Ok(None),
+  };
+  let Ok(rules) = read else {
+    return Ok(said.rules_down.clone());
+  };
+  let rows =
+    serde_json::to_string(&rules.unwrap_or_default()).map_err(|why| Fault::new(why.to_string()))?;
 
-  for row in rows {
-    let relation: String = row.relation.clone();
-    let subject: String = row.subject_key.clone();
-    let expires: Option<i64> = row.expires_at;
-    let words: Option<String> = row.words;
-
-    if expires.is_some_and(|at| at <= now) {
-      continue;
-    }
-
-    let user = subject
-      .strip_prefix("user:")
-      .filter(|id| !id.is_empty() && id.bytes().all(|b| b.is_ascii_digit()));
-    let holder = match user {
-      None => said.members.clone(),
-      Some(user) => {
-        let senders: Vec<String> = receiver
-          .units()
-          .web
-          .senders_of_user(user)
-          .await
-          .unwrap_or_default()
-          .iter()
-          .map(|sender| sender.to_string())
-          .collect();
-        let senders = if senders.is_empty() { said.no_senders.clone() } else { senders.join(", ") };
-
-        fill_marks(&said.user, &[("user", user), ("senders", &senders)])
-      }
-    };
-    let until = match expires {
-      Some(at) => {
-        let at = chrono::DateTime::from_timestamp_millis(at)
-          .unwrap_or_default()
-          .format("%Y-%m-%dT%H:%M:%S%.3fZ");
-
-        fill_marks(&said.until, &[("at", &at.to_string())])
-      }
-      None => String::new(),
-    };
-    let words = match words {
-      Some(words) => {
-        fill_marks(&said.words, &[("words", &serde_json::to_string(&words).unwrap_or_default())])
-      }
-      None => String::new(),
-    };
-
-    lines.push(fill_marks(
-      &said.grant,
-      &[("relation", &relation), ("holder", &holder), ("until", &until), ("words", &words)],
-    ));
-  }
-
-  if lines.is_empty() {
-    lines.push(said.nothing.clone());
-  }
-
-  let mut block = vec![said.grants_head.clone()];
-
-  block.extend(lines);
-  block.push(said.grants_end.clone());
-
-  Ok(block.join("\n"))
-}
-
-/// What is in force in a room: the room rules document off the account model, the room's grants on it.
-/// What is in force in a room: the room's grants on the account model where it stands, the room's rules document
-/// where it does not.
-pub async fn room_rules(receiver: &Receiver, chat_id: i64) -> Result<String, Fault> {
-  if receiver.units().web.model_in_force().await.unwrap_or(false) {
-    return grants_block(receiver, chat_id).await;
-  }
-
-  room_rules_document(receiver.data_root().path(), chat_id)
+  Ok(fill_marks(&said.room_rules, &[("rows", &rows)]))
 }
 
 // Every name one agent answers to, the owner's own word for it first.
@@ -514,7 +429,7 @@ pub async fn room_context(
     &trees,
     super::tone::tone_of(receiver.db(), chat_id).await?.as_deref(),
   ));
-  parts.push(room_rules(receiver, chat_id).await?);
+  parts.push(room_rules(receiver, agent, chat_id).await?);
   parts.push(said.end.clone());
 
   Ok(RoomContext {

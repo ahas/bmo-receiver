@@ -33,9 +33,6 @@ use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::private_rooms::{self, Asked};
 use bmo_receiver::receiver::{Context, How, Inbound, Room};
 use bmo_receiver::routes::routes;
-use bmo_receiver::verbs::VerbError;
-use bmo_receiver::verbs::room_rules::{self, Change, Form, Subject};
-use receiver_codes::RoomGrantRefusal;
 
 const TOKEN: &str = "the-token";
 // The migration that began keeping private rooms on the record.
@@ -299,25 +296,6 @@ async fn words_another_account_says_carry_nothing_granted_to_the_owner() {
 
   assert_eq!(spoke, json!({ "owner": false, "spoke": false }));
 
-  // No grant is made on her message as the owner's.
-  let granted = room_rules::change(
-    &stood.standing.receiver,
-    Some(stood.standing.receiver.owner_id()),
-    Change {
-      chat_id: room,
-      message_id: command,
-      form: Form::Grant("ask".to_owned()),
-      subject: Subject::Members,
-      words: None,
-      expires_at: None,
-    },
-  )
-  .await;
-
-  assert!(
-    matches!(granted, Err(VerbError::Refused(why)) if why == RoomGrantRefusal::NotOwnersMessage.to_string()),
-    "a grant on her message is refused as not the owner's"
-  );
   // A round over her words is no owner's round: they never join one held as his, so no turn of theirs is marked
   // privileged, files work as asked by the owner, or owes an owner's directive.
   assert!(!joins_round(true, &[beas], OWNER));

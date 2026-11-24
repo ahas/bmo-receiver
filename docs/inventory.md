@@ -124,7 +124,6 @@ Each became a code with fields in `crates/receiver-codes`, or a line an agent re
 | `owner_sends` | `OwnerSendRefusal`, `FileUnsent` with a per-file reason, sizes in bytes |
 | `providers` | `SkipReason::ProviderOff` |
 | `roads` | `FixedLine::GoingDown`, `FixedLine::GoingDownForUpdate`; the photo and voice marks stay as data in `policy/roads.toml` |
-| `room_grants` | `RoomGrantRefusal::NotOwnersMessage` |
 | `room_removal` | `RoomRemovalRefusal`, `RoomRemovalWarning` (which also takes `private`) |
 | `sends` | `SendRefusal`, the verbs named as the chat protocol names a capability |
 | `sessions` | the `SessionReason` kind; the transcript lines are English the agent reads, so they moved to the policy |

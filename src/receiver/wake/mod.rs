@@ -254,7 +254,7 @@ impl KeptOut {
 }
 
 /// The caller's own supervisor a person calls by name into a group room that does not name it, where the person is a
-/// member of the room or the room grants them `ask` (docs/wake.md, 「Who reaches the session」); none otherwise.
+/// member of the room (docs/wake.md, 「Who reaches the session」); none otherwise.
 async fn called_own(
   receiver: &Receiver,
   inbound: &Inbound,
@@ -280,18 +280,7 @@ async fn called_own(
     return Ok(None);
   }
 
-  if member(receiver, inbound, &user).await? {
-    return Ok(Some(own));
-  }
-
-  let check = receiver_ports::web::RoomCheck {
-    room: inbound.chat_id,
-    sender: Some(sender),
-    relation: "ask".to_owned(),
-  };
-  let granted = receiver.units.web.check_room(&check).await.is_ok_and(|checked| checked.allowed);
-
-  Ok(granted.then_some(own))
+  Ok(member(receiver, inbound, &user).await?.then_some(own))
 }
 
 /// Whether the person who said a message is a member of its room: one whose words a chat service carrying the room

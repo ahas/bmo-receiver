@@ -307,7 +307,7 @@ async fn a_declared_holder_is_asked_at_its_address_and_its_holdings_are_shown() 
   let (scratch, front, _news) = bench().await;
   let address = "http://127.0.0.1:9";
   let held = vec![Holding {
-    code: "room_grants".to_owned(),
+    code: "room_records".to_owned(),
     count: 6,
   }];
 

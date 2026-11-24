@@ -25,9 +25,8 @@ its rounds.
   not name it: that call reaches the supervisor's session as a call does, and opens its window in the room. A
   member is a person whose words came over a chat service carrying the room, which holds them among the room's
   people, or an account the room holds among its console members (`docs/receiver.md`, 「Console rooms and
-  accounts」); no grant is asked of either. A person who is neither calls it only where the room grants them `ask`
-  (the web unit's room check). Without that, or without the name, the person's own supervisor only reads the
-  room.
+  accounts」); no grant is asked of either, and nobody who is neither calls it. Without membership, or without the
+  name, the person's own supervisor only reads the room.
 - **One rule for every designated agent.** The receiver decides for every designated agent of a room by one
   rule, every supervisor alike, over every word filed in the room, a person's or an agent's, and never wakes an
   agent with its own words.

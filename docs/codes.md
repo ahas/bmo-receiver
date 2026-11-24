@@ -113,13 +113,6 @@ family. No code carries a sentence in a room's language.
 | `speak-voiceless` | 409 | `agent` | `speak` was asked by an agent whose registration names no voice |
 | `speak-no-engine` | 409 | | `speak` was asked where no voice engine is named |
 
-### RoomGrantRefusal
-
-| Code | Status | Fields | When |
-|---|---|---|---|
-| `not-owners-message` | 403 | | a room's rules changed on a message its owner did not send there |
-| `no-account-model` | 409 | | a grant of one relation where the account model is not in force |
-
 ### RoomAdditionRefusal
 
 | Code | Status | Fields | When |
