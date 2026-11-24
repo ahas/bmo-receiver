@@ -328,7 +328,8 @@ impl crate::chat::conversation::Touching for Conversations {
     _receiver: &'a Receiver,
     _agent: &'a str,
     room: Option<i64>,
+    cause: receiver_codes::HandoverCause,
   ) -> BoxFuture<'a, Result<Option<super::handoff::Handoff>, super::conversation::Failure>> {
-    Box::pin(async move { Conversations::hand_off(self, room).await })
+    Box::pin(async move { Conversations::hand_off(self, room, cause).await })
   }
 }

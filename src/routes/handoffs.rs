@@ -9,6 +9,7 @@ use axum::{
   http::StatusCode,
   response::{IntoResponse, Json, Response},
 };
+use receiver_codes::HandoverCause;
 use serde::Deserialize;
 use serde_json::json;
 
@@ -23,6 +24,8 @@ pub struct Asked {
   reason: String,
   #[serde(default)]
   room: Option<i64>,
+  #[serde(default)]
+  cause: Option<String>,
 }
 
 /// 200 with the file's path and size where the standing session wrote it, 204 where the agent has no session to
@@ -44,10 +47,11 @@ pub async fn hand_off(
   }
 
   let receiver = served.receiver.as_ref();
+  let cause = cause_of(asked.cause.as_deref());
 
   // The asking waits without a bound, so the service's stop ends it: a stop never waits on a handoff.
   let written = tokio::select! {
-    written = asked_of(receiver, &agent, asked.reason.trim(), asked.room) => written?,
+    written = asked_of(receiver, &agent, asked.reason.trim(), asked.room, cause) => written?,
     () = receiver.stopped() => {
       return Err(refused(
         StatusCode::SERVICE_UNAVAILABLE,
@@ -67,6 +71,14 @@ pub async fn hand_off(
   })
 }
 
+// The cause the room's line names: the one the asking named, and `other` where it named none or a word that is no
+// cause.
+fn cause_of(named: Option<&str>) -> HandoverCause {
+  named
+    .and_then(|named| serde_json::from_value(serde_json::Value::String(named.trim().to_owned())).ok())
+    .unwrap_or(HandoverCause::Other)
+}
+
 // The handoff asked in the agent's line: the standing session's file, the one kept where it was asked within the
 // policy's span, none where there was nothing to ask.
 async fn asked_of(
@@ -74,6 +86,7 @@ async fn asked_of(
   agent: &str,
   reason: &str,
   room: Option<i64>,
+  cause: HandoverCause,
 ) -> Result<Option<handoff::Handoff>, Refusal> {
   // An asking from inside the handoff under way is answered at once: that handoff's note is kept for the fresh
   // session all the same.
@@ -104,8 +117,8 @@ async fn asked_of(
       // The asking stands behind the agent's round, as an owed replacement does, wherever its conversations
       // stand.
       let handed = match receiver.touching() {
-        Some(touching) => touching.hand_off(receiver, agent, room).await,
-        None => Carry::new(receiver.clone()).hand_off(agent, room).await,
+        Some(touching) => touching.hand_off(receiver, agent, room, cause).await,
+        None => Carry::new(receiver.clone()).hand_off(agent, room, None, cause).await,
       };
 
       handed.map_err(|why| refused(StatusCode::BAD_GATEWAY, "upstream-failed", &why.reason()))

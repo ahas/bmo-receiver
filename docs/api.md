@@ -742,7 +742,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 
 | Route | Body | Answers |
 |---|---|---|
-| `POST /handoffs/{agentName}` | `reason`, `room?` | 200 `path`, `bytes`: the handoff file the agent's standing session wrote; 204 where it has no session to ask or wrote nothing |
+| `POST /handoffs/{agentName}` | `reason`, `room?`, `cause?` | 200 `path`, `bytes`: the handoff file the agent's standing session wrote; 204 where it has no session to ask or wrote nothing |
 
 - **The agency asks this before it opens a fresh session for an agent that had one** (`docs/unified-bmo.md`,
   「Replacing the session」). The receiver asks the agent's standing session — its one session, or the session of
@@ -755,6 +755,11 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   did not send is waited for: the receiver waits for that turn's end on the agency's event stream and asks again,
   however long it takes. The handoff turn answers `room`, carrying its block, and the owner's private
   chat where none is named. `reason` names why a fresh session is coming, for the receiver's journal.
+- **A room is told of it** where the agent keeps one session across its rooms and a standing session was asked:
+  one `session-handed-over` line kept in the record alone of `room`, else of the room of the round under way the
+  asking stood behind, else of the owner's private chat (`docs/unified-bmo.md`, 「The room's line」). `cause`, one
+  of the `HandoverCause` kinds (`docs/codes.md`), is the cause the line names; a word that is none, or none
+  given, names `other`.
 - **The agency lets its record of the session go before it asks,** so the session's state names no generation
   while its program still stands. The receiver reads no generation to decide whether to ask: it asks the standing
   session, and the asking itself tells whether there was one to ask.
@@ -774,7 +779,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 
 | Route | Body | Answers |
 |---|---|---|
-| `POST /handovers/{agentName}` | `reason` | 202 `agentName`, `sessionReason` (`asked`): the agent's one session hands over once the agent is quiet |
+| `POST /handovers/{agentName}` | `reason`, `room?`, `by?` | 202 `agentName`, `sessionReason` (`asked`): the agent's one session hands over once the agent is quiet |
 
 - **A handover is asked for the agent's one session across its rooms** (`docs/unified-bmo.md`, 「Replacing the
   session」). The route writes the word to start that session afresh with the reason `asked` and answers at once;
@@ -782,8 +787,15 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   replaced once the agent is quiet — at once where it is in no round, else as the round it is in ends — as every
   replacement is: the old session writes its handoff file, is ended, and the new session's first turn opens on
   the note.
-- **`reason`** is a non-empty English sentence saying why, for the receiver's journal; an empty one is refused
-  400 `bad-request`. The journal holds one line naming the agent and the reason.
+- **`reason`** is a non-empty sentence saying why, in the asker's words; an empty one is refused 400
+  `bad-request`. The journal holds one line naming the agent and the reason, and the room's line names it.
+- **The room is told once the replacement is made,** in one `session-handed-over` line with the cause `asked`, kept
+  in the room's record alone and sent to no chat service (`docs/unified-bmo.md`, 「The room's line」): in `room`, a
+  room number, where the asking names one, else the room of the round behind which the replacement is made, else
+  the owner's private chat. `by`, the account key of the person who asked, is the line's `by`; an asking that
+  names none, as the `handoff` command's, names no one. A `room` the receiver holds no road for is refused 404
+  `not-found`. A second asking before the replacement replaces the first's words, room and asker.
+- **Only the session is replaced.** No message, file or minutes of any room is deleted or hidden.
 - **An agent with no opened session** is given the word all the same, and its next turn spends it in the one
   replacement. A second asking before that turn writes the same word again, so one replacement answers both.
 - **An agent the agency does not register** is refused 404 `not-found`, **one that keeps a session in each room**

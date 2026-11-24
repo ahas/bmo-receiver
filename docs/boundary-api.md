@@ -139,7 +139,10 @@ the operations machine's:
 - **`handoff` puts no words into a room.** It asks for the agent's handover (`docs/api.md`, 「Handovers」), answered
   at once and running no turn, so an agent may run it on itself inside its own turn; it changes nothing of a
   room's conversation, its logs or its runs. The agent's next turn asks the old session for its handoff note,
-  ends it, and opens the new session on the note (`docs/unified-bmo.md`, 「Replacing the session」).
+  ends it, and opens the new session on the note (`docs/unified-bmo.md`, 「Replacing the session」); the
+  replacement keeps its one `session-handed-over` line in the record of the room behind whose round it was made,
+  else the owner's private room, naming no person, since the command names no room and no asker (「The room's
+  line」 there).
 - **A send is asked as the shell's turn:** the room, the agent whose turn the process works in, the chat that set
   it off (the turn's own room where `--by` names none), whether a job asks and the noun it came through are read
   from the environment and the words, and the running receiver carries it on its own lines.
@@ -199,7 +202,7 @@ room's matter.
 |---|---|---|---|
 | the supervisors | `GET /supervisors` | | `items`, every supervisor with its row's fields — its `label`, `aliases`, `sessionScope`, `turnShape`, `defaultAnswerer`, `repository`, `voice`, `ownerAccount`, the account it belongs to, and the `provider`, `model` and `effort` its last turn went out on — and `more`; every supervisor listed stands, and is read as awake; kept for a short span (`docs/receiver.md`, 「What is kept for a moment」) |
 | a supervisor | `GET /supervisors/{supervisorName}` | | the supervisor's row as the list answers it, of which the receiver reads `seeded`, whether the deployment seeds it; 404 where no supervisor has the name, read as none. Asked afresh, never kept, before a supervisor is taken out (`docs/api.md`, 「Supervisors」) |
-| a supervisor's settings | `GET /supervisors/{supervisorName}/settings` | | the supervisor's settings page, of which the receiver reads `settings.brainOn` and `settings.referenceOn`, whether its brain and its reference are on, either off carrying no brain into its turns; a field it does not answer, a 404 or an agency that does not answer reads as on. Asked afresh, never kept, as a round composes its turn (`docs/instruction.md`, 「A supervisor whose brain or reference is off」) |
+| a supervisor's settings | `GET /supervisors/{supervisorName}/settings` | | the supervisor's settings page, of which the receiver reads `settings.brainOn` and `settings.referenceOn`, whether its brain and its reference are on, either off carrying no brain into its turns; a field it does not answer, a 404 or an agency that does not answer reads as on. Asked afresh, never kept, as a round composes its turn (`docs/instruction.md`, 「A supervisor whose brain or reference is off」). Of its `sessions`, the receiver reads each room session's `chatId` and `lastResetAt`, when a reset of it was last carried out in epoch seconds, asked afresh as a turn finds the agency opened a generation under a room's own session, to name the room's line `reset` (`docs/unified-bmo.md`, 「The room's line」); a room it does not list, a 404 or a failed read names no reset |
 | a supervisor's reset point | `GET /supervisors/{supervisorName}/reset-point` | | `supervisor` and `resetPoint`, the moment in epoch milliseconds its last reset cut its turns off at, or null where it was never reset; 404 where no supervisor has the name, read as none. Asked afresh, never kept, by every send for its agent's reset point (`docs/wake.md`, 「An agent's reset」) |
 | the roles | `GET /roles` | | `roles`, each its `name`, `label`, `description` and `bundles` (each its `name`), which the owner's roster and a role's send read |
 | the repositories | `GET /repositories` | | `items`, each its `name` and `label`, which a supervisor added on the console is checked against |
@@ -496,6 +499,12 @@ Statements the receiver makes that a sibling's document does not yet match, each
 - **The agency** answers no route that tallies an agent's runs by room: how many it ran in a room, when it last
   did, and the tokens they spent. The console's room figures answer `runs`, `lastRunAt`, `weekTokens` and
   `totalTokens` null until the agency serves a tally by agent and room.
+- **The agency's handoff ask** (`POST /handoffs/{agentName}`) names why a fresh session is coming only in an
+  English `reason` for the journal. The receiver takes an optional `cause`, one of the `HandoverCause` kinds
+  (`docs/codes.md`), for the room's line it keeps (`docs/unified-bmo.md`, 「The room's line」); until the agency
+  names one — `reset` for a reset asked of the one session, `road` for a road moved, `documents` for the prompt's
+  documents moved — that line names `other`. The agency's state of a room's own session names no reason for a
+  generation it opens either, so that line's cause is what the receiver tells itself.
 - **bmo-chat's message file** does not say whether a sound was a spoken note or a video, a round note or an
   animation in every case; the receiver keeps the kind where the provider gives one.
 - **The word chain** reads the receiver's message stream for its moves, and no document states how the receiver

@@ -370,12 +370,14 @@ pub trait Touching: Send + Sync {
   fn settle_owed<'a>(&'a self, receiver: &'a Receiver, agent: &'a str) -> BoxFuture<'a, bool>;
 
   /// The agent's standing session asked for its handoff ahead of a fresh session the agency opens, behind any
-  /// round of the agent's: the file it wrote, none where it had no session to ask or wrote nothing.
+  /// round of the agent's: the file it wrote, none where it had no session to ask or wrote nothing. `cause` is what
+  /// the room's line names.
   fn hand_off<'a>(
     &'a self,
     receiver: &'a Receiver,
     agent: &'a str,
     room: Option<i64>,
+    cause: receiver_codes::HandoverCause,
   ) -> BoxFuture<'a, Result<Option<super::handoff::Handoff>, Failure>>;
 }
 
@@ -978,20 +980,21 @@ impl Conversations {
     let Ok(turn) = self.0.turn.try_lock() else {
       return false;
     };
-    let settled = self.settle_owed_behind_turn().await;
+    let settled = self.settle_owed_behind_turn(None).await;
 
     drop(turn);
     settled
   }
 
   // The owed replacement made by whoever holds the agent's turn, where no words wait; words that arrive while
-  // it is made wait for the fresh session, and words failed rounds gave back go to it.
-  async fn settle_owed_behind_turn(&self) -> bool {
+  // it is made wait for the fresh session, and words failed rounds gave back go to it. `behind` is the room of the
+  // round that just ended, where a round's end makes it.
+  async fn settle_owed_behind_turn(&self, behind: Option<i64>) -> bool {
     if !self.quiet() {
       return false;
     }
 
-    let replaced = super::ask::replace_owed(&self.0.receiver, self.agent()).await;
+    let replaced = super::ask::replace_owed(&self.0.receiver, self.agent(), behind).await;
 
     if replaced {
       self.hand_given_back(None).await;
@@ -1005,14 +1008,20 @@ impl Conversations {
   /// doing its own work between two of its turns is waited for, and words that arrive meanwhile wait for the
   /// fresh session. A round that itself waits on the agency is not waited for, since the turn it waits on cannot
   /// end before the handoff is answered; it keeps the agent's turn while the asking goes. Once it is asked, the
-  /// words failed rounds gave back go to the fresh session's first turn in their rooms.
-  pub async fn hand_off(&self, room: Option<i64>) -> Result<Option<super::handoff::Handoff>, Failure> {
+  /// words failed rounds gave back go to the fresh session's first turn in their rooms. The room's line for it
+  /// goes to `room`, else the room of the round it was asked behind, else the owner's private room.
+  pub async fn hand_off(
+    &self,
+    room: Option<i64>,
+    cause: receiver_codes::HandoverCause,
+  ) -> Result<Option<super::handoff::Handoff>, Failure> {
     let turn = tokio::select! {
       biased;
       held = self.0.turn.lock() => Some(held),
       () = self.0.receiver.round_at_agency(self.agent()) => None,
     };
-    let handed = Carry::new(self.0.receiver.clone()).hand_off(self.agent(), room).await;
+    let behind = self.round_room();
+    let handed = Carry::new(self.0.receiver.clone()).hand_off(self.agent(), room, behind, cause).await;
 
     if handed.is_ok() {
       self.hand_given_back(None).await;
@@ -1020,6 +1029,20 @@ impl Conversations {
 
     drop(turn);
     handed
+  }
+
+  // The room of a round under way, where one is: the round an asking made meanwhile stands behind.
+  fn round_room(&self) -> Option<i64> {
+    let state = self.state();
+    let mut rooms: Vec<i64> = state
+      .active
+      .iter()
+      .filter(|(_, conv)| conv.in_flight)
+      .map(|(chat_id, _)| *chat_id)
+      .collect();
+
+    rooms.sort_unstable();
+    rooms.first().copied()
   }
 
   // The words failed rounds gave back while the agent's old session stood, each room's put at the front of what
@@ -1823,7 +1846,7 @@ impl Conversations {
 
     // A replacement the round found owed is made now that it has ended, where no words wait (docs/unified-bmo.md,
     // 「Replacing the session」).
-    self.settle_owed_behind_turn().await;
+    self.settle_owed_behind_turn(Some(chat_id)).await;
 
     drop(under_way);
     drop(turn_lock);
@@ -3305,7 +3328,7 @@ impl Conversations {
 
     // A replacement owed is made ahead of the touch: the agent is quiet, and the fresh session is what the touch
     // keeps warm (docs/unified-bmo.md, 「Replacing the session」).
-    self.settle_owed_behind_turn().await;
+    self.settle_owed_behind_turn(None).await;
 
     let touched = super::touch::touch(&self.0.receiver, self, self.agent(), idle_override_ms).await;
 

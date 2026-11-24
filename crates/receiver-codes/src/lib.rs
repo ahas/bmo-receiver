@@ -61,7 +61,7 @@ pub use draws::{DrawAsked, DrawLine, DrawResult};
 pub use file_fills::FileFillRefusal;
 pub use fixed_lines::FixedLine;
 pub use health::HealthFact;
-pub use kinds::{RunTitle, SessionReason, SkipReason, TurnOpening};
+pub use kinds::{HandoverCause, RunTitle, SessionReason, SkipReason, TurnOpening};
 pub use message_acts::MessageActRefusal;
 pub use owner_sends::{FileUnsent, OwnerSendRefusal};
 pub use room_accounts::RoomAccountRefusal;

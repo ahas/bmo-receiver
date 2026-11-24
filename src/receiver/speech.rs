@@ -27,6 +27,8 @@ pub enum NotSaid {
   NoRoad { chat_id: i64 },
   #[error("the room {chat_id} is read-only, read in the owner's account alone, so nothing was said there")]
   ReadOnly { chat_id: i64 },
+  #[error("the room {chat_id} is archived and locked, so nothing was kept there")]
+  Archived { chat_id: i64 },
   #[error("the {road} road is not among the configured chat services")]
   Unlisted { road: String },
   #[error("the {road} road did not carry the line: {why}")]
@@ -111,6 +113,55 @@ impl Speech {
     let kept = json!({ "code": code, "fields": fields });
 
     self.said_as(chat_id, &text, Some(&kept)).await
+  }
+
+  /// A fixed line kept in the room's record alone, in the rooms' language and as the line it was said from, and
+  /// sent to no chat service whatever road the room has (docs/voiced-notices.md, 「Lines that stay fixed」): the
+  /// screens reading the room are told, and nothing goes on to its providers. A read-only room keeps it too,
+  /// since nothing is sent anywhere; an archived room is locked and keeps nothing, nor does a room no road holds.
+  /// The number it was kept as; none where no sentence can be made of it.
+  pub async fn keep_line(&self, chat_id: i64, line: &FixedLine) -> Result<Option<i64>, NotSaid> {
+    if crate::roads::archived::archived(&self.db, chat_id).await?.is_some() {
+      return Err(NotSaid::Archived { chat_id });
+    }
+
+    if self.units.roads.unasked(chat_id).await.is_none() {
+      return Err(NotSaid::NoRoad { chat_id });
+    }
+
+    let Some((code, fields)) = code_and_fields(line) else {
+      return Ok(None);
+    };
+    let Some(text) = self.rendered_code(&code, fields.clone()).await else {
+      return Ok(None);
+    };
+    let kept = json!({ "code": code, "fields": fields });
+    // Kept in the road's own voice, under the number the room's road gave it where it gave one, as a line nobody
+    // asked for is.
+    let default = self.default_answerer.name();
+    let numbered = match self.units.roads.room_road(chat_id).await {
+      Some(road) => record::agent_number(&self.db, &road, &default).await?,
+      None => None,
+    };
+    let sender_id = match numbered {
+      Some(number) => Some(number),
+      None => self.units.roads.identity_in(chat_id).await,
+    };
+    let name = self.name_of(&default).await;
+    let kept = record::Kept {
+      chat_id,
+      number: None,
+      text: &text,
+      reply_to: None,
+      via: Road::Record.key(),
+      sender_id,
+      name: &name,
+      agent: None,
+      voice: None,
+      line: Some(&kept),
+    };
+
+    record::keep(&self.db, self.news.as_ref(), kept).await.map(Some).map_err(NotSaid::from)
   }
 
   // A line in a room as `say` says it, kept as the fixed line `line` names where it names one.

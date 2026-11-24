@@ -538,6 +538,8 @@ pub async fn handoff(config: &Config, args: HandoffArgs) -> Result<Vec<String>, 
 
   let asked = HandoverAsked {
     reason: reason.to_owned(),
+    room: None,
+    by: None,
   };
   let pending = client(config)?
     .hand_over(agent, &asked)

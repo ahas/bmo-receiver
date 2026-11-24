@@ -49,6 +49,43 @@ pub enum SessionReason {
   Process,
 }
 
+/// Why an agent's session was handed over to a fresh one, as the room's `session-handed-over` line names it.
+#[derive(
+  Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, strum::Display, IntoStaticStr, VariantNames,
+)]
+#[serde(rename_all = "kebab-case")]
+#[strum(serialize_all = "kebab-case")]
+pub enum HandoverCause {
+  /// A person or the agent itself asked a handover.
+  Asked,
+  /// A reset of the session was asked through the agency.
+  Reset,
+  /// The session filled its window.
+  Full,
+  /// The road the session stood on moved: another provider or model.
+  Road,
+  /// The documents or the instructions the session was handed moved.
+  Documents,
+  /// Anything else, or a cause nothing names.
+  Other,
+}
+
+impl HandoverCause {
+  /// The cause a replacement the receiver makes for a reason goes by.
+  pub fn of(reason: SessionReason) -> Self {
+    match reason {
+      SessionReason::Asked => Self::Asked,
+      SessionReason::Full => Self::Full,
+      SessionReason::Route | SessionReason::Downgrade | SessionReason::DowngradeForced => Self::Road,
+      SessionReason::Prefix | SessionReason::Process => Self::Documents,
+      SessionReason::Account
+      | SessionReason::Placement
+      | SessionReason::Expired
+      | SessionReason::NoPrefix => Self::Other,
+    }
+  }
+}
+
 /// What opened a turn of a room that no person's words opened, as the console's verdicts show it.
 #[derive(
   Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, strum::Display, IntoStaticStr, VariantNames,

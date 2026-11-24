@@ -1967,9 +1967,12 @@ export interface components {
         };
         /**
          * @description A handoff the agency asks for ahead of a fresh session it opens for an agent that had one: why, and the room
-         *     whose session is asked where the agent keeps one in each room.
+         *     whose session is asked where the agent keeps one in each room, whose line the room is told in where the agent
+         *     keeps one session across its rooms; and the cause that line names, a `HandoverCause` kind, `other` where none is
+         *     named.
          */
         HandoffAsked: {
+            cause?: string | null;
             reason: string;
             /** Format: int64 */
             room?: number | null;
@@ -1980,9 +1983,16 @@ export interface components {
             bytes: number;
             path: string;
         };
-        /** @description A handover asked for an agent's one session: why, for the receiver's journal. */
+        /**
+         * @description A handover asked for an agent's one session: why, in the asker's words, for the receiver's journal and the room's
+         *     line; the room that line goes to, and the account key of the person who asked, where the asking names them.
+         */
         HandoverAsked: {
+            /** Format: int64 */
+            by?: number | null;
             reason: string;
+            /** Format: int64 */
+            room?: number | null;
         };
         /**
          * @description A handover written for an agent's one session, which its next turn carries out: the agent, and the reason the

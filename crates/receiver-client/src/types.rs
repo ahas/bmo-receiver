@@ -1167,13 +1167,17 @@ pub struct TalkTurn {
 }
 
 /// A handoff the agency asks for ahead of a fresh session it opens for an agent that had one: why, and the room
-/// whose session is asked where the agent keeps one in each room.
+/// whose session is asked where the agent keeps one in each room, whose line the room is told in where the agent
+/// keeps one session across its rooms; and the cause that line names, a `HandoverCause` kind, `other` where none is
+/// named.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct HandoffAsked {
   pub reason: String,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub room: Option<i64>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub cause: Option<String>,
 }
 
 /// The handoff file a standing session wrote: where it stands and how long it is, in bytes.
@@ -1184,11 +1188,16 @@ pub struct HandoffWritten {
   pub bytes: u64,
 }
 
-/// A handover asked for an agent's one session: why, for the receiver's journal.
+/// A handover asked for an agent's one session: why, in the asker's words, for the receiver's journal and the room's
+/// line; the room that line goes to, and the account key of the person who asked, where the asking names them.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct HandoverAsked {
   pub reason: String,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub room: Option<i64>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub by: Option<i64>,
 }
 
 /// A handover written for an agent's one session, which its next turn carries out: the agent, and the reason the

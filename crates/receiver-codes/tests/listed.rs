@@ -8,11 +8,11 @@ use http::StatusCode;
 use pulldown_cmark::{Event, HeadingLevel, Parser, Tag, TagEnd};
 use receiver_codes::draws::{DrawAsked, DrawLine, DrawResult};
 use receiver_codes::{
-  AvatarRefusal, Code, Fact, FileFillRefusal, FileUnsent, FixedLine, HealthFact, MessageActRefusal,
-  OwnerSendRefusal, ReceiverError, Refused, RoomAccountRefusal, RoomAdditionRefusal, RoomGrantRefusal,
-  RoomMembersRefusal, RoomModeRefusal, RoomReadRefusal, RoomRemovalRefusal, RoomRemovalWarning, RunTitle,
-  SendRefusal, SessionReason, SettingFact, SkipReason, SupervisorFact, SupervisorRefusal, TalkRefusal,
-  TurnOpening, VoiceFact, VoiceRefusal,
+  AvatarRefusal, Code, Fact, FileFillRefusal, FileUnsent, FixedLine, HandoverCause, HealthFact,
+  MessageActRefusal, OwnerSendRefusal, ReceiverError, Refused, RoomAccountRefusal, RoomAdditionRefusal,
+  RoomGrantRefusal, RoomMembersRefusal, RoomModeRefusal, RoomReadRefusal, RoomRemovalRefusal,
+  RoomRemovalWarning, RunTitle, SendRefusal, SessionReason, SettingFact, SkipReason, SupervisorFact,
+  SupervisorRefusal, TalkRefusal, TurnOpening, VoiceFact, VoiceRefusal,
 };
 use serde_json::json;
 use strum::VariantNames;
@@ -54,6 +54,7 @@ fn enums() -> Vec<(&'static str, Names, &'static [&'static str])> {
     ("FileUnsent", Kinds, FileUnsent::VARIANTS),
     ("RunTitle", Kinds, RunTitle::VARIANTS),
     ("SessionReason", Kinds, SessionReason::VARIANTS),
+    ("HandoverCause", Kinds, HandoverCause::VARIANTS),
     ("TurnOpening", Kinds, TurnOpening::VARIANTS),
     ("SkipReason", Kinds, SkipReason::VARIANTS),
   ]
@@ -238,6 +239,33 @@ fn a_fixed_line_is_its_code_and_fields_and_says_whether_it_is_a_system_notice() 
     serde_json::to_value(&draw).unwrap()["asked"],
     json!({ "shape": "pick", "items": 5, "take": 2 })
   );
+
+  // A handover's line carries the asker's words and who asked only where they are known.
+  let asked = FixedLine::SessionHandedOver {
+    agent: "agent-a".to_owned(),
+    cause: HandoverCause::Asked,
+    reason: Some("start afresh".to_owned()),
+    by: Some(3),
+  };
+  let full = FixedLine::SessionHandedOver {
+    agent: "agent-a".to_owned(),
+    cause: HandoverCause::Full,
+    reason: None,
+    by: None,
+  };
+
+  assert_eq!(asked.code(), "session-handed-over");
+  assert!(!asked.is_system_notice() && !asked.asked_by_unit());
+  assert_eq!(
+    serde_json::to_value(&asked).unwrap(),
+    json!({ "code": "session-handed-over", "agent": "agent-a", "cause": "asked", "reason": "start afresh", "by": 3 })
+  );
+  assert_eq!(
+    serde_json::to_value(&full).unwrap(),
+    json!({ "code": "session-handed-over", "agent": "agent-a", "cause": "full" })
+  );
+  assert_eq!(HandoverCause::of(SessionReason::Process), HandoverCause::Documents);
+  assert_eq!(HandoverCause::of(SessionReason::DowngradeForced), HandoverCause::Road);
 }
 
 #[test]

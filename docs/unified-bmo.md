@@ -361,6 +361,40 @@
   agent last answered there, up to the archived block's cap, are what a turn that returns to a room reads. An
   ordinary round in a room the session already holds carries no archived block.
 
+### The room's line
+
+- **Every handover is told in one room, once, as one fixed line.** The line is `session-handed-over`
+  (`docs/codes.md`, 「Fixed lines」): the agent, the cause, the asker's words where an asker gave them, and the
+  account of the person who asked where the receiver knows one. It is written where the handover is made, so it
+  stands whichever road asked for it, and it is kept in the room's record alone, sent to no chat service
+  (`docs/voiced-notices.md`, 「Lines that stay fixed」).
+- **The one session across rooms, replaced by the receiver,** is told once the replacement is made: in the room a
+  handover asked through the route named, else the room of the round behind which the replacement was made — the
+  round whose end made it, or the round it was made ahead of — else the owner's private room. Its cause is
+  `asked` where a handover asked through the route stands, which the replacement answers whatever reason it was
+  made for, with that asking's words and asker; otherwise it follows the reason the replacement was made for:
+  `full` for a full window, `road` for a road moved or a model replaced, `documents` for a head moved or the rules
+  for reading a turn changed, and `other` for anything else. A replacement owed by a session no turn went on hands
+  nothing over and tells nothing; the handover asked of it is spent with it.
+- **The one session across rooms, handed over ahead of a fresh session the agency opens,** is told once the
+  standing session was asked for its handoff (`docs/api.md`, 「Handoffs」), whether or not it wrote one: in the
+  room the asking named, else the room of the round under way the asking stood behind, else the owner's private
+  room, with the cause the asking names and `other` where it names none. An asking that reaches no standing
+  session, one answered by the handoff kept within the policy's span, and one made from inside the handoff under
+  way tell nothing.
+- **A room's own session, handed over by the agency,** is told in that room when the receiver learns of it: by
+  the turn that finds the session's generation past the one it last answered on, or the session gone. The
+  agency's state of the session names no reason for a generation, so the cause is what the receiver can tell
+  itself: `reset` where the supervisor's settings page names a reset of the room's session carried out since the
+  receiver first answered on the generation before (`docs/boundary-api.md`, 「The agency」), `road` where the state
+  names another provider or model than that generation stood on, and `other` otherwise. The receiver keeps what
+  it saw of each generation for this (`<agent>_generation_seen:<session>`, `docs/store.md`); a generation it never
+  saw tells `other`.
+- **A handover touches nothing of the room's record.** No message, file or minutes is deleted or hidden: only the
+  session is replaced. What goes with an ended session is the session's own — the room block it read, the note
+  versions it was handed, the record of its cache and the round log's count of what it read — and the agency
+  keeps the old session's own record as it stands.
+
 ## The brain's consolidation
 
 The agent's brain consolidates at the two moments its design names and no other (the brain's `docs/design.md`,

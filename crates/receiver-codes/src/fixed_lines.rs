@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use strum::{IntoStaticStr, VariantNames};
 
 use crate::draws::DrawLine;
+use crate::kinds::HandoverCause;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, IntoStaticStr, VariantNames)]
 #[serde(tag = "code", rename_all = "kebab-case")]
@@ -49,6 +50,17 @@ pub enum FixedLine {
     unit_name: String,
     accounts: Vec<i64>,
     by: i64,
+  },
+  /// An agent's session handed over to a fresh one, or started afresh: kept in the room's record alone, never sent
+  /// to a chat service. `agent` is the agent's registered name; `reason` the asker's words where an asker gave any;
+  /// `by` the account key of the person who asked, where the receiver knows one.
+  SessionHandedOver {
+    agent: String,
+    cause: HandoverCause,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    reason: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    by: Option<i64>,
   },
   /// A person's run found no supply source left, said straight to the room the run answers so the person hears why
   /// while no turn can go out there: `why` names the reason as the agency gives it, a kebab-case word the web unit's

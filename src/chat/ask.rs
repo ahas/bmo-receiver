@@ -13,7 +13,7 @@ use std::time::Duration;
 use serde_json::Value;
 use tokio::time::MissedTickBehavior;
 
-use receiver_codes::SessionReason;
+use receiver_codes::{HandoverCause, SessionReason};
 use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_policy::handover::HANDOVER;
 use receiver_ports::agency::{Agency, Delivery, Event, Said, Scope, Session, Turn, TurnRoom};
@@ -130,9 +130,11 @@ async fn owed_notes(receiver: &Receiver, agent: &str, session: &str) {
 
 /// The replacement an agent's one session owes made while the agent is quiet (docs/unified-bmo.md, 「Replacing the
 /// session」): the session writes the notes it owes and its handoff, is ended and started again, and the note the
-/// fresh session's first turn opens on is kept for it. True where a replacement was owed and made; the caller holds
-/// the agent's turn, so words that arrive while it is made wait for the fresh session.
-pub async fn replace_owed(receiver: &Receiver, agent: &str) -> bool {
+/// fresh session's first turn opens on is kept for it, and the room is told so in one line kept in its record: the
+/// room the asking named, else `behind`, the room of the round behind which it was made, else the owner's private
+/// room. True where a replacement was owed and made; the caller holds the agent's turn, so words that arrive while
+/// it is made wait for the fresh session.
+pub async fn replace_owed(receiver: &Receiver, agent: &str, behind: Option<i64>) -> bool {
   let db = receiver.db();
   let reason = match owed_replacement(db, agent).await {
     Ok(Some(reason)) => reason,
@@ -171,6 +173,7 @@ pub async fn replace_owed(receiver: &Receiver, agent: &str) -> bool {
       eprintln!("{agent}: the replacement owed was not settled: {}", why.detail);
     }
 
+    super::handed_over::let_go(receiver, agent).await;
     println!(
       "{agent}: session {old} owed a replacement ({reason}) and no turn had gone on it; nothing to hand over"
     );
@@ -213,6 +216,7 @@ pub async fn replace_owed(receiver: &Receiver, agent: &str) -> bool {
   }
 
   receiver.replacing_ends(agent);
+  super::handed_over::replaced(receiver, agent, reason, behind).await;
 
   if let Some(times) = handoff::in_a_row(receiver, agent, &format!("replacement-{reason}"), true).await {
     eprintln!(
@@ -358,6 +362,8 @@ impl Carry {
 
     let again = again.map_err(fault_of)?;
 
+    super::handed_over::replaced(receiver, agent, reason, Some(chat_id)).await;
+
     if let Some(times) = handoff::in_a_row(receiver, agent, &format!("replacement-{reason}"), true).await {
       eprintln!(
         "{agent}: session replaced again for the same reason ({reason}), {times} in a row, each within {} minutes of \
@@ -382,11 +388,17 @@ impl Carry {
   /// (docs/api.md, 「Handoffs」), exactly as a replacement asks it, and the file kept for the next fresh session's
   /// first turn: the file where it was written, none where the agent has no session to ask or it wrote nothing.
   /// The agency lets its record of the session go before it asks, so the state it answers names no generation and
-  /// is no reason not to ask; only the asking itself tells whether a session stood.
+  /// is no reason not to ask; only the asking itself tells whether a session stood. Where the agent keeps one
+  /// session across its rooms and one stood to ask, a room is told so in one line kept in its record, for `cause`:
+  /// `room` where the asking named one, else `behind`, the room of the round behind which it was asked, else the
+  /// owner's private room. A room's own session is the agency's, and its room hears of it as its next turn finds
+  /// the generation the agency opened.
   pub async fn hand_off(
     &self,
     agent: &str,
     room: Option<i64>,
+    behind: Option<i64>,
+    cause: HandoverCause,
   ) -> Result<Option<handoff::Handoff>, Failure> {
     let receiver = &self.receiver;
     let agency = receiver.units().agency.clone();
@@ -410,6 +422,10 @@ impl Carry {
     let handed = handoff::ask(receiver, agent, &standing.id, chat_id).await;
 
     receiver.replacing_ends(agent);
+
+    if unified {
+      super::handed_over::handed_off(receiver, agent, room, behind, cause).await;
+    }
 
     // The session asked wrote nothing: what the receiver keeps of its answers stands in for the fresh session's
     // first turn, or the word that nothing was recovered, the owner told once.
@@ -532,10 +548,24 @@ impl Carry {
     let released = !replacing && (expected || generation::changed(answered, opened));
 
     if released {
+      // A room's own session handed over by the agency is told in its room, in one line kept in its record, for the
+      // cause the receiver can tell from the generation it saw before (docs/unified-bmo.md, 「The room's line」).
+      if !unified {
+        let before = generation::seen(db, agent, &session.id).await;
+        let cause =
+          super::handed_over::generation_cause(receiver, agent, chat_id, before.as_ref(), &standing).await;
+
+        super::handed_over::new_generation(receiver, agent, chat_id, cause).await;
+      }
+
       generation::release(receiver, agent, &session.id).await;
 
       if let Err(why) = generation::keep(db, agent, &session.id, opened.released()).await {
         eprintln!("{agent}: session {}'s generation was not written down: {}", session.id, why.detail);
+      }
+
+      if let Err(why) = generation::see(db, agent, &session.id, opened.released(), &standing).await {
+        eprintln!("{agent}: session {}'s generation was not seen: {}", session.id, why.detail);
       }
     } else if replacing && let Err(why) = generation::settle(db, agent, &session.id).await {
       eprintln!("{agent}: session {}'s coming generation was not settled: {}", session.id, why.detail);
@@ -857,6 +887,10 @@ impl Carry {
 
     if let Err(why) = generation::keep(db, agent, &session.id, marker).await {
       eprintln!("{agent}: session {}'s generation was not written down: {}", session.id, why.detail);
+    }
+
+    if let Err(why) = generation::see(db, agent, &session.id, marker, &standing).await {
+      eprintln!("{agent}: session {}'s generation was not seen: {}", session.id, why.detail);
     }
 
     let ended: Value = ended.clone().unwrap_or(Value::Null);

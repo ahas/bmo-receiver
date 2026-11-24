@@ -1032,8 +1032,14 @@
         "type": "object"
       },
       "HandoffAsked": {
-        "description": "A handoff the agency asks for ahead of a fresh session it opens for an agent that had one: why, and the room\nwhose session is asked where the agent keeps one in each room.",
+        "description": "A handoff the agency asks for ahead of a fresh session it opens for an agent that had one: why, and the room\nwhose session is asked where the agent keeps one in each room, whose line the room is told in where the agent\nkeeps one session across its rooms; and the cause that line names, a `HandoverCause` kind, `other` where none is\nnamed.",
         "properties": {
+          "cause": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "reason": {
             "type": "string"
           },
@@ -1069,10 +1075,24 @@
         "type": "object"
       },
       "HandoverAsked": {
-        "description": "A handover asked for an agent's one session: why, for the receiver's journal.",
+        "description": "A handover asked for an agent's one session: why, in the asker's words, for the receiver's journal and the room's\nline; the room that line goes to, and the account key of the person who asked, where the asking names them.",
         "properties": {
+          "by": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "reason": {
             "type": "string"
+          },
+          "room": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
           }
         },
         "required": [

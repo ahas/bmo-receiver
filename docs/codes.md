@@ -251,6 +251,7 @@ session once the setting has changed, one waiting per setting.
 | `account-taken-out` | `account`, `by` | an account taken out of a room in the console by another |
 | `accounts-let-in` | `accounts` (a list of account keys), `by` | several accounts let into a room in the console by another in one call, the list naming those it let in |
 | `unit-let-in` | `unit` (the unit's number), `unitName` (its name as the web unit answered it then), `accounts` (a list of account keys), `by` | the members of an organisation unit, as they stood at that moment, let into a room in the console by another, the list naming those it let in |
+| `session-handed-over` | `agent` (the agent's registered name), `cause` (a `HandoverCause`), `reason` (the asker's words, present only where an asker gave them), `by` (the account key of the person who asked, present only where the receiver knows one) | an agent's session was handed over to a fresh one or started afresh; kept in one room's record alone and sent to no chat service (`docs/unified-bmo.md`, 「The room's line」) |
 | `supply-closed` | `why` (the reason as the agency names it, a kebab-case word), `until` (epoch seconds, or null) | a person's run found no supply source left; the agency asks for it beside the supply fact it queues in the run's room, so the person hears why while no turn can go out there (the agency's `docs/supply.md`, 「The facts told」) |
 
 ## Kinds
@@ -286,6 +287,17 @@ session once the setting has changed, one waiting per setting.
 | `full` | the session filled its window and its provider hands it over by its own note rather than a fold |
 | `asked` | a handover was asked for the session (`POST /handovers/{agentName}`) |
 | `process` | the room block's rules for reading and answering a turn the session was handed changed (`docs/instruction.md`, 「The stage chain and its texts」) |
+
+### HandoverCause
+
+| Kind | Meaning |
+|---|---|
+| `asked` | a person or the agent itself asked a handover (`POST /handovers/{agentName}`) |
+| `reset` | a reset of the session was asked through the agency |
+| `full` | the session filled its window |
+| `road` | the road the session stood on moved: another provider or model |
+| `documents` | the documents or the instructions the session was handed moved |
+| `other` | anything else, or a cause nothing names |
 
 ### TurnOpening
 

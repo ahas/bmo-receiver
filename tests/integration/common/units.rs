@@ -1393,6 +1393,9 @@ pub struct StandInAgency {
   pub brain_off: Mutex<BTreeSet<String>>,
   /// The supervisors whose settings switch their reference off, where a test names any.
   pub reference_off: Mutex<BTreeSet<String>>,
+  /// When a reset of a supervisor's session in a room was last carried out, in epoch seconds, by the supervisor and
+  /// the room, where a test sets one.
+  pub room_resets: Mutex<BTreeMap<(String, i64), i64>>,
 }
 
 impl StandInAgency {
@@ -1405,6 +1408,7 @@ impl StandInAgency {
       removal_refused: Mutex::default(),
       brain_off: Mutex::default(),
       reference_off: Mutex::default(),
+      room_resets: Mutex::default(),
       resets: Mutex::default(),
       pushes: Mutex::default(),
       saying: Mutex::default(),
@@ -1552,6 +1556,12 @@ impl Agency for StandInAgency {
     };
 
     Box::pin(async move { Ok(switches) })
+  }
+
+  fn room_reset_at<'a>(&'a self, supervisor: &'a str, chat_id: i64) -> BoxFuture<'a, Answer<Option<i64>>> {
+    let at = self.room_resets.lock().unwrap().get(&(supervisor.to_owned(), chat_id)).copied();
+
+    Box::pin(async move { Ok(at) })
   }
 
   fn supervisors(&self) -> BoxFuture<'_, Answer<Agents>> {

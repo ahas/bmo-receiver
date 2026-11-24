@@ -1,7 +1,8 @@
 //! A generation the agency opens under an agent's session (docs/unified-bmo.md, 「Replacing the session」): a turn
 //! whose state names a generation past the one the session last answered on releases what the ended generation held,
 //! once, and reports the fold to the brain; a resumed session and a return to another room release nothing. The
-//! round log the console reads then starts from zero.
+//! round log the console reads then starts from zero. A room's own session handed over by the agency is told in its
+//! room by one fixed line kept in its record alone, naming a reset where the agency carried one out.
 
 use std::path::Path;
 use std::sync::Arc;
@@ -127,6 +128,7 @@ struct Round {
   standing: StandingUnits,
   session: Arc<StandInSession>,
   runner: Runner,
+  chat: Arc<StandInChat>,
 }
 
 impl Round {
@@ -139,7 +141,7 @@ impl Round {
 
     documents(data.path());
 
-    let standing = woken(unrun(scratch.db(), DataRoot::new(data.path()), vec![chat], deployment()));
+    let standing = woken(unrun(scratch.db(), DataRoot::new(data.path()), vec![chat.clone()], deployment()));
     // The rooms stand on the console's room list, so the receiver listens to them (docs/wake.md).
     bmo_receiver::receiver::rows::allow_chat(scratch.db(), OTHER).await.unwrap();
     let receiver = standing.receiver.clone();
@@ -168,6 +170,7 @@ impl Round {
       standing,
       session,
       runner,
+      chat,
     }
   }
 
@@ -485,4 +488,86 @@ async fn a_handoff_kept_ahead_of_a_fresh_generation_rides_its_first_turn() {
     None,
     "the handoff is taken once"
   );
+}
+
+// Every row a room's record holds, whole, in the order of its numbers.
+async fn record_of(round: &Round, chat_id: i64) -> Vec<String> {
+  round
+    .scratch
+    .texts(&format!(
+      r#"SELECT row_to_json(m)::text FROM "messages" m WHERE "chat_id" = {chat_id} ORDER BY "message_id""#
+    ))
+    .await
+}
+
+// The `session-handed-over` lines a room's record keeps, in the order kept, each as the line it was said from.
+async fn handed_lines(round: &Round, chat_id: i64) -> Vec<Value> {
+  round
+    .scratch
+    .texts(&format!(
+      r#"SELECT "line" FROM "messages" WHERE "chat_id" = {chat_id} AND "kind" = 'fixed-line' ORDER BY "rowid""#
+    ))
+    .await
+    .into_iter()
+    .map(|line| serde_json::from_str::<Value>(&line).unwrap())
+    .filter(|line| line["code"] == json!("session-handed-over"))
+    .collect()
+}
+
+fn handed(cause: &str) -> Value {
+  json!({ "code": "session-handed-over", "fields": { "agent": AGENT, "cause": cause } })
+}
+
+#[tokio::test]
+async fn a_generation_the_agency_opens_under_a_rooms_session_is_told_there_once_and_touches_no_word() {
+  let round = Round::new(StandInSession::new(SESSION, ANSWER).at_generation(1), false).await;
+
+  round.round(1).await;
+  assert!(handed_lines(&round, OWNER).await.is_empty(), "a first generation is no handover");
+
+  // The owner resets the room's session through the agency, which carries it out as it opens the next generation.
+  tokio::time::sleep(Duration::from_millis(1100)).await;
+  round
+    .standing
+    .agency
+    .room_resets
+    .lock()
+    .unwrap()
+    .insert((AGENT.to_owned(), OWNER), bmo_receiver::now_ms() / 1000);
+
+  let before = record_of(&round, OWNER).await;
+  let sent = round.chat.sent().len();
+
+  round.opens_generation(2);
+  round.round(2).await;
+
+  assert_eq!(
+    handed_lines(&round, OWNER).await,
+    [handed("reset")],
+    "the room is told once, as a reset"
+  );
+
+  let after = record_of(&round, OWNER).await;
+
+  assert!(
+    before.iter().all(|row| after.contains(row)),
+    "the room's earlier words stand as they were: {before:?} against {after:?}"
+  );
+
+  // The round's own answer went out on the road, and the line did not.
+  let carried: Vec<String> = round.chat.sent()[sent..].iter().map(|sent| format!("{sent:?}")).collect();
+
+  assert!(
+    carried.iter().all(|sent| !sent.contains("session-handed-over")),
+    "the line went to no chat service: {carried:?}"
+  );
+
+  // A turn on the same generation tells nothing again.
+  round.round(3).await;
+  assert_eq!(handed_lines(&round, OWNER).await, [handed("reset")]);
+
+  // A generation opened later, with no reset carried out since, names nothing more of why.
+  round.opens_generation(3);
+  round.round(4).await;
+  assert_eq!(handed_lines(&round, OWNER).await, [handed("reset"), handed("other")]);
 }

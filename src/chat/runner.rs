@@ -174,8 +174,9 @@ impl Touching for Runner {
     _receiver: &'a Receiver,
     agent: &'a str,
     room: Option<i64>,
+    cause: receiver_codes::HandoverCause,
   ) -> BoxFuture<'a, Result<Option<super::handoff::Handoff>, Failure>> {
-    Box::pin(async move { self.of(agent).hand_off(room).await })
+    Box::pin(async move { self.of(agent).hand_off(room, cause).await })
   }
 }
 

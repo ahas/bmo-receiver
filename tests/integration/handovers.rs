@@ -2,7 +2,8 @@
 //! session」): the route writes the word to start the session afresh with the reason `asked` and runs no turn, an
 //! empty reason, an agent the agency does not register and one that keeps a session in each room are refused, and
 //! the `handoff` verb asks the same route of a receiver standing on a port, after which the agent's next turn asks
-//! the old session for its handoff, ends it and opens the new one on the note.
+//! the old session for its handoff, ends it and opens the new one on the note. A handover asked with a room and an
+//! asker is told in that room by one fixed line kept in its record alone, and no room's earlier words change.
 
 use std::path::Path;
 use std::sync::Arc;
@@ -20,7 +21,7 @@ use bmo_receiver::store::settings;
 use serde_json::json;
 
 use crate::integration::common::Scratch;
-use crate::integration::common::queue::{TOKEN, post, stood};
+use crate::integration::common::queue::{TOKEN, post, posted_to, stood};
 use crate::integration::common::session::{
   StandInSession, handoff_path, prompt_documents, writing_handoff,
 };
@@ -182,12 +183,19 @@ async fn until_turns(runner: &Runner, session: &StandInSession, wanted: usize) {
 // A receiver whose default answerer keeps one session across its rooms, stood with documents, a chat service
 // holding the owner's chat, the agent registered, the session given, and a runner ready for its rounds.
 async fn stood_handing(session: Arc<StandInSession>) -> (Scratch, tempfile::TempDir, Standing, Runner) {
+  stood_handing_on(session, Arc::new(StandInChat::new("road-a").owners(OWNER))).await
+}
+
+// The same, on the chat service a test keeps.
+async fn stood_handing_on(
+  session: Arc<StandInSession>,
+  chat: Arc<StandInChat>,
+) -> (Scratch, tempfile::TempDir, Standing, Runner) {
   let scratch = Scratch::new().await;
 
   crate::integration::common::session::no_stages(scratch.db()).await;
 
   let data = tempfile::tempdir().unwrap();
-  let chat = Arc::new(StandInChat::new("road-a").owners(OWNER));
 
   prompt_documents(data.path());
 
@@ -288,4 +296,103 @@ async fn the_handoff_verb_asks_a_handover_and_a_quiet_agents_session_is_replaced
     None,
     "the word is spent by the one replacement"
   );
+}
+
+/// A room of the chat service that is not the owner's private chat.
+const OTHER: i64 = -7;
+
+// Every row a room's record holds, whole, in the order of its numbers.
+async fn record_of(scratch: &Scratch, chat_id: i64) -> Vec<String> {
+  scratch
+    .texts(&format!(
+      r#"SELECT row_to_json(m)::text FROM "messages" m WHERE "chat_id" = {chat_id} ORDER BY "message_id""#
+    ))
+    .await
+}
+
+// The fixed lines a room's record keeps under the code, each as the line it was said from.
+async fn handed_lines(scratch: &Scratch, chat_id: i64) -> Vec<serde_json::Value> {
+  scratch
+    .texts(&format!(
+      r#"SELECT "line" FROM "messages" WHERE "chat_id" = {chat_id} AND "kind" = 'fixed-line' ORDER BY "rowid""#
+    ))
+    .await
+    .into_iter()
+    .map(|line| serde_json::from_str::<serde_json::Value>(&line).unwrap())
+    .filter(|line| line["code"] == json!("session-handed-over"))
+    .collect()
+}
+
+#[tokio::test]
+async fn a_handover_asked_with_a_room_and_an_asker_keeps_one_line_there_and_sends_nothing() {
+  let session = Arc::new(StandInSession::new("agent-a@standing", "Here.").acting(writing_handoff(NOTE)));
+  let chat = Arc::new(StandInChat::new("road-a").owners(OWNER).holding(&[OTHER]));
+  let (scratch, _data, standing, runner) = stood_handing_on(session.clone(), chat.clone()).await;
+  let receiver = standing.receiver.clone();
+
+  bmo_receiver::receiver::rows::allow_chat(scratch.db(), OTHER).await.unwrap();
+  receiver.clone().hold_touching(Arc::new(runner.clone()));
+  receiver
+    .message(&worded(1, "the first words"), &Context::default(), owners_room())
+    .await
+    .unwrap();
+  until_turns(&runner, &session, 1).await;
+  tokio::time::sleep(Duration::from_millis(100)).await;
+
+  let owners_before = record_of(&scratch, OWNER).await;
+  let sent_before = chat.sent().len();
+
+  assert!(!owners_before.is_empty(), "the owner's chat holds the round's words");
+
+  let (status, body) = posted_to(
+    routes(receiver.clone(), TOKEN),
+    "/handovers/agent-a",
+    json!({ "reason": "start afresh, please", "room": OTHER, "by": 3 }),
+  )
+  .await;
+
+  assert_eq!(status, StatusCode::ACCEPTED, "{body}");
+
+  // The agent is quiet, so the session is replaced behind the answer and the room told once it is made.
+  until_turns(&runner, &session, 2).await;
+
+  let waited = tokio::time::timeout(Duration::from_secs(20), async {
+    while handed_lines(&scratch, OTHER).await.is_empty() {
+      tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+  })
+  .await;
+
+  assert!(waited.is_ok(), "the room's line never came");
+  tokio::time::sleep(Duration::from_millis(100)).await;
+  assert_eq!(standing.agency.ended(), ["agent-a@standing"]);
+  assert_eq!(
+    handed_lines(&scratch, OTHER).await,
+    [json!({
+      "code": "session-handed-over",
+      "fields": { "agent": AGENT, "cause": "asked", "reason": "start afresh, please", "by": 3 }
+    })],
+    "one line, kept as the fixed line it is"
+  );
+  assert_eq!(record_of(&scratch, OTHER).await.len(), 1, "the line is all the room gained");
+  assert!(handed_lines(&scratch, OWNER).await.is_empty(), "no other room is told");
+  assert_eq!(record_of(&scratch, OWNER).await, owners_before, "the owner's chat is as it was");
+  assert_eq!(chat.sent().len(), sent_before, "nothing went to the chat service");
+  assert_eq!(
+    settings::get(scratch.db(), &bmo_receiver::chat::handed_over::asked_key(AGENT))
+      .await
+      .unwrap(),
+    None,
+    "the asking is spent by the replacement"
+  );
+
+  // A room the receiver holds no road for is refused.
+  let (status, body) = posted_to(
+    routes(receiver.clone(), TOKEN),
+    "/handovers/agent-a",
+    json!({ "reason": "why", "room": 424_242 }),
+  )
+  .await;
+
+  assert_eq!((status, body["code"].as_str()), (StatusCode::NOT_FOUND, Some("not-found")), "{body}");
 }
