@@ -8,8 +8,8 @@
 //! failed run leave the store as it stood.
 //!
 //! Every table keeps its old name but `telegram_messages`, whose rows become `message_metadata`. A
-//! time is epoch seconds in the old archive and epoch milliseconds here, so the columns
-//! `m20261020_000007_millisecond_times` multiplies are multiplied as they are written.
+//! time is epoch seconds in the old archive and epoch milliseconds here, so the time columns the
+//! store keeps in milliseconds are multiplied as they are written.
 //!
 //! Two path columns are rewritten: the old archive's `messages.image_path` and
 //! `collected_items.stored_path` carry paths under the data root of their day, and those files

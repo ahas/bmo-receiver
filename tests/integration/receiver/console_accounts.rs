@@ -23,24 +23,22 @@ use serde_json::{Value, json};
 use tempfile::TempDir;
 use tower::ServiceExt;
 
+use crate::integration::common::Scratch;
 use crate::integration::common::queue::as_console;
 use crate::integration::common::units::{
   ADDRESS, AGENT, OWNER, SENDER, StandInChat, Standing, Woken, registration, standing, woken,
 };
-use crate::integration::common::{Scratch, undone_from};
 use bmo_receiver::chat::conversation::joins_round;
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::private_rooms::{self, Asked};
 use bmo_receiver::receiver::{Context, How, Inbound, Room};
 use bmo_receiver::routes::routes;
-use bmo_receiver::store::migration::migrate;
 use bmo_receiver::verbs::VerbError;
 use bmo_receiver::verbs::room_rules::{self, Change, Form, Subject};
 use receiver_codes::RoomGrantRefusal;
 
 const TOKEN: &str = "the-token";
 // The migration that began keeping private rooms on the record.
-const PRIVATE_ROOMS: &str = "m20261116_000048_private_rooms";
 // The owner's account, which the web unit links to his sender, and two other accounts.
 const OWNERS: i64 = 1;
 const BEA: i64 = 7;
@@ -1473,16 +1471,25 @@ async fn the_pass_at_start_keeps_every_private_room_once() {
   assert_eq!(kept_private(&stood).await, kept, "a second pass changes nothing");
 }
 
+// No private room kept and the pass at start not yet run, as a store held before it kept them.
+async fn forget_private_rooms(db: &sea_orm::DatabaseConnection) {
+  use sea_orm::ConnectionTrait;
+
+  db.execute_unprepared(
+    r#"DELETE FROM "private_rooms"; DELETE FROM "settings" WHERE "key" = 'private_rooms_adopted'"#,
+  )
+  .await
+  .unwrap();
+}
+
 #[tokio::test]
 async fn a_store_from_before_the_private_rooms_were_kept_has_them_filled() {
   let stood = stood(false).await;
   let db = stood.scratch.db();
 
   said(&stood.port, BEAS_ROOM, BEA, "Bea", "only for my BMO").await;
-  // Down to before the private rooms' table, the one migration after it with it.
-  let steps = undone_from(db, PRIVATE_ROOMS).await;
-
-  assert_eq!(migrate(db).await.unwrap(), steps, "the private rooms' table is made again, empty");
+  // As a store held before it kept private rooms: none kept, and the pass at start not yet run.
+  forget_private_rooms(db).await;
   assert!(kept_private(&stood).await.is_empty());
 
   // Kept again by the first start after the upgrade, Bea's room stays hers once her supervisor is gone.
@@ -1969,8 +1976,7 @@ async fn an_ownerless_persons_bmo_is_adopted_by_the_account_its_name_names() {
   stood.standing.receiver.forget_agents();
 
   // The first start after the record began keeping private rooms.
-  undone_from(db, PRIVATE_ROOMS).await;
-  migrate(db).await.unwrap();
+  forget_private_rooms(db).await;
 
   let settled = private_rooms::at_start(&stood.standing.receiver).await.unwrap();
   let kept = kept_private(&stood).await;

@@ -1,28 +1,13 @@
-//! The receiver's database as its migrations make it, the settings rows, and a statement prepared before a
-//! migration moved its table run again on the same pooled connection (`docs/store.md`).
+//! The receiver's database as its migrations make it, from the 1.0.0 baseline, an install from before it taken
+//! as it stands, the settings rows, and a statement prepared before a migration moved its table run again on the
+//! same pooled connection (`docs/store.md`).
 
-use bmo_receiver::store::migration::m20261017_000001_receiver::TABLES;
-use bmo_receiver::store::migration::m20261017_000002_record_numbers::TABLE as RECORD_NUMBERS;
-use bmo_receiver::store::migration::m20261017_000003_room_windows::TABLE as ROOM_WINDOWS;
-use bmo_receiver::store::migration::m20261017_000004_people_reads::TABLE as PEOPLE_READS;
-use bmo_receiver::store::migration::m20261019_000005_message_metadata::TABLE as MESSAGE_METADATA;
-use bmo_receiver::store::migration::m20261022_000008_news_briefs::TABLES as NEWS_BRIEFS_TABLES;
-use bmo_receiver::store::migration::m20261023_000009_room_providers::TABLES as ROOM_PROVIDERS_TABLES;
-use bmo_receiver::store::migration::m20261023_000010_room_modes::TABLE as ROOM_MODES;
-use bmo_receiver::store::migration::m20261027_000018_avatar_sets::TABLE as AVATAR_SETS;
-use bmo_receiver::store::migration::m20261027_000020_record_acts::TABLE as MESSAGE_REACTIONS;
-use bmo_receiver::store::migration::m20261027_000022_room_situations::TABLE as ROOM_SITUATIONS;
-use bmo_receiver::store::migration::m20261029_000030_room_settings_dropped::TABLES as DROPPED_SETTINGS;
-use bmo_receiver::store::migration::m20261106_000034_session_notes::TABLE as SESSION_NOTES;
-use bmo_receiver::store::migration::m20261119_000057_retire_draft_process::TABLES as INSTRUCTION_TABLES;
-use bmo_receiver::store::migration::m20261120_000058_room_tones::TABLE as ROOM_TONES;
-use bmo_receiver::store::migration::m20261121_000059_keep_mark_texts::{KEPT, WRITTEN_NOTHING};
-use bmo_receiver::store::migration::{Migrator, RECORD_TABLE, migrate};
+use bmo_receiver::store::migration::{BASELINE, BEFORE, Migrator, RECORD_TABLE, migrate};
 use bmo_receiver::store::{all, one, pool, settings};
-use sea_orm::{DatabaseConnection, TransactionTrait};
+use sea_orm::{ConnectionTrait, DatabaseConnection, TransactionTrait};
 use sea_orm_migration::MigratorTrait;
 
-use crate::integration::common::{Scratch, undone_from};
+use crate::integration::common::Scratch;
 
 // The tables of the schema, the migrator's own record among them.
 const SCHEMA_TABLES: &str = "SELECT table_name::text FROM information_schema.tables
@@ -33,54 +18,150 @@ const INDEXES: &str = "SELECT indexname::text FROM pg_indexes
   WHERE schemaname = current_schema() AND indexname NOT LIKE '%_pkey' AND indexname NOT LIKE '%_key'
   ORDER BY indexname";
 
-fn sorted(mut names: Vec<String>) -> Vec<String> {
-  names.sort();
-  names
-}
+// Every table of the schema, the migrator's own record among them.
+const MADE: [&str; 49] = [
+  "agent_avatar_sets",
+  "allowed_chats",
+  "avatar_sets",
+  "avatars",
+  "bmo_room_contexts",
+  "bmo_rooms",
+  "bmo_session_notes",
+  "bmo_session_rooms",
+  "chat_notices",
+  "chat_reads",
+  "chat_titles",
+  "collected_items",
+  "holidays",
+  "instruction_rounds",
+  "instruction_stages",
+  "instruction_texts",
+  "instructions",
+  "message_file_asks",
+  "message_metadata",
+  "message_number_marks",
+  "message_reactions",
+  "messages",
+  "muted_members",
+  "news_briefs",
+  "people_names",
+  "people_reads",
+  "photo_chats",
+  "private_rooms",
+  "provider_owner_users",
+  "provider_private_rooms",
+  "provider_rooms",
+  "provider_users",
+  "random_draw_rooms",
+  "random_draws",
+  "reload_pending",
+  "reload_sent",
+  "room_accounts",
+  "room_archives",
+  "room_deliveries",
+  "room_modes",
+  "room_providers",
+  "room_situations",
+  "room_supervisors",
+  "room_tones",
+  "room_windows",
+  "run_records",
+  "say_relays",
+  "seaql_migrations",
+  "settings",
+];
 
 #[tokio::test]
 async fn the_migrations_make_every_table_once_and_take_them_down_again() {
   let database = Scratch::blank().await;
   let db = database.db();
-  let made: Vec<String> = TABLES
-    .iter()
-    .copied()
-    .filter(|table| !DROPPED_SETTINGS.contains(table))
-    .map(|table| if table == "room_answerers" { "room_supervisors" } else { table })
-    .chain([
-      RECORD_NUMBERS,
-      ROOM_WINDOWS,
-      PEOPLE_READS,
-      MESSAGE_METADATA,
-      ROOM_MODES,
-      AVATAR_SETS,
-      MESSAGE_REACTIONS,
-      ROOM_SITUATIONS,
-      SESSION_NOTES,
-      RECORD_TABLE,
-      "room_archives",
-      "message_file_asks",
-      "room_accounts",
-      "private_rooms",
-      "agent_avatar_sets",
-      "people_names",
-      ROOM_TONES,
-    ])
-    .chain(NEWS_BRIEFS_TABLES)
-    .chain(ROOM_PROVIDERS_TABLES)
-    .chain(INSTRUCTION_TABLES)
-    .map(str::to_owned)
-    .collect();
 
   assert_eq!(migrate(db).await.unwrap(), Migrator::migrations().len());
-  assert_eq!(database.texts(SCHEMA_TABLES).await, sorted(made.clone()));
+  assert_eq!(database.texts(SCHEMA_TABLES).await, MADE);
   assert_eq!(migrate(db).await.unwrap(), 0, "a migrated database has nothing left to run");
+  assert_eq!(database.texts(RECORDED).await, [BASELINE]);
 
   Migrator::down(db, None).await.unwrap();
   assert_eq!(database.texts(SCHEMA_TABLES).await, [RECORD_TABLE]);
 
   Migrator::up(db, None).await.unwrap();
-  assert_eq!(database.texts(SCHEMA_TABLES).await, sorted(made));
+  assert_eq!(database.texts(SCHEMA_TABLES).await, MADE);
+}
+
+const RECORDED: &str = r#"SELECT "version" FROM "seaql_migrations" ORDER BY "version""#;
+
+// Every column and index of the schema but the record's, in one line.
+const SHAPE: &str = "SELECT COALESCE((SELECT string_agg(table_name || '.' || column_name || ' ' || data_type || ' ' || \
+   is_nullable || ' ' || COALESCE(column_default, ''), ', ' ORDER BY table_name, ordinal_position) \
+   FROM information_schema.columns WHERE table_schema = current_schema() AND table_name <> 'seaql_migrations'), '') \
+   || ' / ' || COALESCE((SELECT string_agg(indexname || ' ' || replace(indexdef, current_schema() || '.', ''), ', ' \
+   ORDER BY indexname) FROM pg_indexes WHERE schemaname = current_schema() AND tablename <> 'seaql_migrations'), '')";
+
+// A blank schema holding the baseline's tables and a setting, recorded as an install from before 1.0.0 that ran
+// the first `through` migrations of its last release.
+async fn installed(through: usize) -> Scratch {
+  let database = Scratch::blank().await;
+  database
+    .db()
+    .execute_unprepared(include_str!("../../src/store/migration/baseline.sql"))
+    .await
+    .unwrap();
+  database
+    .run(
+      r#"CREATE TABLE "seaql_migrations" ("version" varchar PRIMARY KEY, "applied_at" bigint NOT NULL)"#,
+      vec![],
+    )
+    .await;
+  for version in &BEFORE[..through] {
+    database
+      .run(
+        r#"INSERT INTO "seaql_migrations" ("version", "applied_at") VALUES ($1, 1)"#,
+        vec![(*version).into()],
+      )
+      .await;
+  }
+  settings::set(database.db(), "photos_look", "on").await.unwrap();
+  database
+}
+
+#[tokio::test]
+async fn an_install_at_the_last_release_before_the_baseline_only_has_its_record_rewritten() {
+  let database = installed(BEFORE.len()).await;
+  let db = database.db();
+  let before = database.texts(SHAPE).await;
+
+  assert_eq!(migrate(db).await.unwrap(), 0);
+  assert_eq!(database.texts(RECORDED).await, [BASELINE]);
+  assert_eq!(database.texts(SHAPE).await, before);
+  assert_eq!(database.texts(r#"SELECT "value" FROM "settings""#).await, ["on"]);
+
+  // A second start finds the baseline recorded and changes nothing.
+  assert_eq!(migrate(db).await.unwrap(), 0);
+  assert_eq!(database.texts(RECORDED).await, [BASELINE]);
+  assert_eq!(database.texts(SHAPE).await, before);
+}
+
+#[tokio::test]
+async fn an_install_short_of_the_last_release_before_the_baseline_is_refused() {
+  let database = installed(3).await;
+
+  let refused = migrate(database.db()).await.unwrap_err().to_string();
+  assert!(refused.contains(BEFORE[2]), "{refused}");
+  assert_eq!(database.texts(RECORDED).await.len(), 3);
+}
+
+#[tokio::test]
+async fn a_blank_schema_gets_the_baseline_as_it_is_laid_down_whole() {
+  let migrated = Scratch::blank().await;
+  migrate(migrated.db()).await.unwrap();
+  let laid = Scratch::blank().await;
+  laid
+    .db()
+    .execute_unprepared(include_str!("../../src/store/migration/baseline.sql"))
+    .await
+    .unwrap();
+
+  assert_eq!(migrated.texts(SHAPE).await, laid.texts(SHAPE).await);
 }
 
 #[tokio::test]
@@ -159,7 +240,6 @@ const MESSAGE_INDEXES: &str = "SELECT indexname::text || ': ' || indexdef FROM p
 #[tokio::test]
 async fn a_rooms_line_is_indexed_by_time_and_its_roads_by_the_messages_that_name_one() {
   let database = Scratch::new().await;
-  let db = database.db();
   let stated = |indexes: Vec<String>| -> Vec<String> {
     indexes
       .iter()
@@ -182,209 +262,6 @@ async fn a_rooms_line_is_indexed_by_time_and_its_roads_by_the_messages_that_name
       "messages_via (chat_id, via, rowid) WHERE (via IS NOT NULL)",
     ]
   );
-
-  // The line's index is made thirteen migrations before the forwards, every migration since standing between them.
-  // Down to the same version as before the note's columns were added, one step further back.
-  let steps = undone_from(db, "m20261023_000011_message_line_index").await;
-
-  let before = stated(database.texts(MESSAGE_INDEXES).await);
-
-  assert!(before.contains(&"messages_unnamed (chat_id) WHERE (via IS NULL)".to_owned()));
-  assert!(
-    !before
-      .iter()
-      .any(|index| index.starts_with("messages_line") || index.starts_with("messages_via"))
-  );
-
-  assert_eq!(migrate(db).await.unwrap(), steps);
-  assert_eq!(stated(database.texts(MESSAGE_INDEXES).await).len(), 5);
-}
-
-#[tokio::test]
-async fn the_thinking_messages_a_record_holds_take_their_kind_and_lose_their_marker() {
-  let database = Scratch::new().await;
-  let db = database.db();
-  let marker = bmo_receiver::store::migration::m20261109_000037_thinking_kind::MARKER;
-  let steps = undone_from(db, "m20261109_000037_thinking_kind").await;
-
-  // A thinking message as it was kept, an answer that only quotes the marker, a person's words opening on it, and a
-  // round's answer opening on it: the first alone is a thinking message.
-  let rows: [(i64, Option<&str>, Option<&str>, String); 4] = [
-    (1, Some("agent-a"), None, format!("{marker}\nweighing the room's words")),
-    (2, Some("agent-a"), None, format!("the line said {marker}")),
-    (3, None, None, format!("{marker}\na person wrote this")),
-    (4, Some("agent-a"), Some("round:1"), format!("{marker}\nan answer")),
-  ];
-
-  for (id, agent, round, text) in rows {
-    database
-      .run(
-        r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_name", "sent_at", "text", "agent_name", "round")
-           VALUES (1, $1, 'agent-a', $1, $2, $3, $4)"#,
-        vec![id.into(), text.into(), agent.map(str::to_owned).into(), round.map(str::to_owned).into()],
-      )
-      .await;
-  }
-
-  assert_eq!(migrate(db).await.unwrap(), steps);
-
-  let kept = all(
-    db,
-    r#"SELECT "message_id", "kind", "text" FROM "messages" ORDER BY "message_id""#,
-    vec![],
-  )
-  .await
-  .unwrap()
-  .iter()
-  .map(|row| {
-    (
-      row.try_get::<i64>("", "message_id").unwrap(),
-      row.try_get::<Option<String>>("", "kind").unwrap(),
-      row.try_get::<String>("", "text").unwrap(),
-    )
-  })
-  .collect::<Vec<_>>();
-
-  assert_eq!(kept[0], (1, Some("thinking".to_owned()), "weighing the room's words".to_owned()));
-  assert_eq!(kept[1].1, None, "an answer that quotes the marker is an answer");
-  assert_eq!(kept[2], (3, None, format!("{marker}\na person wrote this")));
-  assert_eq!(kept[3].1, None, "a round's answer is an answer whatever it opens on");
-
-  // Stepping back hands the message its marker again.
-  undone_from(db, "m20261109_000037_thinking_kind").await;
-  assert_eq!(
-    one(db, r#"SELECT "text" FROM "messages" WHERE "message_id" = 1 AND "kind" IS NULL"#, vec![])
-      .await
-      .unwrap()
-      .map(|row| row.try_get::<String>("", "text").unwrap()),
-    Some(format!("{marker}\nweighing the room's words"))
-  );
-}
-
-#[tokio::test]
-async fn a_message_holding_a_kept_sticker_takes_the_sticker_kind() {
-  let database = Scratch::new().await;
-  let db = database.db();
-  let steps = undone_from(db, "m20261117_000053_sticker_messages").await;
-
-  // A message that kept a sticker file, one that kept a video, and a thinking block that somehow holds a sticker
-  // row: only the first takes the kind, and a kind already set stays.
-  let rows: [(i64, Option<&str>, &str); 3] =
-    [(1, None, "sticker"), (2, None, "video"), (3, Some("thinking"), "sticker")];
-
-  for (id, kind, kept) in rows {
-    database
-      .run(
-        r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_name", "sent_at", "text", "kind")
-           VALUES (1, $1, 'person-a', $1, '[file]', $2)"#,
-        vec![id.into(), kind.map(str::to_owned).into()],
-      )
-      .await;
-    database
-      .run(
-        r#"INSERT INTO "collected_items" ("chat_id", "message_id", "sender_name", "kind", "source", "collected_at")
-           VALUES (1, $1, 'person-a', $2, 'file', $1)"#,
-        vec![id.into(), kept.into()],
-      )
-      .await;
-  }
-
-  assert_eq!(migrate(db).await.unwrap(), steps);
-  assert_eq!(
-    database
-      .texts(r#"SELECT COALESCE("kind", '') FROM "messages" ORDER BY "message_id""#)
-      .await,
-    ["sticker", "", "thinking"]
-  );
-}
-
-#[tokio::test]
-async fn the_draft_settings_go_and_the_round_log_keeps_its_rows_under_its_new_name() {
-  let database = Scratch::new().await;
-  let db = database.db();
-  let steps = undone_from(db, "m20261119_000057_retire_draft_process").await;
-
-  database
-    .run(
-      r#"INSERT INTO "draft_rounds" ("round", "chat_id", "agent", "number", "question", "kind", "answer_chars",
-           "changed", "outcome", "ms", "at")
-         VALUES ('round-a', -7, 'agent-a', 1, 'message', 'turn', 5, false, 'answered', 3, 9)"#,
-      vec![],
-    )
-    .await;
-  database
-    .run(r#"INSERT INTO "draft_questions" ("agent", "name", "text", "set_at") VALUES ('agent-a', 'tone', 'x', 7)"#, vec![])
-    .await;
-
-  assert_eq!(migrate(db).await.unwrap(), steps);
-  assert_eq!(
-    database
-      .texts(r#"SELECT "round" || ' ' || "question" || ' ' || "outcome" FROM "instruction_rounds""#)
-      .await,
-    ["round-a message answered"]
-  );
-
-  let tables = database.texts(SCHEMA_TABLES).await;
-
-  assert!(!tables.iter().any(|table| table.starts_with("draft_")), "{tables:?}");
-
-  // Stepping back gives the rows their old name and the settings tables back, empty.
-  undone_from(db, "m20261119_000057_retire_draft_process").await;
-  assert_eq!(database.texts(r#"SELECT "round" FROM "draft_rounds""#).await, ["round-a"]);
-  assert!(database.texts(r#"SELECT "name" FROM "draft_questions""#).await.is_empty());
-}
-
-// A set stage text that told the agent to write nothing to keep the message ends on the keep mark, every other word
-// of it and every other text left as set, and stepping back restores it.
-#[tokio::test]
-async fn a_set_stage_text_keeps_the_message_with_the_keep_mark() {
-  let database = Scratch::new().await;
-  let db = database.db();
-  let steps = undone_from(db, "m20261121_000059_keep_mark_texts").await;
-  let set = format!(
-    "Read it for the person's language. If anything falls short, print it whole; {WRITTEN_NOTHING}"
-  );
-
-  for (agent, text) in [("agent-a", set.as_str()), ("agent-b", "Check the tone and print it whole.")] {
-    database
-      .run(
-        r#"INSERT INTO "instruction_texts" ("agent", "name", "text", "set_at") VALUES ($1, 'review', $2, 7)"#,
-        vec![agent.into(), text.into()],
-      )
-      .await;
-  }
-
-  assert_eq!(migrate(db).await.unwrap(), steps);
-  assert_eq!(
-    database.texts(r#"SELECT "text" FROM "instruction_texts" ORDER BY "agent""#).await,
-    [
-      format!("Read it for the person's language. If anything falls short, print it whole; {KEPT}"),
-      "Check the tone and print it whole.".to_owned(),
-    ]
-  );
-
-  undone_from(db, "m20261121_000059_keep_mark_texts").await;
-  assert_eq!(
-    database
-      .texts(r#"SELECT "text" FROM "instruction_texts" WHERE "agent" = 'agent-a'"#)
-      .await,
-    [set]
-  );
-}
-
-#[tokio::test]
-async fn the_stand_ins_settings_go_and_every_other_stays() {
-  let database = Scratch::new().await;
-  let db = database.db();
-
-  let steps = undone_from(db, "m20261113_000044_no_stand_in").await;
-  for (key, value) in [("fallback_since", "1"), ("fallback_provider", "provider-a"), ("photos_look", "on")]
-  {
-    settings::set(db, key, value).await.unwrap();
-  }
-
-  assert_eq!(migrate(db).await.unwrap(), steps);
-  assert_eq!(database.texts(r#"SELECT "key" FROM "settings" ORDER BY "key""#).await, ["photos_look"]);
 }
 
 #[tokio::test]
@@ -483,48 +360,4 @@ async fn a_transaction_that_met_the_old_plan_fails_alone() {
   transaction.rollback().await.unwrap();
 
   assert!(one(&db, read, vec![1i64.into()]).await.unwrap().is_some());
-}
-
-#[tokio::test]
-async fn the_rows_under_the_consoles_former_key_are_the_records_and_an_agent_keeps_one_record_number() {
-  let database = Scratch::blank().await;
-  let db = database.db();
-
-  Migrator::up(db, Some(18)).await.unwrap();
-
-  for row in [
-    r#"INSERT INTO "provider_users" ("provider", "user_id", "sender_id") VALUES ('console', 'agent-a', 9000000000012), ('record', 'agent-a', -1), ('console', 'agent-b', 9000000000011)"#,
-    r#"INSERT INTO "provider_rooms" ("provider", "room_id", "chat_id", "title") VALUES ('console', 'room-a', -9000000000003, 'Room A')"#,
-    r#"INSERT INTO "messages" ("chat_id", "message_id", "sender_id", "sender_name", "sent_at", "text", "via") VALUES (-9000000000003, -1, 9000000000012, 'Agent A', 1, 'hello', 'console')"#,
-    r#"INSERT INTO "avatars" ("kind", "subject_id", "photo_id", "path", "updated_at") VALUES ('person', 9000000000012, 'p', '/a.jpg', 1)"#,
-  ] {
-    database.run(row, vec![]).await;
-  }
-
-  assert_eq!(
-    migrate(db).await.unwrap(),
-    Migrator::migrations().len() - 18,
-    "every migration after the first eighteen"
-  );
-  assert_eq!(
-    database.texts(r#"SELECT "via" FROM "messages""#).await,
-    ["record"],
-    "the road an older archive named the record by is named as the record is"
-  );
-  assert_eq!(
-    database.texts(r#"SELECT "provider" || ':' || "user_id" || ':' || "sender_id" FROM "provider_users" ORDER BY "user_id""#).await,
-    ["record:agent-a:-1", "record:agent-b:9000000000011"],
-    "one record number to an agent, the record's where it held two"
-  );
-  assert_eq!(database.texts(r#"SELECT "provider" FROM "provider_rooms""#).await, ["record"]);
-  assert_eq!(
-    database.texts(r#"SELECT "sender_id"::text FROM "messages""#).await,
-    ["-1"],
-    "its words fold into it"
-  );
-  assert_eq!(
-    database.texts(r#"SELECT "subject_id"::text FROM "avatars""#).await,
-    ["-1"],
-    "and its picture"
-  );
 }

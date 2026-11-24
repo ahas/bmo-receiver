@@ -14,14 +14,20 @@ data root. No other unit reads or writes either: a unit that needs a room's rows
   processor core without end.
 - **Migrations are run by SeaORM's migrator,** which keeps the ones it ran in its own table, `seaql_migrations`,
   beside the receiver's. Each migration states its tables in SQL and takes them down in the reverse order.
+- **The schema starts at the 1.0.0 baseline,** one migration that makes every table below with its indexes, and
+  whose way down drops them all. Every later change to the schema is a migration after it.
+- **An install from before 1.0.0 is taken as it stands.** A database whose record names every migration of the
+  last release before 1.0.0, and nothing else, already holds the baseline's schema: the record is rewritten to
+  name the baseline alone, in one transaction, and no table and no row is touched. A database whose record names
+  only part of them is refused, with the migration it stopped at; it is brought to the last release before 1.0.0
+  by that release first.
 - **Every statement goes through the store's three helpers,** one row, every row, or what a statement wrote.
   Each binds every number at its widest, since a text the driver prepared with one width refuses a value of
   another on the same connection. A statement prepared before a migration moved a table under it is refused by
   the server; the helper marks the shape moved and runs it once more on a connection that prepares it afresh.
   Inside a transaction that second run can only meet the aborted transaction, so the first error stands.
 - **A time is a `bigint` of epoch milliseconds,** as the API's times are, and a duration is a `bigint` of the unit
-  its column names (a message's `answer_seconds` is seconds). A database holding times in Unix seconds has them
-  multiplied in place as its migrations run. A room, a person and a message are signed 64-bit numbers, as the chat
+  its column names (a message's `answer_seconds` is seconds). A room, a person and a message are signed 64-bit numbers, as the chat
   protocol numbers them (bmo-chat's `docs/protocol.md`, 「Numbers」).
 - **Every table carries a `rowid`,** the row's own number where its key is one number and an identity of its
   own otherwise, so a row can be named in one column whatever its key.
@@ -124,7 +130,7 @@ such a family is kept for; each key is named by the code that writes it, and the
 | `voice_briefing_autoplay` | `off` while a briefing does not play by itself | the voice switch |
 | `record_room_mark` | the lowest room number the record ever gave, so a number once given is never given again (`docs/rooms.md`, 「A room's number」) | the record's room numbering |
 | `record_sender_mark` | the lowest sender number the record gave a person whose row has since been taken, so the number is never handed to anybody again (`docs/receiver.md`, 「An account's removal」) | an account's removal, read by the record's sender numbering |
-| `private_rooms_adopted` | `done` once the one start that assigns each BMO's own room to the owner its registration names has read the agency (`docs/receiver.md`, 「Console rooms and accounts」); its migration taken down forgets it | the settling of private rooms at start |
+| `private_rooms_adopted` | `done` once the one start that assigns each BMO's own room to the owner its registration names has read the agency (`docs/receiver.md`, 「Console rooms and accounts」) | the settling of private rooms at start |
 | `restart_reason` | what a deployment recorded before the receiver stopped: its purpose and the items going live, taken once at start-up | the restart |
 | `job_board_messages` | the messages a job's board left standing in rooms, as JSON | the board left when a job ends |
 | `job_board_message_id` | the older single form of the same, read once and cleared | the board left when a job ends |
