@@ -4,12 +4,12 @@
 
 use std::collections::BTreeMap;
 
-use sea_orm::DatabaseConnection;
+use sea_orm::{ConnectionTrait, DatabaseConnection, TransactionTrait};
 
 use crate::receiver::wake::agents::Designated;
 use crate::receiver::{NotReceived, Receiver};
 use crate::roads::Road;
-use crate::roads::record::next_sender;
+use crate::roads::record::{keep_sender_mark, next_sender};
 use crate::store::Fault;
 use crate::{all, now_ms, one, run};
 
@@ -23,7 +23,7 @@ pub fn identity_key(account: i64) -> String {
 }
 
 /// An account's record identity, where it stands.
-pub async fn identity_of(db: &DatabaseConnection, account: i64) -> Result<Option<i64>, Fault> {
+pub async fn identity_of<C: ConnectionTrait>(db: &C, account: i64) -> Result<Option<i64>, Fault> {
   one(
     db,
     r#"SELECT "sender_id" FROM "provider_users" WHERE "provider" = $1 AND "user_id" = $2"#,
@@ -378,4 +378,147 @@ pub async fn speaker(receiver: &Receiver, account: i64) -> Result<Speaker, NotRe
   Ok(Speaker::Account {
     sender: identity(receiver.db(), account).await?,
   })
+}
+
+/// The rooms the record keeps as the account's private rooms, in room order: never a sealed one, which names none.
+pub async fn kept_private_rooms_of(db: &DatabaseConnection, account: i64) -> Result<Vec<i64>, Fault> {
+  all(
+    db,
+    r#"SELECT "chat_id" FROM "private_rooms" WHERE "account" = $1 ORDER BY "chat_id""#,
+    vec![account.into()],
+  )
+  .await?
+  .iter()
+  .map(|row| row.try_get::<i64>("", "chat_id").map_err(Fault::from))
+  .collect()
+}
+
+/// What an account's removal takes beside its private rooms, each a number of rows (docs/receiver.md, 「An
+/// account's removal」).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct AccountRows {
+  /// Its rows as a member of a room that is not its private room.
+  pub memberships: i64,
+  /// Its record identity.
+  pub identities: i64,
+  /// The name its record identity goes by.
+  pub names: i64,
+  /// Its record identity muted in a room that is not its private room.
+  pub mutes: i64,
+  /// The pictures set on its record identity.
+  pub pictures: i64,
+}
+
+// How many rows one count reads.
+async fn counted(db: &DatabaseConnection, sql: &str, values: Vec<sea_orm::Value>) -> Result<i64, Fault> {
+  Ok(
+    one(db, sql, values)
+      .await?
+      .map(|row| row.try_get::<i64>("", "n"))
+      .transpose()?
+      .unwrap_or(0),
+  )
+}
+
+/// What the account's removal would take beside its private rooms now, nothing written: a row in one of its private
+/// rooms is that room's, and goes with it.
+pub async fn account_rows(db: &DatabaseConnection, account: i64) -> Result<AccountRows, Fault> {
+  let memberships = counted(
+    db,
+    r#"SELECT count(*) AS "n" FROM "room_accounts" WHERE "account" = $1
+       AND "chat_id" NOT IN (SELECT "chat_id" FROM "private_rooms" WHERE "account" = $1)"#,
+    vec![account.into()],
+  )
+  .await?;
+  let Some(sender) = identity_of(db, account).await? else {
+    return Ok(AccountRows {
+      memberships,
+      ..AccountRows::default()
+    });
+  };
+  let names = counted(
+    db,
+    r#"SELECT count(*) AS "n" FROM "people_names" WHERE "sender_id" = $1"#,
+    vec![sender.into()],
+  )
+  .await?;
+  let mutes = counted(
+    db,
+    r#"SELECT count(*) AS "n" FROM "muted_members" WHERE "user_id" = $2
+       AND "chat_id" NOT IN (SELECT "chat_id" FROM "private_rooms" WHERE "account" = $1)"#,
+    vec![account.into(), sender.into()],
+  )
+  .await?;
+  let pictures = counted(
+    db,
+    r#"SELECT (SELECT count(*) FROM "avatar_sets" WHERE "kind" = 'person' AND "subject_id" = $1)
+            + (SELECT count(*) FROM "avatars" WHERE "kind" = 'person' AND "subject_id" = $1) AS "n""#,
+    vec![sender.into()],
+  )
+  .await?;
+
+  Ok(AccountRows {
+    memberships,
+    identities: 1,
+    names,
+    mutes,
+    pictures,
+  })
+}
+
+/// The account's rows beside its private rooms taken in one write: its memberships, and its record identity with
+/// its name, its mutes and the pictures set on it, its number kept so it is never handed out again. Answers what was
+/// taken and the paths of the pictures' files, which the caller takes down once the write stands.
+pub async fn take_account_rows(
+  db: &DatabaseConnection,
+  account: i64,
+) -> Result<(AccountRows, Vec<String>), Fault> {
+  let written = db.begin().await.map_err(Fault::from)?;
+  let mut taken = AccountRows {
+    memberships: wrote(
+      run(&written, r#"DELETE FROM "room_accounts" WHERE "account" = $1"#, vec![account.into()]).await?,
+    ),
+    ..AccountRows::default()
+  };
+  let mut files = vec![];
+
+  if let Some(sender) = identity_of(&written, account).await? {
+    taken.names = wrote(
+      run(&written, r#"DELETE FROM "people_names" WHERE "sender_id" = $1"#, vec![sender.into()]).await?,
+    );
+    taken.mutes = wrote(
+      run(&written, r#"DELETE FROM "muted_members" WHERE "user_id" = $1"#, vec![sender.into()]).await?,
+    );
+
+    for sql in [
+      r#"DELETE FROM "avatar_sets" WHERE "kind" = 'person' AND "subject_id" = $1 RETURNING "path""#,
+      r#"DELETE FROM "avatars" WHERE "kind" = 'person' AND "subject_id" = $1 RETURNING "path""#,
+    ] {
+      let gone = one(&written, sql, vec![sender.into()]).await?;
+
+      if let Some(row) = gone {
+        taken.pictures += 1;
+        files.extend(row.try_get::<Option<String>>("", "path")?);
+      }
+    }
+
+    keep_sender_mark(&written, sender).await?;
+    taken.identities = wrote(
+      run(
+        &written,
+        r#"DELETE FROM "provider_users" WHERE "provider" = $1 AND "user_id" = $2"#,
+        vec![Road::Record.key().into(), identity_key(account).into()],
+      )
+      .await?,
+    );
+  }
+
+  written.commit().await.map_err(Fault::from)?;
+
+  Ok((taken, files))
+}
+
+// A count of rows written, as the answer numbers it.
+fn wrote(rows: u64) -> i64 {
+  i64::try_from(rows).unwrap_or(i64::MAX)
 }

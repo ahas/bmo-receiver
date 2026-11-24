@@ -2,6 +2,8 @@
 //! epoch milliseconds, signed 64-bit ids, one page of items and more. A route's request and its answer are each a
 //! type here, so the OpenAPI document and the Rust client are both written from these.
 
+use std::collections::BTreeMap;
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -772,6 +774,20 @@ pub struct AccountIdentity {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct AccountMemberships {
   pub rooms: Vec<i64>,
+}
+
+/// `GET /accounts/{account}/removal` and `GET /org-units/{unit}/removal`: what the removal would take now, by
+/// kind, every kind named; an organisation unit's names none.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct RemovalCounts {
+  pub counts: BTreeMap<String, i64>,
+}
+
+/// `DELETE /accounts/{account}` and `DELETE /org-units/{unit}`: what the removal took, by kind, every kind named;
+/// an organisation unit's names none.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct RemovalTaken {
+  pub removed: BTreeMap<String, i64>,
 }
 
 /// `POST /rooms/{roomId}/words`: words an account said in the console, with the name it is shown by.

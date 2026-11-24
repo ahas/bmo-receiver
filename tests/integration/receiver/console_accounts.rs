@@ -1239,9 +1239,10 @@ async fn a_forward_stands_under_the_account_that_forwards_it() {
   );
 }
 
-// The routes that change something and act for no account but a unit's own under the receiver's token, each with
-// why no account's private room is judged there; every other write names its room and is judged by the write guard.
-const UNIT_WRITES: [(&str, &str); 32] = [
+// The routes that change something and act for no account but a unit's own under the receiver's token, or for the
+// administrator alone by his standing, each with why no account's private room is judged there; every other write
+// names its room and is judged by the write guard.
+const UNIT_WRITES: [(&str, &str); 34] = [
   ("POST /rooms", "a room added is no one's yet"),
   ("POST /sends", "an agent's own act through its tools"),
   ("POST /instructions", "a unit's instruction"),
@@ -1262,6 +1263,14 @@ const UNIT_WRITES: [(&str, &str); 32] = [
   ("POST /read-mark-counts", "a count that keeps nothing"),
   ("PUT /accounts/{account}/identity", "an account's own identity"),
   ("PUT /accounts/{account}/presence", "an account's own presence, which changes no room"),
+  (
+    "DELETE /accounts/{account}",
+    "an account's removal, the administrator's alone and judged by his standing, not the guard",
+  ),
+  (
+    "DELETE /org-units/{unit}",
+    "an organisation unit's removal, which takes nothing of a room",
+  ),
   ("PUT /instruction-stages/{agentName}", "an agent's setting"),
   ("DELETE /instruction-stages/{agentName}", "an agent's setting"),
   ("PUT /instruction-texts/{agentName}/{name}", "an agent's setting"),

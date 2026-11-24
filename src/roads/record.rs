@@ -3,7 +3,7 @@
 //! among the roads so a turn and a send can name it. A word a road numbered is kept under the road's number; one no
 //! road numbered takes the record's own, counting down from minus one, so it never meets a number a platform gave.
 
-use sea_orm::{DatabaseConnection, TransactionTrait};
+use sea_orm::{ConnectionTrait, DatabaseConnection, TransactionTrait};
 use serde_json::Value;
 
 use receiver_policy::roads::ROADS;
@@ -156,8 +156,11 @@ pub async fn next_room(db: &DatabaseConnection) -> Result<i64, Fault> {
   Ok(next)
 }
 
+/// The settings key the lowest sender number the record gave a person whose row has since been taken is kept under.
+pub const SENDER_MARK: &str = "record_sender_mark";
+
 /// The sender number an agent's words are filed under in a room the record stands up: below every number the road
-/// has given.
+/// has given, and below the lowest one whose row has been taken, so a number once given is never given again.
 pub async fn next_sender(db: &DatabaseConnection, road: &str) -> Result<i64, Fault> {
   let least = one(
     db,
@@ -167,8 +170,25 @@ pub async fn next_sender(db: &DatabaseConnection, road: &str) -> Result<i64, Fau
   .await
   .unwrap_or(None);
   let least: i64 = least.map(|row| row.try_get::<i64>("", "least").unwrap_or(0)).unwrap_or(0);
+  let mark = sender_mark(db).await?.unwrap_or(0);
 
-  Ok(least.min(0) - 1)
+  Ok(least.min(mark).min(0) - 1)
+}
+
+/// The lowest sender number whose person's row was taken, where one was.
+pub async fn sender_mark(db: &impl ConnectionTrait) -> Result<Option<i64>, Fault> {
+  Ok(
+    crate::store::settings::get(db, SENDER_MARK)
+      .await?
+      .and_then(|held| held.trim().parse::<i64>().ok()),
+  )
+}
+
+/// A sender number whose person's row is taken kept as given, so it is never handed out again.
+pub async fn keep_sender_mark(db: &impl ConnectionTrait, sender: i64) -> Result<(), Fault> {
+  let lowest = sender_mark(db).await?.map_or(sender, |mark| mark.min(sender));
+
+  crate::store::settings::set(db, SENDER_MARK, &lowest.to_string()).await
 }
 
 /// An act the record keeps on one of a room's messages (docs/messages.md, 「What an agent can send back」).

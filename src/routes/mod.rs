@@ -3,6 +3,7 @@
 //! receiver's token or the console relay's, the routes that file a person's words the console relay's alone
 //! (docs/api.md, 「Auth」), and a refusal with its code and the English sentence naming it.
 
+mod account_removal;
 mod accounts;
 mod avatars;
 mod brain;
@@ -252,6 +253,10 @@ fn table() -> Vec<(String, String, MethodRouter<Served>)> {
     ("DELETE", "/rooms/{roomId}/accounts/{account}", delete(accounts::take_out)),
     ("PUT", "/accounts/{account}/identity", put(accounts::identity)),
     ("GET", "/accounts/{account}/rooms", get(accounts::rooms)),
+    ("GET", "/accounts/{account}/removal", get(account_removal::counted)),
+    ("DELETE", "/accounts/{account}", delete(account_removal::remove)),
+    ("GET", "/org-units/{unit}/removal", get(account_removal::unit_counted)),
+    ("DELETE", "/org-units/{unit}", delete(account_removal::unit_remove)),
     ("PUT", "/accounts/{account}/presence", put(presence::account_presence)),
     ("POST", "/rooms/{roomId}/typing", post(presence::account_typing)),
     ("GET", "/rooms/{roomId}/roads", get(brain::roads)),

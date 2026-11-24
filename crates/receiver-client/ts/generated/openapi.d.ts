@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/accounts/{account}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** An account removed for good: each of its private rooms removed whole, its memberships of every other room and its record identity taken; what it took, by kind. The administrator's alone, under the console's token with Owner-Key and Owner-Role. */
+        delete: operations["removeAccount"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/accounts/{account}/identity": {
         parameters: {
             query?: never;
@@ -31,6 +48,23 @@ export interface paths {
         get?: never;
         /** An account's presence as the console tells it, one source among the account's; told on the event stream in each room the account stands in, and never kept. */
         put: operations["accountPresence"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/accounts/{account}/removal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** What an account's removal would take now, by kind, every kind named; nothing written. The administrator's alone, under the console's token with Owner-Key and Owner-Role. */
+        get: operations["accountRemoval"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -384,6 +418,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/org-units/{unit}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** An organisation unit's removal: nothing taken, since the receiver keys nothing by one. The administrator's alone, under the console's token with Owner-Key and Owner-Role. */
+        delete: operations["removeOrgUnit"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/org-units/{unit}/removal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** What an organisation unit's removal would take: nothing, since the receiver keys nothing by one. The administrator's alone, under the console's token with Owner-Key and Owner-Role. */
+        get: operations["orgUnitRemoval"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/owner": {
         parameters: {
             query?: never;
@@ -652,7 +720,7 @@ export interface paths {
         get: operations["room"];
         put?: never;
         post?: never;
-        /** A room's registration removed, or with dryRun what the removal would do. */
+        /** A room's registration removed, or with dryRun what the removal would do. The administrator removes any room, another account's private room among them. */
         delete: operations["removeRoom"];
         options?: never;
         head?: never;
@@ -2774,6 +2842,24 @@ export interface components {
             /** @default [] */
             since: components["schemas"]["RoomSince"][];
         };
+        /**
+         * @description `GET /accounts/{account}/removal` and `GET /org-units/{unit}/removal`: what the removal would take now, by
+         *     kind, every kind named; an organisation unit's names none.
+         */
+        RemovalCounts: {
+            counts: {
+                [key: string]: number;
+            };
+        };
+        /**
+         * @description `DELETE /accounts/{account}` and `DELETE /org-units/{unit}`: what the removal took, by kind, every kind named;
+         *     an organisation unit's names none.
+         */
+        RemovalTaken: {
+            removed: {
+                [key: string]: number;
+            };
+        };
         /** @description A room's road. */
         Road: {
             /** @description `owner` or `group`. */
@@ -3198,6 +3284,37 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    removeAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                account: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RemovalTaken"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, forbidden, bad-request, seeded-room, infrastructure, owners-chat, upstream-failed, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
     accountIdentity: {
         parameters: {
             query?: never;
@@ -3256,6 +3373,37 @@ export interface operations {
                 content?: never;
             };
             /** @description A refusal or failure: unauthorized, bad-request, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    accountRemoval: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                account: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RemovalCounts"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, forbidden, bad-request, upstream-failed, failed */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -4103,6 +4251,72 @@ export interface operations {
                 };
             };
             /** @description A refusal or failure: unauthorized, bad-request, not-found, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    removeOrgUnit: {
+        parameters: {
+            query?: {
+                company?: number;
+            };
+            header?: never;
+            path: {
+                unit: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RemovalTaken"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, forbidden, bad-request, upstream-failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    orgUnitRemoval: {
+        parameters: {
+            query?: {
+                company?: number;
+            };
+            header?: never;
+            path: {
+                unit: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RemovalCounts"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, forbidden, bad-request, upstream-failed */
             default: {
                 headers: {
                     [name: string]: unknown;

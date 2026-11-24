@@ -11,6 +11,8 @@ type Schemas = components["schemas"];
 
 export type Health = Schemas["Health"];
 export type Owner = Schemas["Owner"];
+export type RemovalCounts = Schemas["RemovalCounts"];
+export type RemovalTaken = Schemas["RemovalTaken"];
 export type Room = Schemas["Room"];
 export type RoomMode = Schemas["RoomMode"];
 export type AddRoom = Schemas["AddRoom"];
@@ -452,6 +454,46 @@ export function receiverClient(options: ReceiverOptions) {
     /** `GET /accounts/{account}/rooms`. */
     async accountMemberships(account: number): Promise<AccountMemberships> {
       return answered(await client.GET("/accounts/{account}/rooms", { params: { path: { account } } }));
+    },
+
+    /** `GET /accounts/{account}/removal`, asked as the administrator. */
+    async accountRemoval(caller: Caller, account: number): Promise<RemovalCounts> {
+      return answered(
+        await client.GET("/accounts/{account}/removal", {
+          params: { path: { account } },
+          headers: callerHeaders(caller),
+        }),
+      );
+    },
+
+    /** `DELETE /accounts/{account}`, asked as the administrator. */
+    async removeAccount(caller: Caller, account: number): Promise<RemovalTaken> {
+      return answered(
+        await client.DELETE("/accounts/{account}", {
+          params: { path: { account } },
+          headers: callerHeaders(caller),
+        }),
+      );
+    },
+
+    /** `GET /org-units/{unit}/removal`, asked as the administrator. */
+    async orgUnitRemoval(caller: Caller, unit: number, company: number): Promise<RemovalCounts> {
+      return answered(
+        await client.GET("/org-units/{unit}/removal", {
+          params: { path: { unit }, query: { company } },
+          headers: callerHeaders(caller),
+        }),
+      );
+    },
+
+    /** `DELETE /org-units/{unit}`, asked as the administrator. */
+    async removeOrgUnit(caller: Caller, unit: number, company: number): Promise<RemovalTaken> {
+      return answered(
+        await client.DELETE("/org-units/{unit}", {
+          params: { path: { unit }, query: { company } },
+          headers: callerHeaders(caller),
+        }),
+      );
     },
 
     /** `PUT /accounts/{account}/presence`. */

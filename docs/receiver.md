@@ -421,7 +421,8 @@ flowchart TD
   superadmin reaches everything and changes nothing of another's」). This is the one place the receiver states
   it. The administrator's read changes nothing of another's: no read route of the receiver keeps anything of who
   read, so his read leaves no mark, no window opened, no wake and no event; and in a private room that is not his
-  own, every write he makes is refused like any other account's.
+  own, every write he makes is refused like any other account's, but the room's removal (「Removing a room's
+  registration」).
 - **Nothing in a private room is said or changed by another account.** Every route that changes a room, a message
   in it or what is kept of it reaches the room through one guard, which reads who the write acts for off the
   request and refuses another account's private room before the route holds anything; a route has no other way to
@@ -432,17 +433,20 @@ flowchart TD
   the one and writes in the other), a line's reading aloud (a turn of the line's agent in the room and a briefing
   the voice engine keeps for it), the room pinned or unpinned in the console's pinned order, the room's picture,
   its providers, its mode, its archive, the supervisors it names, a unit's notice into it, an agent's read marks in
-  it, its files filled, and its removal. A member let in or taken out of a private room is refused for every
-  account, its own among them.
+  it, its files filled, and its removal by anyone but the administrator. The administrator's removal of a room is
+  the one write that reaches a private room past the guard: he removes any room, another account's private room
+  and a sealed one among them. A member let in or taken out of a private room is refused for every account, its
+  own among them.
 - **A sealed private room is written in by no account.** A room kept as no one's whose privacy cannot be asked,
   the agency not answering, refuses every account's write 502 `upstream-failed`; the owner's private room is
   private whatever the web unit answers, so it is read as sealed while its account cannot be asked. A BMO's own
   room whose person cannot be read has its facts read as sealed, so it is no group: no member's supervisor reads it
   and nothing of it is carried into another chat.
-- **When a private room's account is removed, the room stays on the record, sealed to everyone else:** retiring a
-  BMO leaves its room standing and kept as its account's, and an account that leaves keeps its private rooms as
-  they stand. The account reads its room while it exists, the administrator reads it and writes nothing there, and
-  no other account writes in it; nothing removes a private room but its removal by its own account.
+- **When a private room's supervisor retires or its account leaves, the room stays on the record, sealed to
+  everyone else:** retiring a BMO leaves its room standing and kept as its account's, and an account that leaves
+  keeps its private rooms as they stand. The account reads its room while it exists, the administrator reads it and
+  writes nothing there, and no other account writes in it; nothing removes a private room but the administrator's
+  removal of it, on its own or as part of the account's removal (「An account's removal」).
 - **The owner's own road writes as the owner:** `POST /owner/messages`, `POST /owner/message-files` and
   `POST /owner/instructions` write in his own private room always, whether or not an account is linked to his
   sender yet, and in a room no account's private room always; a room the record keeps nothing of is no one's, and
@@ -745,9 +749,12 @@ flowchart TD
 
 ## Removing a room's registration
 
-- **The administrator removes a room's registration** through `GET /rooms/remove`, which answers what would go,
-  and `POST /rooms/remove`, which takes it. Both refuse anyone but the administrator (`GET /users/{user}` on the web
-  unit). No other act or chat service's event removes a room.
+- **The administrator removes a room's registration** through `DELETE /rooms/{roomId}`, which with `dryRun`
+  answers what would go and otherwise takes it. Both refuse anyone but the administrator (`GET /users/{user}` on the
+  web unit). He removes any room, another account's private room and a sealed one among them, past the guard every
+  other write in a private room meets (「Console rooms and accounts」); the refusals below stand for him all the
+  same. No other act or chat service's event removes a room, but an account's removal, which removes each of the
+  account's private rooms this same way (「An account's removal」).
 - **What goes is the room's whole record in the receiver:** every row of every receiver table holding the room's
   number in a `chat_id` column, the tables read off the database's own schema as the removal runs rather than off
   any list (its registration and title, its switches and answerers, its messages and the metadata they arrived
@@ -790,6 +797,35 @@ flowchart TD
   (`docs/boundary-api.md`, 「For bmo-job」).
 - **A room that speaks again afterwards is a new registration** with an empty record, answered as any room the
   receiver has never seen, numbered as its chat service numbers a room. None of the old record comes back.
+
+## An account's removal
+
+The platform's permanent delete of an account reaches the receiver as one call of the administrator's
+(`DELETE /accounts/{account}`, with `GET /accounts/{account}/removal` counting the same with nothing written,
+`docs/api.md`, 「Rooms」). Whether the account may go is not the receiver's to judge: the console's account service
+decides that before it calls, and the receiver removes what is keyed to the number it is handed.
+
+- **Only the administrator is answered:** the call comes under the console's token, with `Owner-Role`
+  `administrator` and an `Owner-Key` the web unit answers as the administrator. A call under the receiver's own
+  token, which every shell holds, is refused whatever it names.
+- **Each of the account's private rooms is removed whole,** one after another, as the administrator's removal of a
+  room removes it (「Removing a room's registration」): its record, its picture, its folders, the agency's part and
+  every holder of live state forgetting it. The private rooms are those the record keeps as the account's
+  (`private_rooms`); a sealed one, which names no account, is no account's and is never taken. A room whose removal
+  is refused, or whose agency part does not answer before anything of it is taken, stops the call before that room;
+  one whose files could not all be taken, or whose agency part failed once begun, stops it after. What was taken stays taken, and calling again goes on with
+  the rooms still standing.
+- **The account goes out of every other room it is a member of,** its rows there taken with no line said in the
+  room, the rooms and every other member standing. The console's word on its presence is taken back first, so the
+  rooms it stood in are told it is unknown.
+- **Its record identity goes:** the row of the record's numbered people keyed by the account, the name it goes by,
+  its mutes in any room and the pictures set on it with their files, in one write. Its number is never handed to
+  anybody again: the lowest number the record handed to a person whose row is gone is kept (`record_sender_mark`,
+  `docs/store.md`), and the next number is below it. The messages, reactions and files said under the number stay
+  with the rooms they were said in, as their record.
+- **Nothing else is the account's:** a row naming no account, a sealed private room, and the rows of another account
+  (a membership it let in, an archive it set) stand as they are. The receiver keys nothing by an organisation
+  unit, so an organisation unit's removal takes nothing here.
 
 ## Identity, and reaching the owner
 

@@ -77,7 +77,7 @@ takes it outright: the table holds no default agent.
 | `instruction_stages` | a supervisor's chain of instruction stages, which the console set and which stands for that supervisor over the policy's (`docs/instruction.md`, 「The stage chain and its texts」): the stage names it runs, in the order asked once its message stands, and when it was set | the supervisor's name |
 | `instruction_texts` | a stage's text the console set for a supervisor, over the policy's default, and when | the supervisor and the stage's name |
 | `instruction_rounds` | one turn of a round's pipeline, or its end (`docs/instruction.md`, 「The round log」): the round, the room, the agent, its number, the name its row goes by, its kind, its answer's length, whether it changed, how it ended, a detail, the answer, how long it took and when, and on the end what the round read from the brain, the session its turn ran on and how many pieces that session's earlier rounds in the room read in full, and on a turn's row that spanned several turns of the agent's program each one's answer | its number |
-| `private_rooms` | a room kept as a private room: the account it is private to, or null while that account is not known yet and the room is sealed, and when the row was written. A room with no row is no private room. An account once written never changes or clears, whatever becomes of the supervisor or the account (`docs/receiver.md`, 「Console rooms and accounts」) | room |
+| `private_rooms` | a room kept as a private room: the account it is private to, or null while that account is not known yet and the room is sealed, and when the row was written. A room with no row is no private room. An account once written never changes or clears, whatever becomes of the supervisor or the account; the row goes only with the room's removal (`docs/receiver.md`, 「Console rooms and accounts」) | room |
 | `room_accounts` | an account that is a member of a room in the console: who let it in and when, and, once it went out or was taken out, who and when, both null while it is a member; let in again, the row stands as let in anew (`docs/receiver.md`, 「Console rooms and accounts」) | room and account |
 | `room_situations` | a room's situation note, the receiver's own (`docs/instruction.md`, 「The situation note」): its text, replaced when it changes, when it last did, and the row of the room's record it has read to | room |
 
@@ -95,7 +95,10 @@ text is the version the round's record names.
 A room's line is read newest first or from a message the reader holds, by when each message was sent and then by
 its row, so `messages` is indexed by room, time and row, and a page reads only the messages it answers. The roads a
 room's messages came in on are read off an index of the messages that name one, by room and road.
-The rooms an account is a member of are read off an index of `room_accounts` by account.
+The rooms an account is a member of are read off an index of `room_accounts` by account. An account's removal
+takes every row keyed by the account or its record identity: its private rooms' whole records, its `room_accounts`
+rows, its `provider_users` row, and the `people_names`, `muted_members`, `avatar_sets` and `avatars` rows of its
+record identity (`docs/receiver.md`, 「An account's removal」).
 A round's end reads the end of its room and session written last before it, so the round log's end rows are indexed
 by room and session in the order they were written, and a room's rounds are listed off an index of the round log
 by room and row.
@@ -119,6 +122,8 @@ such a family is kept for; each key is named by the code that writes it, and the
 | `thread_mark:<path>` | the last line of a person's own thread handed, as `room:messageId`; it is the thread's own, so a session folded, replaced or started again is handed only what came after it (`docs/bmo-window.md`, 「What every turn carries」) | the thread |
 | `voice_briefing` | `off` while voice briefings are switched off | the voice switch |
 | `voice_briefing_autoplay` | `off` while a briefing does not play by itself | the voice switch |
+| `record_room_mark` | the lowest room number the record ever gave, so a number once given is never given again (`docs/rooms.md`, 「A room's number」) | the record's room numbering |
+| `record_sender_mark` | the lowest sender number the record gave a person whose row has since been taken, so the number is never handed to anybody again (`docs/receiver.md`, 「An account's removal」) | an account's removal, read by the record's sender numbering |
 | `private_rooms_adopted` | `done` once the one start that assigns each BMO's own room to the owner its registration names has read the agency (`docs/receiver.md`, 「Console rooms and accounts」); its migration taken down forgets it | the settling of private rooms at start |
 | `restart_reason` | what a deployment recorded before the receiver stopped: its purpose and the items going live, taken once at start-up | the restart |
 | `job_board_messages` | the messages a job's board left standing in rooms, as JSON | the board left when a job ends |

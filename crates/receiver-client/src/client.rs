@@ -485,6 +485,36 @@ impl ReceiverClient {
     Self::answered(self.request(Method::GET, &["accounts", &account.to_string(), "rooms"])).await
   }
 
+  /// `GET /accounts/{account}/removal`, asked as the administrator `key` names.
+  pub async fn account_removal(&self, account: i64, key: &str) -> Answer<RemovalCounts> {
+    let asked = self.request(Method::GET, &["accounts", &account.to_string(), "removal"]);
+
+    Self::answered(as_administrator(asked, key)).await
+  }
+
+  /// `DELETE /accounts/{account}`, asked as the administrator `key` names.
+  pub async fn remove_account(&self, account: i64, key: &str) -> Answer<RemovalTaken> {
+    let asked = self.request(Method::DELETE, &["accounts", &account.to_string()]);
+
+    Self::answered(as_administrator(asked, key)).await
+  }
+
+  /// `GET /org-units/{unit}/removal`, asked as the administrator `key` names.
+  pub async fn org_unit_removal(&self, unit: i64, company: i64, key: &str) -> Answer<RemovalCounts> {
+    let asked = self.get(&["org-units", &unit.to_string(), "removal"], &[("company", company.to_string())]);
+
+    Self::answered(as_administrator(asked, key)).await
+  }
+
+  /// `DELETE /org-units/{unit}`, asked as the administrator `key` names.
+  pub async fn remove_org_unit(&self, unit: i64, company: i64, key: &str) -> Answer<RemovalTaken> {
+    let asked = self
+      .request(Method::DELETE, &["org-units", &unit.to_string()])
+      .query(&[("company", company.to_string())]);
+
+    Self::answered(as_administrator(asked, key)).await
+  }
+
   /// `PUT /accounts/{account}/presence`.
   pub async fn account_presence(&self, account: i64, presence: &AccountPresence) -> Answer<()> {
     Self::nothing(self.send(Method::PUT, &["accounts", &account.to_string(), "presence"], presence)).await
@@ -889,4 +919,9 @@ pub fn wire_error(answer: &ClientFailure) -> Option<&WireError> {
     ClientFailure::Answered { answer, .. } => answer.as_ref(),
     _ => None,
   }
+}
+
+// A request carrying the console relay's names for the administrator: his user id and his role.
+fn as_administrator(asked: RequestBuilder, key: &str) -> RequestBuilder {
+  asked.header("Owner-Key", key).header("Owner-Role", "administrator")
 }

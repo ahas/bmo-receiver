@@ -1,12 +1,14 @@
 //! A room's registration removed from the console (docs/receiver.md, 「Removing a room's registration」): what
 //! the removal would take, answered with nothing written, and the removal itself, run to its end whatever
-//! becomes of the request. Both are refused to anyone but the administrator. What a room holds, what stays, what
+//! becomes of the request. Both are refused to anyone but the administrator, who removes any room, another account's
+//! private room among them; any other caller meets the private-room guard first. What a room holds, what stays, what
 //! refuses and what warns is read off the room record's declarations, so nothing here names a table, a folder or
 //! a holder of live state; every other unit's part goes through that unit.
 
 use std::path::Path;
 
-use axum::extract::{RawQuery, State};
+use axum::extract::{Path as RoomPath, RawQuery, State};
+use axum::http::StatusCode;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
@@ -21,8 +23,8 @@ use crate::room_record::{
   Act, Counted, Facing, Held, count, files, folders, record, refusals, take, warnings,
 };
 use crate::routes::instructions::HOLDER_KEY;
-use crate::routes::writable::WritableRoom;
-use crate::routes::{Answered, Refusal, Served, answered, code, ready, store};
+use crate::routes::writable::Writer;
+use crate::routes::{Answered, Refusal, Served, answered, code, ready, refused, store};
 use crate::store::{Fault, settings};
 
 #[derive(Deserialize, Default)]
@@ -40,14 +42,6 @@ pub struct RemovalQuery {
 #[derive(Deserialize)]
 pub struct Declared {
   address: String,
-}
-
-async fn administrator(receiver: &Receiver, by: &str) -> Result<(), Refusal> {
-  if super::is_administrator(receiver, by).await {
-    Ok(())
-  } else {
-    Err(code(&RoomRemovalRefusal::NotAdministrator))
-  }
 }
 
 // The database opened by place, as the configuration gives it: a room's record is read off the schema the
@@ -205,8 +199,27 @@ fn unit_answer<T: serde::Serialize>(asked: Result<T, PortFailure>) -> Value {
   }
 }
 
+/// A removal carried out: the answer naming what it took, and what kept it from ending whole, where something did.
+pub(super) struct Carried {
+  pub answer: Value,
+  pub unfinished: Option<Unfinished>,
+}
+
+/// What kept a removal from ending whole once its rows were taken.
+pub(super) enum Unfinished {
+  /// The agency did not forget the room, with its failure.
+  Agency(String),
+  /// Files or folders of the room stand still.
+  Left(Vec<RemovalLeft>),
+}
+
+/// The first refusal the declarations say of the room, where one does.
+pub(super) async fn refusal(receiver: &Receiver, room: i64) -> Option<RoomRemovalRefusal> {
+  refusals(&Facing { receiver, room }).await.unwrap_or_default().into_iter().next()
+}
+
 /// The removal carried out: what it took, and anything it could not remove.
-async fn carry(receiver: &Receiver, room: i64, by: &str) -> Result<Value, Refusal> {
+pub(super) async fn carry(receiver: &Receiver, room: i64, by: &str) -> Result<Carried, Refusal> {
   let facing = Facing { receiver, room };
   let folders = folders(&facing).await.unwrap_or_default();
   let mut archive = open(receiver).await?;
@@ -272,8 +285,12 @@ async fn carry(receiver: &Receiver, room: i64, by: &str) -> Result<Value, Refusa
   eprintln!("bmo-receiver: the room {room}'s registration was removed, as {by} asked");
 
   let (goes, stays) = split(&counted);
-
-  Ok(json!({
+  let unfinished = match &agency {
+    Err(why) => Some(Unfinished::Agency(why.to_string())),
+    Ok(_) if !left.is_empty() => Some(Unfinished::Left(left.clone())),
+    Ok(_) => None,
+  };
+  let answer = json!({
     "room": room,
     "taken": goes,
     "cleared": stays,
@@ -283,7 +300,9 @@ async fn carry(receiver: &Receiver, room: i64, by: &str) -> Result<Value, Refusa
     "holders": units,
     "units": json!({ "agency": unit_answer(agency) }),
     "couldNot": left,
-  }))
+  });
+
+  Ok(Carried { answer, unfinished })
 }
 
 // Whether a path may be taken down: only under this data root.
@@ -297,29 +316,35 @@ fn failed(why: sqlx::Error) -> Refusal {
 }
 
 /// A room's registration removed, its whole record with it; with `dryRun`, what the removal would do and nothing
-/// written.
-pub async fn remove(State(served): State<Served>, raw: RawQuery, writable: WritableRoom) -> Answered {
-  let room = writable.room;
+/// written. The administrator removes any room; anyone else meets the guard every write in a private room meets,
+/// and is refused as no administrator past it.
+pub async fn remove(
+  State(served): State<Served>,
+  RoomPath(room): RoomPath<String>,
+  raw: RawQuery,
+  writer: Writer,
+) -> Answered {
+  let room = room
+    .trim()
+    .parse::<i64>()
+    .map_err(|_| refused(StatusCode::BAD_REQUEST, "bad-request", "a room is named by its number"))?;
   let asked = super::query::<RemovalQuery>(raw)?;
   let receiver: Receiver = (*served.receiver).clone();
   let by = asked.by.trim();
 
-  administrator(&receiver, by).await?;
+  if !super::is_administrator(&receiver, by).await {
+    writer.room(&receiver, room).await?;
+
+    return Err(code(&RoomRemovalRefusal::NotAdministrator));
+  }
 
   if asked.dry_run {
     return answered(shown_removal(&receiver, room).await?);
   }
 
-  if let Some(refusal) = refusals(&Facing {
-    receiver: &receiver,
-    room,
-  })
-  .await
-  .unwrap_or_default()
-  .first()
-  {
-    return Err(code(refusal));
+  if let Some(refusal) = refusal(&receiver, room).await {
+    return Err(code(&refusal));
   }
 
-  answered(carry(&receiver, room, by).await?)
+  answered(carry(&receiver, room, by).await?.answer)
 }

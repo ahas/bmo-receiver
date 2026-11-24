@@ -1082,6 +1082,59 @@ pub fn openapi() -> Value {
     vec!["unauthorized", "bad-request", "upstream-failed", "failed"]
   );
   add!(
+    "GET",
+    "/accounts/{account}/removal",
+    "accountRemoval",
+    "Rooms",
+    "What an account's removal would take now, by kind, every kind named; nothing written. The administrator's alone, under the console's token with Owner-Key and Owner-Role.",
+    vec![path_parameter("account")],
+    None,
+    vec![(200, json_answer::<RemovalCounts>(&mut generator))],
+    vec!["unauthorized", "forbidden", "bad-request", "upstream-failed", "failed"]
+  );
+  add!(
+    "DELETE",
+    "/accounts/{account}",
+    "removeAccount",
+    "Rooms",
+    "An account removed for good: each of its private rooms removed whole, its memberships of every other room and its record identity taken; what it took, by kind. The administrator's alone, under the console's token with Owner-Key and Owner-Role.",
+    vec![path_parameter("account")],
+    None,
+    vec![(200, json_answer::<RemovalTaken>(&mut generator))],
+    vec![
+      "unauthorized",
+      "forbidden",
+      "bad-request",
+      "seeded-room",
+      "infrastructure",
+      "owners-chat",
+      "upstream-failed",
+      "failed"
+    ]
+  );
+  add!(
+    "GET",
+    "/org-units/{unit}/removal",
+    "orgUnitRemoval",
+    "Rooms",
+    "What an organisation unit's removal would take: nothing, since the receiver keys nothing by one. The administrator's alone, under the console's token with Owner-Key and Owner-Role.",
+    vec![path_parameter("unit"), parameter("company", "integer", false)],
+    None,
+    vec![(200, json_answer::<RemovalCounts>(&mut generator))],
+    vec!["unauthorized", "forbidden", "bad-request", "upstream-failed"]
+  );
+  add!(
+    "DELETE",
+    "/org-units/{unit}",
+    "removeOrgUnit",
+    "Rooms",
+    "An organisation unit's removal: nothing taken, since the receiver keys nothing by one. The administrator's alone, under the console's token with Owner-Key and Owner-Role.",
+    vec![path_parameter("unit"), parameter("company", "integer", false)],
+    None,
+    vec![(200, json_answer::<RemovalTaken>(&mut generator))],
+    vec!["unauthorized", "forbidden", "bad-request", "upstream-failed"]
+  );
+  add!(
     "PUT",
     "/accounts/{account}/presence",
     "accountPresence",
@@ -1579,7 +1632,7 @@ pub fn openapi() -> Value {
     "/rooms/{roomId}",
     "removeRoom",
     "Rooms",
-    "A room's registration removed, or with dryRun what the removal would do.",
+    "A room's registration removed, or with dryRun what the removal would do. The administrator removes any room, another account's private room among them.",
     vec![
       path_parameter("roomId"),
       parameter("by", "string", true),

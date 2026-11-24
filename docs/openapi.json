@@ -2983,6 +2983,38 @@
         ],
         "type": "object"
       },
+      "RemovalCounts": {
+        "description": "`GET /accounts/{account}/removal` and `GET /org-units/{unit}/removal`: what the removal would take now, by\nkind, every kind named; an organisation unit's names none.",
+        "properties": {
+          "counts": {
+            "additionalProperties": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "counts"
+        ],
+        "type": "object"
+      },
+      "RemovalTaken": {
+        "description": "`DELETE /accounts/{account}` and `DELETE /org-units/{unit}`: what the removal took, by kind, every kind named;\nan organisation unit's names none.",
+        "properties": {
+          "removed": {
+            "additionalProperties": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "removed"
+        ],
+        "type": "object"
+      },
       "Road": {
         "description": "A room's road.",
         "properties": {
@@ -4144,6 +4176,58 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/accounts/{account}": {
+      "delete": {
+        "operationId": "removeAccount",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RemovalTaken"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, forbidden, bad-request, seeded-room, infrastructure, owners-chat, upstream-failed, failed"
+          }
+        },
+        "summary": "An account removed for good: each of its private rooms removed whole, its memberships of every other room and its record identity taken; what it took, by kind. The administrator's alone, under the console's token with Owner-Key and Owner-Role.",
+        "tags": [
+          "Rooms"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "forbidden",
+          "bad-request",
+          "seeded-room",
+          "infrastructure",
+          "owners-chat",
+          "upstream-failed",
+          "failed"
+        ]
+      }
+    },
     "/accounts/{account}/identity": {
       "put": {
         "operationId": "accountIdentity",
@@ -4247,6 +4331,55 @@
         "x-codes": [
           "unauthorized",
           "bad-request",
+          "failed"
+        ]
+      }
+    },
+    "/accounts/{account}/removal": {
+      "get": {
+        "operationId": "accountRemoval",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RemovalCounts"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, forbidden, bad-request, upstream-failed, failed"
+          }
+        },
+        "summary": "What an account's removal would take now, by kind, every kind named; nothing written. The administrator's alone, under the console's token with Owner-Key and Owner-Role.",
+        "tags": [
+          "Rooms"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "forbidden",
+          "bad-request",
+          "upstream-failed",
           "failed"
         ]
       }
@@ -5531,6 +5664,118 @@
         ]
       }
     },
+    "/org-units/{unit}": {
+      "delete": {
+        "operationId": "removeOrgUnit",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "unit",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "company",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RemovalTaken"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, forbidden, bad-request, upstream-failed"
+          }
+        },
+        "summary": "An organisation unit's removal: nothing taken, since the receiver keys nothing by one. The administrator's alone, under the console's token with Owner-Key and Owner-Role.",
+        "tags": [
+          "Rooms"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "forbidden",
+          "bad-request",
+          "upstream-failed"
+        ]
+      }
+    },
+    "/org-units/{unit}/removal": {
+      "get": {
+        "operationId": "orgUnitRemoval",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "unit",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "company",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RemovalCounts"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, forbidden, bad-request, upstream-failed"
+          }
+        },
+        "summary": "What an organisation unit's removal would take: nothing, since the receiver keys nothing by one. The administrator's alone, under the console's token with Owner-Key and Owner-Role.",
+        "tags": [
+          "Rooms"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "forbidden",
+          "bad-request",
+          "upstream-failed"
+        ]
+      }
+    },
     "/owner": {
       "get": {
         "operationId": "owner",
@@ -6448,7 +6693,7 @@
             "description": "A refusal or failure: unauthorized, forbidden, not-found, private-room, upstream-failed, failed"
           }
         },
-        "summary": "A room's registration removed, or with dryRun what the removal would do.",
+        "summary": "A room's registration removed, or with dryRun what the removal would do. The administrator removes any room, another account's private room among them.",
         "tags": [
           "Rooms"
         ],

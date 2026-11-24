@@ -132,6 +132,10 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | `DELETE /rooms/{roomId}/accounts/{account}` | `by`, the account taking it out, the member itself where it leaves | 204 |
 | `PUT /accounts/{account}/identity` | `name?`, the name the identity goes by from then | `account` and `sender`, the account's record identity, made where it does not stand |
 | `GET /accounts/{account}/rooms` | | `rooms`, the numbers of the rooms the account is a member of in the console, its private rooms among them |
+| `GET /accounts/{account}/removal` | `Owner-Key` and `Owner-Role` (the administrator) | `counts`, what the account's removal would take now, by kind; nothing written |
+| `DELETE /accounts/{account}` | `Owner-Key` and `Owner-Role` (the administrator) | `removed`, what the removal took, by kind |
+| `GET /org-units/{unit}/removal` | `company`; `Owner-Key` and `Owner-Role` (the administrator) | `counts`, empty: the receiver keys nothing by an organisation unit |
+| `DELETE /org-units/{unit}` | `company`; `Owner-Key` and `Owner-Role` (the administrator) | `removed`, empty |
 | `GET /rooms/{roomId}/figures` | `zone`, an IANA time zone name, `UTC` where none | the room's figures: `room`, `messages`, `fromPeople`, `speakers`, `firstAt`, `lastAt`, `lastAnswerAt`, `top`, `byHour`, `agents` |
 | `PUT /pinned-rooms` | `roomIds`, the whole order; `account?` | `roomIds`, the order as it now stands |
 | `POST /pinned-rooms` | `room`, one room stood last; `account?` | `roomIds` |
@@ -177,7 +181,8 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   owner's account. In a room whose `privateOf` is set, a write for any other account, the administrator's among
   them, is refused 403 `private-room` (`room`, `account`) before anything is written; the room's own account's go
   through. A sealed private room, `privateOf` null though it is one (the owner's private room while no account is linked
-  to his sender), refuses every account's write. The whole pinned order is a write in each room it pins or unpins. A write naming no account is a unit
+  to his sender), refuses every account's write. The room's removal by the administrator is the one write no
+  private room refuses (below). The whole pinned order is a write in each room it pins or unpins. A write naming no account is a unit
   acting as itself and is refused nowhere.
 - **A room's registration is read and its mode changed by the administrator alone,** `by` naming him as the web
   unit knows him. `GET /rooms/{roomId}/registration` answers `room`, `mode`, `providers`, `chosen`,
@@ -293,11 +298,36 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   changes reaches the record with no words sent. A missing body, or one with no `name`, names nothing; a `name`
   that is blank is refused 400 `bad-request`.
 - **A room's removal** asks the record what it would take, each declared holder and the agency, and refuses
-  anyone but the administrator, and a private room to anyone but its own account (`by` names who removes it). `dryRun=true` answers the preview and writes nothing; the answer names
+  anyone but the administrator (`by` names who removes it, as the web unit knows him). The administrator removes any
+  room, another account's private room and a sealed one among them; any other caller is refused 403
+  `not-administrator`, and in another account's private room or a sealed one 403 `private-room` first, as every
+  write is. The refusals of `docs/codes.md` (`RoomRemovalRefusal`) stand for the administrator too. `dryRun=true` answers the preview and writes nothing; the answer names
   `goes`, `stays`, `pictures`, `settings`, `folders`, `warned` (each a `RoomRemovalWarning` of `docs/codes.md`, its
   `code` beside its fields), `warns` (each declared holder's answer), `units` and, for the removal itself, `taken`,
   `cleared`, `holders` and `couldNot` (each a `RemovalLeft` of `docs/codes.md`). No field of either answer carries a
   sentence a screen shows; a holder's or a unit's `failure` is the English sentence for the log.
+- **An account's removal** is the administrator's alone (`docs/receiver.md`, 「An account's removal」): each of the
+  four routes is answered only under the console's token, with `Owner-Role` `administrator` and an `Owner-Key` the
+  web unit answers as the administrator (`GET /users/{user}`); any other caller is refused 403 `forbidden`, and a
+  web unit that does not answer 502 `upstream-failed`. `{account}`, `{unit}` and `company` are positive decimal
+  numbers, anything else refused 400 `bad-request`. `GET /accounts/{account}/removal` answers
+  `{"counts": {kind: n}}` and writes nothing; `DELETE /accounts/{account}` answers `{"removed": {kind: n}}`. Both
+  name every kind, 0 where there is none, and the count is what the removal would take at that moment:
+  - `private-rooms`: the rooms the record keeps as the account's private rooms, each removed as the administrator's
+    room removal removes it;
+  - `memberships`: the account's rows as a member of every other room, those rooms standing;
+  - `identities`: the account's record identity;
+  - `names`: the name its record identity goes by;
+  - `mutes`: its record identity muted in a room;
+  - `pictures`: the pictures set on its record identity, each with its file.
+
+  A second call takes nothing and answers every kind 0. A private room whose removal is refused stops the call 409
+  with the refusal's own code, an agency that does not answer for one 502 `upstream-failed`, and a file or folder of
+  one that could not be removed 500 `failed`, each sentence naming the room; a picture's file that could not be
+  taken down once the identity's rows went answers 500 `failed` naming the file. What was taken before stays taken,
+  and calling again goes on from there. Nothing of a room or a row that names no account, or names another, is touched.
+  The receiver keys nothing by an organisation unit, so `GET /org-units/{unit}/removal` answers `{"counts": {}}`
+  and `DELETE /org-units/{unit}` `{"removed": {}}`.
 
 ## Messages
 

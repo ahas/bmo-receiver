@@ -4,6 +4,7 @@
 
 pub(crate) mod common;
 
+mod account_removal;
 mod agency_events;
 mod agent_rounds;
 mod alone_runs;
