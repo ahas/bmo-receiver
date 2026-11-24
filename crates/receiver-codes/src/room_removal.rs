@@ -43,7 +43,7 @@ refused!(RoomRemovalRefusal);
 pub enum RoomRemovalWarning {
   /// Other agents answer the room: they stay, and no longer answer in it.
   Answerers { names: Vec<String> },
-  /// A road can still reach the room, where a later message would register it anew.
+  /// A road can still reach the room, where a later message would register it anew; `road` is its key.
   Road { road: String },
   /// The room is another user's private chat.
   Private { user: String },
@@ -63,6 +63,26 @@ impl std::fmt::Display for RoomRemovalWarning {
         write!(f, "the road {road} can still reach this room; a later message registers it anew")
       }
       Self::Private { user } => write!(f, "this is the private chat of the user {user}"),
+    }
+  }
+}
+
+/// What a removal could not take down of the room's files and folders, each by its path.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, IntoStaticStr, VariantNames)]
+#[serde(tag = "kind", rename_all = "kebab-case")]
+#[strum(serialize_all = "kebab-case")]
+pub enum RemovalLeft {
+  /// The file or folder stands outside this data root, so the removal leaves it.
+  OutsideDataRoot { path: String },
+  /// The file or folder could not be removed; `reason` is the English sentence for the log.
+  NotRemoved { path: String, reason: String },
+}
+
+impl std::fmt::Display for RemovalLeft {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match self {
+      Self::OutsideDataRoot { path } => write!(f, "{path}: outside this data root"),
+      Self::NotRemoved { path, reason } => write!(f, "{path}: {reason}"),
     }
   }
 }

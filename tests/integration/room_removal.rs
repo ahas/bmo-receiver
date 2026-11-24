@@ -216,6 +216,15 @@ async fn a_room_is_shown_then_taken_whole_as_shown_and_every_other_room_left_sta
   assert_eq!(shown["settings"]["undeclared"].as_array().unwrap().len(), 1);
   assert_eq!(shown["settings"]["trimmed"], json!(["console_pinned_rooms"]));
   assert!(shown["warns"].as_array().unwrap().is_empty());
+  assert!(
+    shown.get("warnings").is_none(),
+    "the warnings stand under `warned`, as docs/api.md names them"
+  );
+  assert_eq!(
+    shown["warned"],
+    json!([{ "code": "answerers", "names": [AGENT] }, { "code": "road", "road": "road-a" }]),
+    "each warning is its code and fields, a road by its key: {shown}"
+  );
   assert_eq!(shown["units"]["agency"]["gone"]["sessions"], 1);
   assert_eq!(
     shown["units"].as_object().unwrap().keys().collect::<Vec<_>>(),

@@ -46,14 +46,13 @@ crate::room_holding!(RoomHolding::Refuses {
   refuses: owner_refusal,
 });
 
-// A room a chat service still holds, where a later message would register it anew.
+// A room a chat service still holds, where a later message would register it anew, named by the road's key.
 fn reachable<'a>(facing: &'a Facing<'a>) -> Says<'a, RoomRemovalWarning> {
   Box::pin(async move {
     let roads = facing.receiver.roads();
     let Some(key) = roads.room_road(facing.room).await else { return Ok(None) };
-    let road = roads.facts(&Road::Service(key)).await.label;
 
-    Ok(Some(RoomRemovalWarning::Road { road }))
+    Ok(Some(RoomRemovalWarning::Road { road: key }))
   })
 }
 

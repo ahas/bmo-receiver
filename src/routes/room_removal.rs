@@ -10,7 +10,7 @@ use axum::extract::{RawQuery, State};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use receiver_codes::RoomRemovalRefusal;
+use receiver_codes::{RemovalLeft, RoomRemovalRefusal};
 use receiver_ports::http::PortFailure;
 
 use sqlx::{AnyConnection, Connection};
@@ -182,7 +182,7 @@ async fn shown_removal(receiver: &Receiver, room: i64) -> Result<Value, Refusal>
   Ok(json!({
     "room": room,
     "refused": refused.map(|why| code(why).code),
-    "warnings": warnings,
+    "warned": warnings,
     "warns": units,
     "goes": goes,
     "stays": stays,
@@ -230,19 +230,22 @@ async fn carry(receiver: &Receiver, room: i64, by: &str) -> Result<Value, Refusa
   let _ = archive.close().await;
   let counted = taken.map_err(failed)?;
 
-  let mut left: Vec<String> = vec![];
+  let mut left: Vec<RemovalLeft> = vec![];
   let mut removed_pictures: Vec<String> = vec![];
 
   for path in pictures {
     let at = Path::new(&path);
 
     if !under(receiver, at) {
-      left.push(format!("{path}: outside this data root"));
+      left.push(RemovalLeft::OutsideDataRoot { path });
       continue;
     }
 
     match std::fs::remove_file(at) {
-      Err(why) if why.kind() != std::io::ErrorKind::NotFound => left.push(format!("{path}: {why}")),
+      Err(why) if why.kind() != std::io::ErrorKind::NotFound => left.push(RemovalLeft::NotRemoved {
+        path,
+        reason: why.to_string(),
+      }),
       _ => removed_pictures.push(shown(receiver, at)),
     }
   }
@@ -250,15 +253,16 @@ async fn carry(receiver: &Receiver, room: i64, by: &str) -> Result<Value, Refusa
   let mut removed_folders: Vec<Value> = vec![];
 
   for held in &folders {
-    let removal = if under(receiver, &held.path) {
-      held.remove(receiver).await
-    } else {
-      Err("outside this data root".to_owned())
-    };
+    let path = shown(receiver, &held.path);
 
-    match removal {
-      Ok(()) => removed_folders.push(json!({ "what": held.what, "path": shown(receiver, &held.path) })),
-      Err(why) => left.push(format!("{}: {why}", shown(receiver, &held.path))),
+    if !under(receiver, &held.path) {
+      left.push(RemovalLeft::OutsideDataRoot { path });
+      continue;
+    }
+
+    match held.remove(receiver).await {
+      Ok(()) => removed_folders.push(json!({ "what": held.what, "path": path })),
+      Err(reason) => left.push(RemovalLeft::NotRemoved { path, reason }),
     }
   }
 

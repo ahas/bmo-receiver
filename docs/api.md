@@ -293,8 +293,10 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   that is blank is refused 400 `bad-request`.
 - **A room's removal** asks the record what it would take, each declared holder and the agency, and refuses
   anyone but the administrator, and a private room to anyone but its own account (`by` names who removes it). `dryRun=true` answers the preview and writes nothing; the answer names
-  `goes`, `stays`, `pictures`, `settings`, `folders`, `warned`, `units` and, for the removal itself, `taken`,
-  `cleared`, `holders` and `couldNot`.
+  `goes`, `stays`, `pictures`, `settings`, `folders`, `warned` (each a `RoomRemovalWarning` of `docs/codes.md`, its
+  `code` beside its fields), `warns` (each declared holder's answer), `units` and, for the removal itself, `taken`,
+  `cleared`, `holders` and `couldNot` (each a `RemovalLeft` of `docs/codes.md`). No field of either answer carries a
+  sentence a screen shows; a holder's or a unit's `failure` is the English sentence for the log.
 
 ## Messages
 
@@ -502,7 +504,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 | `POST /owner/messages` | `chatId`, `text`, `replyTo?` | `id`, the message kept or sent |
 | `POST /rooms/{roomId}/words` | `account`, `name` (the account's shown name), `text`, `replyTo?` | 201, `id`, the message kept |
 | `POST /rooms/{roomId}/word-files` | a form as `POST /owner/message-files` takes but for `chatId`, which the path gives, with `account` and `name` | the answer `POST /owner/message-files` gives |
-| `POST /owner/message-files` | a form: `chatId`, `text?` (the caption), `replyTo?`, up to ten `file` fields, and `voice?` (`true` to send the one file as a voice note) | `id`, `sent` (each `name`, `id`), `checking`, `failed` (each `name`, `reason`) |
+| `POST /owner/message-files` | a form: `chatId`, `text?` (the caption), `replyTo?`, up to ten `file` fields, and `voice?` (`true` to send the one file as a voice note) | `id`, `sent` (each `name`, `id`), `checking`, `failed` (each `name` and `reason`, a `FileUnsent` of `docs/codes.md`) |
 | `POST /rooms/{roomId}/messages/{messageId}/forwards` | `to`, the room it is forwarded into; `account?`, the account forwarding it, and `name?`, its shown name | 201, `room` and `id`, the copy kept there, its stored picture kept again under it |
 
 - **A route that takes files sets no ceiling of its own** on a file's size, on how many files a form carries or
@@ -594,7 +596,8 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   it: a wake of the agents it calls for, or its carry to the room's other providers, that then fails is written to
   the service's log and never into the answer, and is not tried again. So a send the console repeats on a failure
   never puts a second copy of a file into the room. A file the room could not keep is answered under `failed`, its
-  `name` and the `reason`, beside the files it did keep; a form of which the room kept none is refused as the first
+  `name` and the `reason`, a `FileUnsent` naming its kind and, for one refused, the refusal's code, beside the files it
+  did keep; a form of which the room kept none is refused as the first
   of them failed, and carries nothing.
 - **The signed-in person's acts on a message** come through the console relay, which names the caller by
   `Owner-Key`, the login's user id, and `Owner-Role`, as a picture's setting does (`docs/pictures.md`, 「Profile

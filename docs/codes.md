@@ -229,8 +229,15 @@ session once the setting has changed, one waiting per setting.
 | Code | Fields | When |
 |---|---|---|
 | `answerers` | `names` | other agents answer the room |
-| `road` | `road` | a road can still reach the room |
+| `road` | `road` (the road's key) | a road can still reach the room |
 | `private` | `user` | the room is another user's private chat |
+
+### RemovalLeft
+
+| Kind | Fields | Meaning |
+|---|---|---|
+| `outside-data-root` | `path` | a file or folder of the room stands outside this data root, so the removal leaves it |
+| `not-removed` | `path`, `reason` | the file or folder could not be removed; `reason` is the English sentence for the log, which a screen never shows |
 
 ## Fixed lines
 
@@ -262,7 +269,7 @@ session once the setting has changed, one waiting per setting.
 |---|---|---|
 | `empty` | `name` | the file holds no bytes |
 | `too-large` | `name`, `size_bytes`, `largest_bytes`, `provider` | the file is past the largest the room takes, which `provider` declares |
-| `refused` | `name`, `reason` | the road refused it |
+| `refused` | `name`, `code`, `reason` | the file was not kept: `code` is the road's refusal code (bmo-chat's `docs/protocol.md`, 「Refusals」) where a chat road refused it, and otherwise the receiver's own refusal code (`docs/api.md`, 「Codes」); `reason` is the English sentence for the log, which a screen never shows |
 
 ### RunTitle
 

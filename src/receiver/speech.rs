@@ -6,7 +6,7 @@
 
 use std::sync::Arc;
 
-use bmo_chat_client::{ChatSend, ChatSendRequest, ChatSent, ChatVoice, ClientFailure};
+use bmo_chat_client::{ChatSend, ChatSendRequest, ChatSent, ChatVoice, ClientFailure, ErrorCode};
 use receiver_codes::FixedLine;
 use receiver_policy::fill_marks;
 use receiver_policy::fixed_lines::FIXED_LINES;
@@ -34,7 +34,11 @@ pub enum NotSaid {
   #[error("the {road} road did not carry the line: {why}")]
   Chat { road: String, why: ClientFailure },
   #[error("the {road} road refused the line: {refusal}")]
-  Refused { road: String, refusal: String },
+  Refused {
+    road: String,
+    code: ErrorCode,
+    refusal: String,
+  },
   #[error(transparent)]
   Store(#[from] Fault),
 }
@@ -439,6 +443,7 @@ impl Speech {
         ..
       }) => Err(NotSaid::Refused {
         road: key.to_owned(),
+        code: answer.code,
         refusal: answer.error,
       }),
       Err(why) => Err(NotSaid::Chat {

@@ -52,8 +52,13 @@ pub enum FileUnsent {
     largest_bytes: u64,
     provider: String,
   },
-  /// The road refused it, in its own words.
-  Refused { name: String, reason: String },
+  /// The file was not kept: `code` is the road's refusal code where a chat road refused it, and otherwise the
+  /// receiver's own; `reason` is the English sentence for the log, never shown on a screen.
+  Refused {
+    name: String,
+    code: String,
+    reason: String,
+  },
 }
 
 impl std::fmt::Display for FileUnsent {
@@ -71,7 +76,7 @@ impl std::fmt::Display for FileUnsent {
           "{name}: {size_bytes} bytes is past the {largest_bytes} bytes {provider} takes a file at"
         )
       }
-      Self::Refused { name, reason } => write!(f, "{name}: {reason}"),
+      Self::Refused { name, reason, .. } => write!(f, "{name}: {reason}"),
     }
   }
 }

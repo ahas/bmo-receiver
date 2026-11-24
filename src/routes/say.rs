@@ -9,7 +9,7 @@ use axum::{
   http::StatusCode,
 };
 use bmo_chat_client::{ChatFileKind, FileBody, FileItem, MessageFile};
-use receiver_codes::OwnerSendRefusal;
+use receiver_codes::{Code, FileUnsent, OwnerSendRefusal};
 use receiver_policy::roads::ROADS;
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -21,6 +21,7 @@ use crate::data_root::{DataRoot, room_path};
 use crate::now_ms;
 use crate::receiver::files::Handed;
 use crate::receiver::incoming::{Arriving, Incoming};
+use crate::receiver::speech::NotSaid;
 use crate::receiver::{Context, Inbound, NotReceived, Receiver, reads, rows};
 use crate::roads::providers::{self, Carried, Delivery, FileLimit, SaidBy};
 use crate::roads::{Road, record};
@@ -370,7 +371,7 @@ pub(super) async fn files_said(
   for file in given {
     match limit.as_ref().and_then(|limit| limit.turns_away(file.name(), file.size())) {
       Some(refusal) => {
-        turned_away.push(json!({ "name": file.name(), "reason": refusal.to_string() }));
+        turned_away.push(json!({ "name": file.name(), "reason": limit_unsent(file.name(), &refusal) }));
         first_refusal.get_or_insert(refusal);
       }
       None => standing.push(file),
@@ -420,9 +421,15 @@ pub(super) async fn files_said(
         first.get_or_insert(message);
       }
       Err(why) => {
+        let road_code = road_refusal_code(&why);
         let why = failed(why);
+        let unsent = FileUnsent::Refused {
+          name: file.name().to_owned(),
+          code: road_code.unwrap_or_else(|| why.code.clone()),
+          reason: why.error.clone(),
+        };
 
-        turned_away.push(json!({ "name": file.name(), "reason": why.error }));
+        turned_away.push(json!({ "name": file.name(), "reason": unsent }));
         unkept.get_or_insert(why);
       }
     }
@@ -439,6 +446,38 @@ pub(super) async fn files_said(
   }
 
   answered(json!({ "id": first.message_id, "sent": sent, "checking": [], "failed": turned_away }))
+}
+
+// A file the room's limit turned away, as the kind a screen says it by (docs/codes.md, 「FileUnsent」).
+fn limit_unsent(name: &str, refusal: &OwnerSendRefusal) -> FileUnsent {
+  match refusal {
+    OwnerSendRefusal::TooLarge {
+      size_bytes,
+      largest_bytes,
+      provider,
+      ..
+    } => FileUnsent::TooLarge {
+      name: name.to_owned(),
+      size_bytes: *size_bytes,
+      largest_bytes: *largest_bytes,
+      provider: provider.clone(),
+    },
+    other => FileUnsent::Refused {
+      name: name.to_owned(),
+      code: other.code().to_owned(),
+      reason: other.to_string(),
+    },
+  }
+}
+
+// The refusal code a chat road answered a file with, where a road refused it: bmo-chat's code, kebab-case.
+fn road_refusal_code(why: &NotReceived) -> Option<String> {
+  match why {
+    NotReceived::Said(NotSaid::Refused { code, .. }) => {
+      serde_json::to_value(code).ok().and_then(|code| code.as_str().map(str::to_owned))
+    }
+    _ => None,
+  }
 }
 
 // The files a form carried, handed to the room's chat services from where they stand on the disk, read only as each

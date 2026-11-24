@@ -688,6 +688,17 @@ async fn a_file_past_the_limit_a_provider_of_the_room_declares_is_refused_with_t
   assert_eq!(status, StatusCode::OK, "{answer:?}");
   assert_eq!(answer["sent"][0]["name"], "paper-1.txt", "{answer:?}");
   assert_eq!(answer["failed"][0]["name"], "paper-0.txt", "{answer:?}");
+  assert_eq!(
+    answer["failed"][0]["reason"],
+    json!({
+      "kind": "too-large",
+      "name": "paper-0.txt",
+      "size_bytes": MEBIBYTE + 1,
+      "largest_bytes": MEBIBYTE,
+      "provider": "road-a",
+    }),
+    "the file turned away is its `FileUnsent` kind, never a sentence: {answer:?}"
+  );
 
   let (_, room) = read(&port, "/rooms/-100/providers").await;
   let (_, providers) = read(&port, "/providers").await;

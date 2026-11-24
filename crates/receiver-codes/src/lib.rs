@@ -70,7 +70,7 @@ pub use room_grants::RoomGrantRefusal;
 pub use room_members::RoomMembersRefusal;
 pub use room_mode::RoomModeRefusal;
 pub use room_reads::RoomReadRefusal;
-pub use room_removal::{RoomRemovalRefusal, RoomRemovalWarning};
+pub use room_removal::{RemovalLeft, RoomRemovalRefusal, RoomRemovalWarning};
 pub use sends::SendRefusal;
 pub use settings::SettingFact;
 pub use supervisors::{SupervisorFact, SupervisorRefusal};

@@ -9,10 +9,10 @@ use pulldown_cmark::{Event, HeadingLevel, Parser, Tag, TagEnd};
 use receiver_codes::draws::{DrawAsked, DrawLine, DrawResult};
 use receiver_codes::{
   AvatarRefusal, Code, Fact, FileFillRefusal, FileUnsent, FixedLine, HandoverCause, HealthFact,
-  MessageActRefusal, OwnerSendRefusal, ReceiverError, Refused, RoomAccountRefusal, RoomAdditionRefusal,
-  RoomGrantRefusal, RoomMembersRefusal, RoomModeRefusal, RoomReadRefusal, RoomRemovalRefusal,
-  RoomRemovalWarning, RunTitle, SendRefusal, SessionReason, SettingFact, SkipReason, SupervisorFact,
-  SupervisorRefusal, TalkRefusal, TurnOpening, VoiceFact, VoiceRefusal,
+  MessageActRefusal, OwnerSendRefusal, ReceiverError, Refused, RemovalLeft, RoomAccountRefusal,
+  RoomAdditionRefusal, RoomGrantRefusal, RoomMembersRefusal, RoomModeRefusal, RoomReadRefusal,
+  RoomRemovalRefusal, RoomRemovalWarning, RunTitle, SendRefusal, SessionReason, SettingFact, SkipReason,
+  SupervisorFact, SupervisorRefusal, TalkRefusal, TurnOpening, VoiceFact, VoiceRefusal,
 };
 use serde_json::json;
 use strum::VariantNames;
@@ -52,6 +52,7 @@ fn enums() -> Vec<(&'static str, Names, &'static [&'static str])> {
     ("RoomRemovalWarning", Codes, RoomRemovalWarning::VARIANTS),
     ("FixedLine", Codes, FixedLine::VARIANTS),
     ("FileUnsent", Kinds, FileUnsent::VARIANTS),
+    ("RemovalLeft", Kinds, RemovalLeft::VARIANTS),
     ("RunTitle", Kinds, RunTitle::VARIANTS),
     ("SessionReason", Kinds, SessionReason::VARIANTS),
     ("HandoverCause", Kinds, HandoverCause::VARIANTS),
@@ -266,6 +267,34 @@ fn a_fixed_line_is_its_code_and_fields_and_says_whether_it_is_a_system_notice() 
   );
   assert_eq!(HandoverCause::of(SessionReason::Process), HandoverCause::Documents);
   assert_eq!(HandoverCause::of(SessionReason::DowngradeForced), HandoverCause::Road);
+}
+
+#[test]
+fn a_file_refused_and_a_path_left_carry_their_codes_on_the_wire() {
+  assert_eq!(
+    serde_json::to_value(FileUnsent::Refused {
+      name: "a.txt".to_owned(),
+      code: "platform".to_owned(),
+      reason: "the platform refused".to_owned()
+    })
+    .unwrap(),
+    json!({ "kind": "refused", "name": "a.txt", "code": "platform", "reason": "the platform refused" })
+  );
+  assert_eq!(
+    serde_json::to_value(RemovalLeft::OutsideDataRoot {
+      path: "/elsewhere/a.jpg".to_owned()
+    })
+    .unwrap(),
+    json!({ "kind": "outside-data-root", "path": "/elsewhere/a.jpg" })
+  );
+  assert_eq!(
+    serde_json::to_value(RemovalLeft::NotRemoved {
+      path: "images/1".to_owned(),
+      reason: "busy".to_owned()
+    })
+    .unwrap(),
+    json!({ "kind": "not-removed", "path": "images/1", "reason": "busy" })
+  );
 }
 
 #[test]
