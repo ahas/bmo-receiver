@@ -43,6 +43,8 @@ struct Book {
   /// Each turn's session and its answer once it has ended.
   turns: BTreeMap<i64, (String, Option<String>)>,
   keys: HashMap<String, i64>,
+  /// The turns that ended failed, each with why.
+  failed: HashMap<i64, String>,
   /// Whether a send names its turn now; one taken while it does not waits, unnamed, until it is cut.
   silent: bool,
 }
@@ -184,8 +186,11 @@ async fn send(
   tokio::select! {
     _ = ends.wait_for(|_| shared.answer_of(turn).is_some()) => {
       let answer = shared.answer_of(turn);
+      let failed = shared.book.lock().unwrap().failed.get(&turn).cloned();
+      let outcome = if failed.is_some() { "failed" } else { "answered" };
 
-      Json(json!({ "turn": turn, "delivery": "delivered", "outcome": "answered", "answer": answer })).into_response()
+      Json(json!({ "turn": turn, "delivery": "delivered", "outcome": outcome, "answer": answer, "reason": failed }))
+        .into_response()
     }
     () = shared.stopped() => StatusCode::SERVICE_UNAVAILABLE.into_response(),
   }
@@ -369,6 +374,36 @@ impl ServedAgency {
         "run": format!("run-{turn}"),
         "outcome": "answered",
         "answer": answer,
+        "delivery": "taken",
+      }),
+    );
+    self.shared.ends.send_modify(|ends| *ends += 1);
+  }
+
+  /// The turn ended failed for `reason`, its end published whether or not anyone listens, as a turn the agency's
+  /// next server could not take up again ends.
+  pub fn fail(&self, turn: i64, reason: &str) {
+    let session = {
+      let mut book = self.shared.book.lock().unwrap();
+      let standing = book.turns.get_mut(&turn).expect("the turn stands");
+
+      standing.1 = Some(String::new());
+
+      let session = standing.0.clone();
+
+      book.failed.insert(turn, reason.to_owned());
+      session
+    };
+
+    self.shared.publish(
+      "turn.ended",
+      json!({
+        "session": session,
+        "turn": turn,
+        "run": format!("run-{turn}"),
+        "outcome": "failed",
+        "reason": reason,
+        "answer": null,
         "delivery": "taken",
       }),
     );

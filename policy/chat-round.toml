@@ -218,8 +218,17 @@ rule = "WHEN A TURN IS MARKED {marker} — words came for this room while the an
 [notice]
 marker = "NOTICE."
 optional_marker = "NOTICE, MAY SKIP."
-rule = "WHEN A TURN IS MARKED {marker} — the service has something to tell this chat, and you are to say it. The facts in the turn are what happened, as it recorded them. The lines after the facts are what the line is for and what follows it, in that order, and are to be carried out. Say it now, in your own words and in this chat's manner: in this chat's own language, plain text, one short line. Unless this is the owner's private chat, nothing about your own system — no model, code, prompt, host or internals. Never copy the fact text. This is a notice, not a reply: do not answer <<WAIT>> and do not use <<REPLY>>. Do not skip: this line is to be said."
+rule = "WHEN A TURN IS MARKED {marker} — the service has something to tell this chat, and you are to say it. The facts in the turn are what happened, as it recorded them. The lines after the facts are what the line is for and what follows it, in that order, and are to be carried out. Say it now, in your own words and in this chat's manner: in this chat's own language, plain text, one short line. Unless this is the owner's private chat, nothing about your own system — no model, code, prompt, host or internals. Never copy the fact text. This is a notice, not a reply: do not answer <<WAIT>> and do not use <<REPLY>>. Do not skip: this line is to be said. This turn is a whole turn with your tools: where the facts call for work (a call you started has ended, a rest you waited out is over, something you were waiting on went live), or you had work in hand that can go on now, do that work in this same turn, before the line, and say in the line what it came to. Never say you will do something next and end the turn: do it now, or set your own wake for later, or leave it unsaid."
 optional_rule = "WHEN A TURN IS MARKED {marker} — the same notice as the one above, but if the facts leave nothing this chat needs to hear, you may skip instead, naming on one line why the line needs no saying here."
+
+# The continuation a round whose turn was cut is carried on with (docs/bmo-window.md, 「Quiet instruction」): the
+# marker it opens on, its line, `{at}` the moment the turn was cut in UTC and `{cause}` what cut it, named by the
+# words of `agency` or `rest`.
+[cut]
+marker = "CONTINUE."
+line = "Your turn in this room was cut at {at} by {cause}, before it ended. Carry on the work you were doing in it: look at what is already done before you repeat anything that has an effect, then take the work on to its end in this turn, and tell this chat what it comes to."
+agency = "a restart of the agency your session runs through"
+rest = "the usage rest, which has now lifted"
 
 # How often a working turn is offered the words that came for its room while it works and its run's log is read
 # for its picture, in milliseconds, and how long it is offered none after the agency refused a push, since each

@@ -4,7 +4,8 @@
 //! it kept, never sent twice; a send cut before its turn was named goes again under its key and attaches to one
 //! turn; a turn the agency lost fails the round uncounted and gives its row back, never settled; and a turn that
 //! ends while its stream stands listening unheard is found at the next look, the round failing and running again
-//! rather than holding the agent behind an end nobody will tell.
+//! rather than holding the agent behind an end nobody will tell. A work turn the agency's restart or the rest cut
+//! is continued in its room rather than ordered as a broken run, its end told as cut.
 
 use std::path::Path;
 use std::sync::Arc;
@@ -16,6 +17,8 @@ use bmo_receiver::chat::instructions::{Queued, queue};
 use bmo_receiver::chat::runner::Runner;
 use bmo_receiver::data_root::DataRoot;
 use receiver_policy::chat_line::CHAT_LINE;
+use receiver_policy::chat_round::CHAT_ROUND;
+use receiver_ports::agency::{Rest, RestKind};
 
 use crate::integration::common::Scratch;
 use crate::integration::common::served_agency::ServedAgency;
@@ -179,6 +182,93 @@ impl Cut {
         },
       )
       .await;
+  }
+
+  // The continuations of cut rounds standing, each its id and its agent, room and words.
+  async fn continuations(&self) -> Vec<(i64, String)> {
+    self
+      .scratch
+      .texts(
+        r#"SELECT "id"::text || '|' || "agent" || ' | ' || "chat_id"::text || ' | ' || "text"
+           FROM "instructions" WHERE "kind" = 'turn-cut' ORDER BY "id""#,
+      )
+      .await
+      .into_iter()
+      .map(|row| {
+        let (id, rest) = row.split_once('|').unwrap();
+
+        (id.parse().unwrap(), rest.to_owned())
+      })
+      .collect()
+  }
+
+  // How many failure orders stand.
+  async fn orders(&self) -> usize {
+    self
+      .scratch
+      .texts(r#"SELECT "text" FROM "instructions" WHERE "kind" LIKE 'failure-order%'"#)
+      .await
+      .len()
+  }
+
+  // The one continuation standing, checked as a room reply of the agent's in the owner's chat naming `cause`, and
+  // handed to the room's conversation as the pass hands it once the agency answers or the rest lifts; the turn it
+  // opens ends answered, and its answer reaches the room.
+  async fn continued(&self, cause: &str, sends_before: usize) {
+    let continuations = self.continuations().await;
+
+    assert_eq!(continuations.len(), 1, "one continuation stands: {continuations:?}");
+
+    let (id, row) = &continuations[0];
+    let opening = format!("{AGENT} | {OWNER} | {}\n", CHAT_ROUND.cut.marker);
+
+    assert!(
+      row.starts_with(&opening),
+      "the agent's continuation in the room the round ran in: {row}"
+    );
+    assert!(row.contains(cause), "it names what cut the turn: {row}");
+    assert!(row.contains(" UTC by "), "and when: {row}");
+    assert_eq!(self.orders().await, 0, "a cut turn raises no failure order");
+
+    let cut = self.standing.heard.events("run-cut");
+
+    assert_eq!(cut.len(), 1, "the round's end is told as cut: {cut:?}");
+    assert!(self.standing.heard.events("run-failed").is_empty(), "and never as broken");
+
+    let text = row[row.find(&CHAT_ROUND.cut.marker).unwrap()..].to_owned();
+
+    self.runner.of(AGENT).instruct(OWNER, text, Some(*id), None, vec![]).await;
+
+    until("the continuation's turn", || self.served.sends().len() == sends_before + 1).await;
+
+    let sends = self.served.sends();
+    let prompt = sends.last().unwrap()["prompt"].as_str().unwrap().to_owned();
+
+    assert!(prompt.contains(&CHAT_ROUND.cut.marker), "the turn opens on the continuation: {prompt}");
+
+    let turn = *self.served.turns().last().unwrap();
+
+    // The turn is ended only once the receiver heard it named and wrote it down as carrying the continuation, so
+    // its end is read as the continuation's own.
+    self
+      .row_until(
+        *id,
+        &Row {
+          settled: false,
+          session: Some(SESSION.to_owned()),
+          turn: Some(turn),
+          restarts: 0,
+          failures: 0,
+          let_go: None,
+        },
+      )
+      .await;
+    self.served.end(turn, ANSWER);
+    until("the continued work's answer in the room", || {
+      self.sent().iter().any(|sent| sent.contains(ANSWER))
+    })
+    .await;
+    until("the continuation's round end", || self.runner.idle()).await;
   }
 
   // Waits, bounded, until the row stands as `row`.
@@ -367,4 +457,76 @@ async fn a_turn_that_ends_unheard_while_the_stream_listens_is_found_by_the_compa
     "the second turn's answered end settled its row: {:?}",
     cut.sent()
   );
+}
+
+#[tokio::test]
+async fn a_work_turn_the_agencys_restart_cut_is_continued_in_its_room_and_never_ordered() {
+  let cut = Cut::stood().await;
+  let id = cut.instruct().await;
+
+  cut.carried(id).await;
+
+  // The agency restarts under the working turn, as a deployment the agent itself started does, and the next server
+  // ends the turn failed, its program gone.
+  cut.served.stop().await;
+  cut.served.fail(1, "its program was gone when the agency started again");
+  cut.served.restart().await;
+
+  cut
+    .row_until(
+      id,
+      &Row {
+        settled: false,
+        session: None,
+        turn: None,
+        restarts: 1,
+        failures: 0,
+        let_go: None,
+      },
+    )
+    .await;
+  until("the round's end", || cut.runner.idle()).await;
+  assert_eq!(cut.standing.heard.events("run-cut")[0]["cut"], "agency");
+
+  cut.continued(&CHAT_ROUND.cut.agency, 1).await;
+}
+
+#[tokio::test]
+async fn a_work_turn_the_rest_cut_is_continued_in_its_room_once_the_rest_lifts() {
+  let cut = Cut::stood().await;
+  let id = cut.instruct().await;
+
+  cut.carried(id).await;
+
+  // The rest closes the agent's road while the turn works, and the turn ends failed under it.
+  cut.standing.agency.at_rest(Rest {
+    resting: true,
+    until: None,
+    kind: Some(RestKind::Limit),
+  });
+  cut.served.fail(1, "the usage limit was reached");
+
+  cut
+    .row_until(
+      id,
+      &Row {
+        settled: false,
+        session: None,
+        turn: None,
+        restarts: 1,
+        failures: 0,
+        let_go: None,
+      },
+    )
+    .await;
+  until("the round's end", || cut.runner.idle()).await;
+  assert_eq!(cut.standing.heard.events("run-cut")[0]["cut"], "rest");
+
+  // The rest lifts, and the continuation opens the next turn.
+  cut.standing.agency.at_rest(Rest {
+    resting: false,
+    until: None,
+    kind: None,
+  });
+  cut.continued(&CHAT_ROUND.cut.rest, 1).await;
 }

@@ -8,7 +8,9 @@ use receiver_codes::FixedLine;
 use receiver_policy::chat_health::CHAT_HEALTH;
 use receiver_policy::fill_marks;
 
-use super::conversation::{BoxFuture, Failure};
+use receiver_policy::chat_round::CHAT_ROUND;
+
+use super::conversation::{BoxFuture, CutBy, Failure};
 use super::instructions::{Queued, queue as queue_row};
 use crate::receiver::wake::agents;
 use crate::receiver::wake::rest::{resting, road_answers};
@@ -18,6 +20,9 @@ use crate::{all, now_ms, run};
 
 // The kind a failure order of the agent's own is kept under, which the orders' clock reads back.
 const ORDER_KIND: &str = "failure-order";
+
+/// The kind and the sort a continuation of a cut round is kept under: one waits in a room at a time.
+pub const CUT_KIND: &str = "turn-cut";
 
 /// Whether a room has fallen silent for the agent answering it: the rest closes that agent's road and nothing
 /// else would answer it. The road asked of is the answering agent's own, so a room a supervisor on another road
@@ -84,6 +89,45 @@ pub async fn raise_order(
   queue_row(receiver.db(), answerer, room, &text, &row).await.map(drop)
 }
 
+/// The continuation of `agent`'s round in `chat_id` whose turn `by` cut at `at_ms` (docs/bmo-window.md, 「Quiet
+/// instruction」): a room reply in the room the round ran in, naming when and by what the turn was cut and asking the
+/// agent to carry the work on, which the pass hands once the agency answers again or the rest lifts. A later cut in
+/// the room replaces one not yet handed.
+pub async fn continue_cut(
+  receiver: &Receiver,
+  agent: &str,
+  chat_id: i64,
+  by: CutBy,
+  at_ms: i64,
+) -> Result<i64, Fault> {
+  let cut = &CHAT_ROUND.cut;
+  let at = chrono::DateTime::from_timestamp_millis(at_ms)
+    .map(|at| at.format("%Y-%m-%d %H:%M UTC").to_string())
+    .unwrap_or_else(|| at_ms.to_string());
+  let cause = match by {
+    CutBy::Agency => &cut.agency,
+    CutBy::Rest => &cut.rest,
+  };
+  let line = fill_marks(&cut.line, &[("at", &at), ("cause", cause)]);
+  let text = format!("{}\n{line}", cut.marker);
+  let row = Queued {
+    kind: Some(CUT_KIND),
+    events: vec![],
+    rides_until_ms: None,
+    rides_session: false,
+    rides_for_good: false,
+    agent_only: false,
+    cause: super::instructions::Cause::Reply,
+    sort: Some(CUT_KIND),
+    summary: Some(&line),
+    via: None,
+    run_id: None,
+    publisher: Some("receiver"),
+  };
+
+  queue_row(receiver.db(), agent, chat_id, &text, &row).await
+}
+
 /// The health of the rooms, as the conversations hold it.
 #[derive(Clone)]
 pub struct RoomHealth(Receiver);
@@ -114,6 +158,15 @@ impl crate::chat::conversation::Health for RoomHealth {
   ) -> BoxFuture<'a, ()> {
     Box::pin(async move {
       if matches!(failure, Failure::Stopped) {
+        return;
+      }
+
+      // A cut turn is no broken run: its round is continued, never ordered.
+      if let Failure::Cut { by, .. } = failure {
+        if let Err(why) = continue_cut(receiver, agent, chat_id, *by, now_ms()).await {
+          eprintln!("chat {chat_id}: the continuation of {agent}'s cut round: {}", why.detail);
+        }
+
         return;
       }
 

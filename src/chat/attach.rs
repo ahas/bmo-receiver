@@ -60,12 +60,14 @@ pub enum Probed {
   Gone,
 }
 
-/// The turn's id and run, once the agency named them, and the number of the last event heard.
+/// The turn's id and run, once the agency named them, the number of the last event heard, and whether the agency
+/// ever let go of the following while the turn went.
 #[derive(Clone, Debug, Default)]
 struct Named {
   turn: Option<i64>,
   run: Option<String>,
   mark: Option<i64>,
+  severed: bool,
 }
 
 /// The turn a round follows on one session, followed on a task of its own so that no step of a re-attachment is
@@ -164,9 +166,16 @@ impl Followed {
       .unwrap_or_else(|| Err(Failure::Transport("the turn's following ended with no end of it".to_owned())))
   }
 
+  /// The turn read gone where the stream told no end of it: the stream is let go and the next step re-attaches,
+  /// reading the end off the events kept or the turn.
+  pub fn cut(&self) {
+    self.cuts.notify_one();
+  }
+
   /// The send's connection was cut: the stream is let go and the next step re-attaches, so a turn the agency never
   /// named is found unnamed and sent again, whichever of the stream and the send the cut reached first.
-  pub fn cut(&self) {
+  pub fn severed(&self) {
+    self.named.lock().unwrap_or_else(PoisonError::into_inner).severed = true;
     self.cuts.notify_one();
   }
 
@@ -183,6 +192,12 @@ impl Followed {
   /// The number of the last of the agency's events the following heard, where one carried a number.
   pub fn mark(&self) -> Option<i64> {
     self.named.lock().unwrap_or_else(PoisonError::into_inner).mark
+  }
+
+  /// Whether the agency let go of the following while the turn went: its stream ended or failed, or its send's
+  /// connection was cut, as the agency's restart cuts both. A look that found the turn gone is no such thing.
+  pub fn was_severed(&self) -> bool {
+    self.named.lock().unwrap_or_else(PoisonError::into_inner).severed
   }
 }
 
@@ -290,6 +305,9 @@ impl Attached {
           Some(Err(why)) => eprintln!("session {}: the agency's event stream failed: {why}", self.session),
           None => eprintln!("session {}: the agency's event stream ended", self.session),
         }
+
+        // The agency let the stream go under the turn, as its restart does.
+        self.named.lock().unwrap_or_else(PoisonError::into_inner).severed = true;
 
         self.stream = None;
         self.cut();

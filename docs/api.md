@@ -688,6 +688,10 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   the room's own identity for the default answerer, the number the room's road or the record gave any other
   agent — or null where the room gives it none. The speaker is read as each turn begins, so an event told of a
   room no turn has begun in yet carries none.
+- **A turn ends as one of `sent`, `skipped`, `waited`, `run-stopped`, `run-failed` or `run-cut`.** `run-cut` is a
+  turn the agency's restart or the rest cut before it ended, which the room's next round continues
+  (`docs/bmo-window.md`, 「Quiet instruction」); it carries `cut`, `agency` or `rest`, and `detail`, what the round
+  read of it. `run-failed` is a turn that broke.
 - **`run-progress` carries the working turn's picture** as `progress`, with `chatId` and `messageId`, sent only
   where the picture changed (`docs/receiver.md`, 「The event stream」): its
   `phase`, `tool`, token counts and `spent`, its last `actions` with `droppedActions` and `droppedContext`, and

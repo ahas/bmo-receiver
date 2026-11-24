@@ -26,7 +26,7 @@ use super::cache::{
 };
 use super::context::{RoomSend, State, loaded_in, remember_held, sent_prompt, states};
 use super::conversation::{
-  Aside, Asking, BoxFuture, Carrying, Failure, Follower, Held, Reply, unified_session,
+  Aside, Asking, BoxFuture, Carrying, CutBy, Failure, Follower, Held, Reply, unified_session,
 };
 use super::generation::{self, Standing};
 use super::handoff::{self, Note, carried_note};
@@ -735,12 +735,12 @@ impl Carry {
             Ok(Err(why)) if super::attach::unreachable(&why) => {
               eprintln!("session {}: the turn's send was cut: {why}", session.id);
               ended = early.take();
-              followed.cut();
+              followed.severed();
             }
             Ok(Err(why)) => return Err(fault_of(why)),
             Err(_) => {
               ended = early.take();
-              followed.cut();
+              followed.severed();
             }
           }
 
@@ -860,6 +860,7 @@ impl Carry {
     }
 
     let run = followed.run();
+    let cut = followed.was_severed();
 
     drop(followed);
     drop(at_agency);
@@ -959,6 +960,12 @@ impl Carry {
 
     match outcome {
       "stopped" => Err(Failure::Stopped),
+      // A turn that ended failed after the agency went away under it, as its restart cuts the stream and the send,
+      // was cut rather than broken (docs/bmo-window.md, 「Quiet instruction」).
+      "failed" if cut => Err(Failure::Cut {
+        by: CutBy::Agency,
+        why: reason,
+      }),
       // A turn its engine ended with an error says so, with the error's kind where the engine named one.
       "failed" => Err(match ended.get("engineError").filter(|engine| engine.is_object()) {
         Some(engine) => Failure::Engine {

@@ -27,8 +27,10 @@ use crate::routes::writable::WritableRoom;
 use crate::store::settings;
 use crate::{one, run};
 
-// What a fact an instruction carries is said for, where the call names no intent of its own.
-const FACT_INTENT: &str = "tell this chat what the system recorded.";
+// What a fact an instruction carries is said for, where the call names no intent of its own: told, and the work
+// it calls for carried on in the same turn (docs/voiced-notices.md, 「The rule」).
+const FACT_INTENT: &str =
+  "tell this chat what the system recorded, and carry on, in this turn, whatever work it calls for.";
 
 // The family a voiced notice is listed under.
 const NOTICE_SORT: &str = "notice";

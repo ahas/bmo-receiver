@@ -253,7 +253,9 @@ async fn a_fact_queued_for_a_room_is_framed_for_the_rooms_voice_to_say() {
       .first()
       .cloned()
       .unwrap_or_default()
-      .contains("tell this chat what the system recorded."),
+      .contains(
+        "tell this chat what the system recorded, and carry on, in this turn, whatever work it calls for."
+      ),
   );
 }
 

@@ -90,7 +90,35 @@ pub enum Failure {
   Outage,
   Transport(String),
   Failed(String),
-  Engine { reason: String, kind: Option<String> },
+  Engine {
+    reason: String,
+    kind: Option<String>,
+  },
+  /// The turn was cut before it ended, not broken: the agency went away under it, or the rest closed its road. Its
+  /// round is continued in its room (docs/bmo-window.md, 「Quiet instruction」).
+  Cut {
+    by: CutBy,
+    why: String,
+  },
+}
+
+/// What cut a round's turn before it ended.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CutBy {
+  /// The agency went away under the turn: a restart or a deployment of it, or an agency answering nothing.
+  Agency,
+  /// The rest closed the agent's road while the turn worked.
+  Rest,
+}
+
+impl CutBy {
+  /// The word the round's end and its continuation name the cause by.
+  pub fn word(self) -> &'static str {
+    match self {
+      CutBy::Agency => "agency",
+      CutBy::Rest => "rest",
+    }
+  }
 }
 
 impl Failure {
@@ -107,7 +135,10 @@ impl Failure {
       Failure::Stopped => "stopped".to_owned(),
       Failure::Limit => "limit".to_owned(),
       Failure::Outage => "outage".to_owned(),
-      Failure::Transport(why) | Failure::Failed(why) | Failure::Engine { reason: why, .. } => why.clone(),
+      Failure::Transport(why)
+      | Failure::Failed(why)
+      | Failure::Engine { reason: why, .. }
+      | Failure::Cut { why, .. } => why.clone(),
     }
   }
 }
@@ -1774,6 +1805,7 @@ impl Conversations {
     // A round's future holds the whole of its asking: it stands on the heap, not on a worker's stack.
     let ended =
       rounds::within(round.clone(), Box::pin(self.round(chat_id, force, &round, &mut record))).await;
+    let ended = self.cut_or(ended).await;
     // A round that failed for anything but a stop asked of it gives back every row and word it took, the failure
     // counted only where the agency answered it; one where the agency was unreachable holds the agent's rows until
     // it answers again (docs/bmo-window.md, 「Quiet instruction」).
@@ -1898,8 +1930,27 @@ impl Conversations {
     state.given_back.insert(chat_id, GivenBack { words, room, times });
   }
 
+  // A round's failure read as a cut where the agency's going away or the rest explains it (docs/bmo-window.md,
+  // 「Quiet instruction」): the agency answering nothing, holding no record or no end of the turn, or cutting it
+  // under its restart is a cut by the agency, and a failure the agency answered while the rest closes the agent's
+  // road is a cut by the rest. Neither counts, and the round is continued rather than ordered.
+  async fn cut_or(&self, ended: Result<(), Failure>) -> Result<(), Failure> {
+    match ended {
+      Err(Failure::Transport(why)) => Err(Failure::Cut {
+        by: CutBy::Agency,
+        why,
+      }),
+      Err(failure) if failure.counted() && self.road_rests().await => Err(Failure::Cut {
+        by: CutBy::Rest,
+        why: failure.reason(),
+      }),
+      other => other,
+    }
+  }
+
   // A round that failed, wherever in it the failure came from: it ends the conversation the way a failed run
-  // does, a stop with nothing of the failure road, a limit or an outage with its rest, any other with its order.
+  // does, a stop with nothing of the failure road, a limit or an outage with its rest, a cut with its
+  // continuation, any other with its order.
   async fn fail_round(&self, chat_id: i64, failure: Failure) {
     self.shown_typing(chat_id, false).await;
 
@@ -1920,13 +1971,20 @@ impl Conversations {
 
     let stopped = matches!(failure, Failure::Stopped);
     let said = failure.reason();
-
-    self.publish(json!({
+    let mut ended = json!({
       "type": if stopped { "run-stopped" } else { "run-failed" },
       "chatId": chat_id,
       "messageId": message,
       "detail": said,
-    }));
+    });
+
+    // A cut turn ends as cut, naming what cut it, never as broken or as finished.
+    if let Failure::Cut { by, .. } = &failure {
+      ended["type"] = json!("run-cut");
+      ended["cut"] = json!(by.word());
+    }
+
+    self.publish(ended);
 
     self.0.health.failed(&self.0.receiver, self.agent(), chat_id, &failure).await;
   }

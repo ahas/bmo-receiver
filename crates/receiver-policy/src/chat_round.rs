@@ -250,6 +250,17 @@ pub struct Notice {
   pub optional_rule: String,
 }
 
+/// The continuation a round whose turn was cut is carried on with: the marker it opens on, its line with the
+/// moment and the cause, and the words each cause is named by.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Cut {
+  pub marker: String,
+  pub line: String,
+  pub agency: String,
+  pub rest: String,
+}
+
 /// How often a working turn is offered the words that came for its room, and how long it is offered none after
 /// the agency refused a push.
 #[derive(Debug, Deserialize)]
@@ -387,6 +398,7 @@ pub struct ChatRound {
   pub handed: Handed,
   pub push: Push,
   pub notice: Notice,
+  pub cut: Cut,
   pub pushing: Pushing,
   pub attach: Attach,
   pub send: Send,

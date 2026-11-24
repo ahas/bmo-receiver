@@ -33,6 +33,17 @@ agent that answers the room says the line.
   internals unless the chat is the owner's private chat; that it uses its own words, never copying the fact text
   out; and that it answers no `<<WAIT>>` or `<<REPLY>>`, and skips only under the optional marker, in the round's
   form, which names why (`docs/instruction.md`, 「What it is」).
+- **A notice turn is a whole turn, and its line promises nothing it leaves undone.** The turn a notice opens is a
+  round of the agent's session with its tools, like any other. Where the facts call for work — a call the agent
+  started has ended, the rest it waited out is over, a deployment it was waiting on went live — or the agent
+  had work in hand that the notice's moment lets go on, the rule has it do that work in this same turn, before
+  the line, and say in the line what it came to. The line never announces work as coming next: what it would
+  announce is done in the turn, or set as the agent's own wake for later (`docs/reminders.md`), or left unsaid.
+  The receiver opens no second turn on the strength of a notice's words: what a line means to do is never read
+  out of its words, since the receiver matches no person's language in code, so the turn the notice opened is
+  the one that carries the work.
+- **A fact queued with no intent of its own** is framed to be told and carried on: the intent says to tell the
+  chat what the system recorded and to carry on, in that turn, whatever work it calls for.
 - **Recipients and switches are the notice's own.** A voiced notice goes to exactly the chats the line is for,
   under the per-chat switches (「Operating notices per chat」), and the rest rule holds: a rest and its lifting are
   told to the owner alone, and a room's session folding says nothing to any room.
@@ -126,7 +137,9 @@ agent that answers the room says the line.
   own, as a job that failed in another room is told to the owner (the agency's `docs/agent-control.md`, 「An
   item's change is told to its orderer」): the platform's operator keeps every room's broken runs in view. The
   order carries the agent, the room's title and the cause the agency gave, never the room's words. The agent tells
-  the owner in its own words; the receiver sends a fixed line only when the agent cannot answer at all. A round that failed, and a round that ended with nothing said, send
+  the owner in its own words; the receiver sends a fixed line only when the agent cannot answer at all. A turn
+  the agency's restart or the rest cut is no broken run: it raises no order, and its round is continued in the
+  room it ran in once the agency answers again or the rest lifts (`docs/bmo-window.md`, 「Quiet instruction」). A round that failed, and a round that ended with nothing said, send
   no line to their room. A turn somebody stopped says nothing anywhere: the room that was watching the agent
   type hears nothing, the owner hears nothing at all, and nothing is recorded to recover from: a stop is not a
   failure.

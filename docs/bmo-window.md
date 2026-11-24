@@ -79,6 +79,7 @@ is written.
 | The back-up line after a restart no deployment announced | start-up | instruction table | `round` | opens | — |
 | The deployment briefing: the deployments since the owner was last briefed, asking the agent to brief him (`docs/wake.md`, 「Quiet instructions」) | the round's start | instruction table | `round` | rides, the owner's next round | — |
 | Rest, outage, recovery, downgrade and fallback notices | the agency's events | instruction table | `round` | opens | — |
+| A continuation of a round whose turn the agency's restart or the rest cut (「Quiet instruction」) | the round's failure | instruction table | `round` | opens, once the agency answers or the rest lifts | — |
 | A document reload | the agency's `document-move.created` | instruction table | `round` | rides, for good | — |
 | A deployment gone live, and every way one stops short | the testbed's deployment | instruction table | `round` | opens | `deployed` |
 | A tool call `bmo use` ran on its own come to its end: a reminder's moment, a watch's check holding, a long draw (`docs/reminders.md`) | bmo-cli's `use` unit | instruction table | `round` | opens | — |
@@ -194,6 +195,17 @@ that session without the room hearing it.
   as `failed` with the round that failed last, whose failure order still stands. A failure where the agency was
   unreachable, cut the turn's connection or holds no record of the turn counts nothing: no row and no word is
   ever let go for it, and the instruction pass holds the agent's rows until the agency answers again.
+- **A round whose turn was cut is continued, never ordered.** A turn is cut, not broken, where the agency went
+  away under it — the agency unreachable past the re-attachment's while, holding no record of the turn or no end
+  of it, or the turn's connection or stream cut while it worked and the turn then ending failed, as a restart or a
+  deployment of the agency leaves it, the one the agent started itself among them — or where it failed while the
+  rest closes its agent's road. Such a round counts nothing on its rows or its words, raises no failure order, and
+  gives back what it took as every failed round does; the receiver then queues a continuation for its agent in the
+  room the round ran in (`policy/chat-round.toml`, `[cut]`): its marker, the moment the turn was cut and what cut
+  it, and the ask to look at what is already done and carry the work on to its end in that turn. It is a room
+  reply under the kind `turn-cut`, so a later cut in the same room replaces one not yet handed, and the pass hands
+  it once the agency answers again or the rest lifts, the words and rows the cut round gave back opening the same
+  round with it. The round's end is told as `run-cut`, naming what cut it (`docs/api.md`, 「Events and the live board」).
 - **A turn refused because its session is in another turn is no failure.** The agency refuses a turn sent to a
   session already working (409); whatever holds the session — a handoff, a replacement, a turn the agency runs of
   its own — the round waits for that turn's end on the agency's event stream, however long it takes, and sends its

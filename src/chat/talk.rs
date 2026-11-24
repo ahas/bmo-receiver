@@ -272,9 +272,10 @@ fn failure_of(failure: Failure) -> TalkFailure {
     Failure::Limit => TalkFailure::Limit,
     Failure::Outage => TalkFailure::Outage,
     Failure::Stopped => TalkFailure::Other("stopped".to_owned()),
-    Failure::Transport(why) | Failure::Failed(why) | Failure::Engine { reason: why, .. } => {
-      TalkFailure::Other(why.clone())
-    }
+    Failure::Transport(why)
+    | Failure::Failed(why)
+    | Failure::Engine { reason: why, .. }
+    | Failure::Cut { why, .. } => TalkFailure::Other(why.clone()),
   }
 }
 
