@@ -220,10 +220,12 @@ async fn a_room_is_shown_then_taken_whole_as_shown_and_every_other_room_left_sta
     shown.get("warnings").is_none(),
     "the warnings stand under `warned`, as docs/api.md names them"
   );
+  let mut warned = shown["warned"].as_array().unwrap().clone();
+  warned.sort_by_key(|warning| warning["code"].as_str().unwrap_or_default().to_owned());
   assert_eq!(
-    shown["warned"],
+    json!(warned),
     json!([{ "code": "answerers", "names": [AGENT] }, { "code": "road", "road": "road-a" }]),
-    "each warning is its code and fields, a road by its key: {shown}"
+    "each warning is its code and fields, a road by its key, in no promised order: {shown}"
   );
   assert_eq!(shown["units"]["agency"]["gone"]["sessions"], 1);
   assert_eq!(
