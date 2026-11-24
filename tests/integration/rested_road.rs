@@ -10,6 +10,7 @@ use bmo_receiver::chat::around::Around;
 use bmo_receiver::chat::conversation::Timings;
 use bmo_receiver::chat::instructions::{Queued, deliver_pending, queue};
 use bmo_receiver::chat::runner::Runner;
+use bmo_receiver::chat::talk::{TalkFailure, TalkRequest};
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::now_ms;
 use bmo_receiver::receiver::{Context, Inbound, Room, rows};
@@ -230,4 +231,25 @@ async fn an_instruction_for_a_rested_road_waits_for_it_uncounted_and_goes_once_t
   deliver_pending(receiver, &rested.runner, &mut last, now_ms(), 0).await.unwrap();
 
   until("the row's turn", || rested.session.prompts().iter().any(|prompt| prompt.contains(text))).await;
+}
+
+// A console talk is a round of the owner's chat on the default answerer's session: while the rest closes that
+// road it is refused as resting before any turn goes out, and once the road answers it goes out.
+#[tokio::test]
+async fn a_talk_while_the_rest_closes_the_default_road_is_refused_as_resting_with_no_turn() {
+  let rested = Rested::new().await;
+  let talk = TalkRequest {
+    head: vec!["A document".to_owned()],
+    turns: vec![],
+    said: "what does this say".to_owned(),
+  };
+  let conversations = rested.runner.default_answerer();
+
+  assert_eq!(conversations.talk(&talk).await, Err(TalkFailure::Resting));
+  assert!(rested.session.prompts().is_empty(), "no turn went out");
+
+  rested.standing.agency.answering_on_their_roads(vec![AGENT.to_owned()]);
+
+  assert_ne!(conversations.talk(&talk).await, Err(TalkFailure::Resting));
+  assert!(!rested.session.prompts().is_empty(), "the turn went out");
 }

@@ -59,7 +59,7 @@ family. No code carries a sentence in a room's language.
 | Code | Status | Fields | When |
 |---|---|---|---|
 | `busy` | 409 | | the agent is still answering the talk's last words |
-| `resting` | 409 | | the agent rests, or the owner's chat has fallen silent |
+| `resting` | 409 | | the rest closes the default answerer's road |
 | `limit` | 429 | | the provider's usage limit is reached |
 | `outage` | 503 | | the provider is out |
 | `silent` | 502 | | the agent said nothing |

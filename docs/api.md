@@ -640,8 +640,10 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   `fields` are the values that head carries. The receiver enumerates no kind; `item` and `document` are read as the
   talks they name, and any other kind is read from the heading and fields as given.
 - **A talk that comes back with nothing is refused:** `conflict` with `busy` where the talk is being answered,
-  `not-ready` where the default answerer's conversations do not stand, `conflict` with `resting` where the agent rests,
-  429 `limit` where its provider's limit is reached, and 503 `outage` where its provider is out.
+  `not-ready` where the default answerer's conversations do not stand, `conflict` with `resting` where the rest
+  closes the default answerer's road — before any turn goes out, or as the reason a turn that went out failed —
+  429 `limit` where its provider's limit is reached, and 503 `outage` where its provider is out. A turn that was
+  stopped, or that failed with the road open, comes back `unanswered`.
 
 ## Events and the live board
 

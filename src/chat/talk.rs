@@ -33,7 +33,7 @@ pub struct TalkRequest {
 /// Why a turn came back with nothing.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TalkFailure {
-  /// The default answerer rests, or the owner's chat has fallen silent.
+  /// The rest closes the default answerer's road.
   Resting,
   Limit,
   Outage,
@@ -266,12 +266,12 @@ pub fn general_request(
   TalkRequest { head, turns, said }
 }
 
-/// A turn's failure as the talk reads it: a rest, a limit, an outage, or the reason beside it.
+/// A turn's failure as the talk reads it: a limit, an outage, or the reason beside it, a stop among them.
 fn failure_of(failure: Failure) -> TalkFailure {
   match failure {
-    Failure::Stopped => TalkFailure::Resting,
     Failure::Limit => TalkFailure::Limit,
     Failure::Outage => TalkFailure::Outage,
+    Failure::Stopped => TalkFailure::Other("stopped".to_owned()),
     Failure::Transport(why) | Failure::Failed(why) | Failure::Engine { reason: why, .. } => {
       TalkFailure::Other(why.clone())
     }
@@ -289,7 +289,9 @@ pub async fn answer(
   let owners = conversations.owner_room();
   let receiver = conversations.receiver();
 
-  if conversations.silenced(owners).await {
+  // The talk is a round of the owner's chat, which never falls silent, so the rest is read off the default
+  // answerer's own road: a turn on a road the rest closes could only fail.
+  if conversations.road_rests().await {
     return Err(TalkFailure::Resting);
   }
 
@@ -336,6 +338,8 @@ pub async fn answer(
 
   Ok(match carried {
     Ok(reply) => Some(crate::form::strip_prompt_scaffolding(&reply.text)),
+    // A turn that failed while the rest closes the road failed for the rest.
+    Err(_) if conversations.road_rests().await => return Err(TalkFailure::Resting),
     Err(failure) => return Err(failure_of(failure)),
   })
 }
