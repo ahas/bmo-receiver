@@ -75,24 +75,24 @@ async fn a_round_is_told_of_the_deployments_since_the_owner_was_last_briefed() {
 
   deployed(
     roots.path(),
-    "bmo-unit-a",
+    "bmo-approval",
     json!({ "commit": "a".repeat(40), "subject": "subject a", "message": "message a", "version": "1.2.0", "at": written(now - 60_000) }),
     Some("9.9.9"),
   );
   deployed(
     roots.path(),
-    "bmo-unit-b",
+    "bmo-attendance",
     json!({ "commit": "0123456789abcdef", "subject": "subject b", "at": now - 30_000 }),
     Some("0.3.0"),
   );
   deployed(
     roots.path(),
-    "bmo-unit-c",
+    "bmo-schedule",
     json!({ "commit": "c".repeat(40), "subject": "long gone", "at": written(now - 7_200_000) }),
     None,
   );
-  deployed(roots.path(), "unit-d", json!({ "subject": "no deploy root", "at": now }), None);
-  std::fs::create_dir_all(roots.path().join("bmo-unit-e")).unwrap();
+  deployed(roots.path(), "ms-teams", json!({ "subject": "no deploy root", "at": now }), None);
+  std::fs::create_dir_all(roots.path().join("bmo-kakaotalk")).unwrap();
 
   // The first round of a session never briefed names the deployments within the fresh while, oldest first, the
   // record's own version and message before the release's and the subject.
@@ -105,8 +105,8 @@ async fn a_round_is_told_of_the_deployments_since_the_owner_was_last_briefed() {
     [format!(
       "{} | 1 deployments-briefed",
       brief(&format!(
-        "These deployments went live since you last briefed the owner on what went live: unit-a 1.2.0 went live at {}: message a \
-         (commit aaaaaaaaaaaa); unit-b 0.3.0 went live at {}: subject b (commit 0123456789ab).",
+        "These deployments went live since you last briefed the owner on what went live: approval 1.2.0 went live at {}: message a \
+         (commit aaaaaaaaaaaa); attendance 0.3.0 went live at {}: subject b (commit 0123456789ab).",
         named(now - 60_000),
         named(now - 30_000),
       ))
@@ -156,13 +156,13 @@ async fn a_round_is_told_of_the_deployments_since_the_owner_was_last_briefed() {
   let unit_at = now_ms() - 5;
   deployed(
     roots.path(),
-    "bmo-unit-b",
+    "bmo-attendance",
     json!({ "commit": "e".repeat(40), "subject": "subject b again", "version": "0.4.0", "at": unit_at }),
     None,
   );
   tokio::time::sleep(Duration::from_millis(20)).await;
   around.riders(AGENT, ROOM).await;
-  assert!(rows(&scratch, OWNER).await[0].contains("unit-b 0.4.0 went live"));
+  assert!(rows(&scratch, OWNER).await[0].contains("attendance 0.4.0 went live"));
 
   // The next process's first round, with nothing deployed since, writes nothing more.
   Briefings::new(Some(roots.path().to_path_buf())).note(&receiver, AGENT, ROOM).await;
@@ -184,21 +184,21 @@ fn a_record_missing_its_commit_or_message_is_named_by_what_it_holds() {
 
   deployed(
     roots.path(),
-    "bmo-unit-a",
+    "bmo-approval",
     json!({ "subject": "no commit", "version": "1.0.0", "at": 1_700_000_000_000i64 }),
     None,
   );
   deployed(
     roots.path(),
-    "bmo-unit-b",
+    "bmo-attendance",
     json!({ "version": "2.0.0", "at": 1_700_000_001_000i64 }),
     None,
   );
 
   let text = instruction(&deployments(roots.path(), None));
 
-  assert!(text.contains("unit-a 1.0.0 went live at 2023-11-14T22:13:20Z: no commit"));
-  assert!(text.contains("unit-b 2.0.0 went live at 2023-11-14T22:13:21Z."));
+  assert!(text.contains("approval 1.0.0 went live at 2023-11-14T22:13:20Z: no commit"));
+  assert!(text.contains("attendance 2.0.0 went live at 2023-11-14T22:13:21Z."));
 }
 
 #[tokio::test]
@@ -217,7 +217,7 @@ async fn the_briefing_goes_to_the_owners_private_room_where_a_notices_room_is_na
 
   deployed(
     roots.path(),
-    "bmo-unit-a",
+    "bmo-approval",
     json!({ "commit": "a".repeat(40), "subject": "subject a", "at": now_ms() - 60_000 }),
     None,
   );
@@ -246,7 +246,7 @@ async fn the_briefing_goes_to_the_owners_private_room_where_one_is_named_and_no_
 
   deployed(
     roots.path(),
-    "bmo-unit-a",
+    "bmo-approval",
     json!({ "commit": "a".repeat(40), "subject": "subject a", "at": now_ms() - 60_000 }),
     None,
   );
@@ -277,7 +277,7 @@ async fn only_an_agent_that_answers_the_owners_room_writes_his_briefing() {
 
   deployed(
     roots.path(),
-    "bmo-unit-a",
+    "bmo-approval",
     json!({ "commit": "a".repeat(40), "subject": "subject a", "at": now_ms() - 60_000 }),
     None,
   );
