@@ -41,7 +41,7 @@ takes it outright: the table holds no default agent.
 | `allowed_chats` | a room on the listen list: one the owner allowed with his allow command and has not denied since. It is one of the ways a room stands on the console's room list, and only a room on that list, the owner's private room always among them, is listened to: its words wake its agents, and a chat service asking about it is told it is listened to. Every other room's messages are kept all the same and wake nobody; a `Room`'s `listened` answers it (`docs/api.md`, 「Rooms」) | room |
 | `photo_chats` | a room's word on whether its agent opens the pictures it stores (`docs/pictures.md`) | room |
 | `muted_members` | a person muted in a room (`docs/rooms.md`) | room and person |
-| `chat_notices` | a room's restart notice switched on or off (`docs/voiced-notices.md`) | room and kind |
+| `chat_notices` | a room's notice switches, `restart` and `rest`, each switched on or off (`docs/voiced-notices.md`) | room and kind |
 | `chat_reads` | the last message of a room the receiver has read | room |
 | `chat_titles` | a room's title | room |
 | `room_supervisors` | a supervisor a room names to answer it; a room naming none is answered by the supervisor its own private person owns, where one stands, and otherwise by the default answerer (`docs/api.md`, 「Supervisors」) | room and supervisor |

@@ -289,8 +289,8 @@ pub async fn answer(
   let owners = conversations.owner_room();
   let receiver = conversations.receiver();
 
-  // The talk is a round of the owner's chat, which never falls silent, so the rest is read off the default
-  // answerer's own road: a turn on a road the rest closes could only fail.
+  // The talk is a round of the owner's chat, so the rest is read off the default answerer's own road: a turn on
+  // a road the rest closes could only fail, and the talk keeps no words to answer once it lifts.
   if conversations.road_rests().await {
     return Err(TalkFailure::Resting);
   }

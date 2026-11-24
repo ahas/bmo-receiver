@@ -450,6 +450,16 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 - **A `Notice`** is `id`, `kind`, `summary`, `text` and `createdAt`. The list is walked by `before` or
   `after`, an instruction id, and narrowed by `kind` and by the span it was queued in, both ends included.
 
+| Route | Body | Answers |
+|---|---|---|
+| `GET /notice-switches` | | `restart` and `rest`, the owner's private chat's two notice switches as they stand |
+| `PUT /notice-switches/{kind}` | `on`, a boolean | `restart` and `rest`, as they now stand |
+
+- **The notice switches** are the owner's private chat's (`docs/voiced-notices.md`, 「Operating notices per
+  chat」): `restart`, the going-down line and the back notice, and `rest`, the line a rest begins with and the
+  notice of its lifting. Each is on unless it was set off. A kind that is neither is refused 404 `not-found`,
+  and a body whose `on` is not a boolean 400 `bad-request`.
+
 ## Instructions
 
 | Route | Body or query | Answers |

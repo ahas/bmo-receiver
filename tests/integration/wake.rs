@@ -768,7 +768,7 @@ async fn words_that_are_nothing_but_the_secret_marker_wake_nobody_and_no_name_is
 }
 
 #[tokio::test]
-async fn a_room_the_rest_closes_hands_its_turn_over_marked_so_and_the_owners_chat_is_never_closed() {
+async fn a_room_the_rest_closes_hands_its_turn_over_marked_so_and_the_owners_chat_waits_alike() {
   let (_scratch, _data, standing) = stood(&[-125, OWNER]).await;
 
   standing
@@ -791,24 +791,20 @@ async fn a_room_the_rest_closes_hands_its_turn_over_marked_so_and_the_owners_cha
     .await
     .unwrap();
 
-  // With the agent's road closed by the rest, the closed room's turn is not taken; the owner's chat's is.
-  assert_eq!(
-    standing.taken.handed(),
-    [Handed {
-      agent: AGENT.into(),
-      chat_id: OWNER,
-      message_id: 1,
-      files: vec![],
-      opens_window: false,
-      read_through: Some(false),
-    }]
-  );
+  // With the agent's road closed by the rest, neither the closed room's turn nor the owner's chat's is taken: the
+  // owner's words wait for the rest to lift.
+  assert!(standing.taken.handed().is_empty());
 
-  // The agent's road answering through the rest takes the closed room's turn.
+  // The agent's road answering through the rest takes the turns again.
   standing.agency.answering_on_their_roads(vec![AGENT.to_owned()]);
   standing
     .receiver
     .message(&inbound(-125, 2, OWNER, "agent-a, still there"), &Context::default(), room())
+    .await
+    .unwrap();
+  standing
+    .receiver
+    .message(&inbound(OWNER, 2, OWNER, "still there?"), &Context::default(), owners_room())
     .await
     .unwrap();
 
@@ -827,10 +823,10 @@ async fn the_rest_silences_a_room_only_for_an_agent_whose_own_road_it_closes() {
   standing.agency.answering_on_their_roads(vec!["agent-b".to_owned()]);
 
   // The default answerer's road is closed and another supervisor's answers through the rest: the room is silent
-  // for the first and open for the second, and the owner's chat is silent for nobody.
+  // for the first and open for the second, and the owner's chat is silent for the first alike.
   assert!(health::silenced(&standing.receiver, AGENT, -126).await);
   assert!(!health::silenced(&standing.receiver, "agent-b", -126).await);
-  assert!(!health::silenced(&standing.receiver, AGENT, OWNER).await);
+  assert!(health::silenced(&standing.receiver, AGENT, OWNER).await);
 }
 
 #[tokio::test]

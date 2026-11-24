@@ -152,7 +152,9 @@ pub async fn woken_on(
     return Ok(());
   }
 
-  let rest_gated = !room.owner_room && resting(receiver).await?;
+  // The owner's private chat is gated like any room: his words wait for the rest to lift rather than going into a
+  // turn that could only fail (docs/receiver.md, 「What it carries」).
+  let rest_gated = resting(receiver).await?;
   let (agents, alone) = room_designated(receiver, chat_id, room).await?;
   let mut kept_out = KeptOut::default();
 
@@ -476,6 +478,8 @@ pub async fn hand(
   if rest_gated
     && asked("whether the agent's road answers", road_answers(receiver, agent).await) != Some(true)
   {
+    rest::note_held(receiver, inbound.sent_at).await;
+
     return Err("its road is closed by the rest");
   }
 

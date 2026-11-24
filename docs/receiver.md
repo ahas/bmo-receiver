@@ -47,8 +47,9 @@ flowchart TD
     its room's conversation on the tick and at once where a row was queued, cold wakes paced, the rows that ride
     a round handed to it as it starts, and, as the receiver starts, every row a stopped round left handed and
     unsettled made pending again;
-  - the restart (`docs/voiced-notices.md`, 「Deploy and restart」): a rest lifted past its end, every room but the
-    owner's read up to its latest message and the owner told where it was a limit's rest; and, as the receiver
+  - the restart (`docs/voiced-notices.md`, 「Deploy and restart」): a rest lifted past its end, the words it held
+    in every room, the owner's private chat among them, answered after it as a backlog (`docs/messages.md`,
+    「Backlog」), and the owner told where it was a limit's rest; and, as the receiver
     starts, the owner's back notice with the deployment's unit, commit, subject, item and what it cut, then the
     words a restart left unread handed, by the backlog's rule (`docs/messages.md`, 「Backlog」), to the agents
     they wake, one room at a time and in room order, the room's read mark advancing as its turn goes out; a room
@@ -81,7 +82,9 @@ flowchart TD
   only where the agent is pinned to a provider the rest does not close, or the agency answers that the
   supervisor's one road takes a turn now. A room's silence under the rest is judged by that same road, the
   answering agent's own: a room a supervisor on an open road answers stays open while the default answerer's
-  road rests. A
+  road rests. The owner's private chat is held the same way: while the rest closes its answerer's road his
+  words, from a chat service or the screen, go into no turn, so no turn fails and no failure order is raised,
+  and they wait unread until the rest lifts. A
   message read through somebody else's account, or by a read mode its chat service declares answers cannot be
   pinned to, goes in as read through a reader, so no answer is aimed at it. The owner's words from the screen go
   into the owner's conversation the same way, opening nothing.

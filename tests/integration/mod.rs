@@ -24,6 +24,7 @@ mod import;
 mod kept;
 mod message_acts;
 mod notes_owed;
+mod notice_switches;
 mod owed_replies;
 mod owner_room;
 mod private_thread;

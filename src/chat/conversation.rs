@@ -579,6 +579,11 @@ pub struct Waiting {
 
 impl Conv {
   // The numbers of the room's words it holds and no round has answered: those a wait holds, then those queued.
+  // When the earliest of the words it holds was sent, in epoch milliseconds.
+  fn earliest_held(&self) -> Option<i64> {
+    self.held_words.iter().chain(self.buffer.iter()).map(|message| message.sent_at).min()
+  }
+
   fn words_held(&self) -> Vec<i64> {
     self
       .held_words
@@ -1694,17 +1699,22 @@ impl Conversations {
     self.speaker_in(chat_id).await;
 
     if self.silenced(chat_id).await {
-      let (message, held) = {
+      let (message, held, earliest) = {
         let mut state = self.state();
         let Some(conv) = state.active.get_mut(&chat_id) else {
           return;
         };
 
         conv.in_flight = false;
-        (conv.held.last_consumed_id, conv.words_held())
+        (conv.held.last_consumed_id, conv.words_held(), conv.earliest_held())
       };
 
-      // The words it held go with it unanswered, said once (docs/wake.md, 「Who reaches the session」).
+      // The words it held go with it unanswered, said once (docs/wake.md, 「Who reaches the session」), and stay
+      // unread for the backlog that serves them as the rest lifts.
+      if let Some(earliest) = earliest {
+        crate::receiver::wake::rest::note_held(&self.0.receiver, earliest).await;
+      }
+
       unanswered(chat_id, &held, &format!("{}'s road is closed by the rest", self.agent()));
       self.close(chat_id).await;
       self.publish(waited(chat_id, message, None));

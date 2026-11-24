@@ -1217,6 +1217,22 @@ pub struct VoiceBriefing {
   pub autoplay: bool,
 }
 
+/// The owner's private chat's two notice switches: the restart's notices, and the rest's line and its lifting's
+/// notice.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct NoticeSwitches {
+  pub restart: bool,
+  pub rest: bool,
+}
+
+/// One notice switch moved, the kind named by the path.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct NoticeSwitch {
+  pub on: bool,
+}
+
 /// One of the voice briefing's switches moved: exactly one of the two, as a boolean.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]

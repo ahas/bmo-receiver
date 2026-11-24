@@ -333,6 +333,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/notice-switches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The owner's private chat's two notice switches, the restart's and the rest's, as they stand. */
+        get: operations["noticeSwitches"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notice-switches/{kind}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** One of the owner's private chat's notice switches moved, answered with both as they now stand. */
+        put: operations["switchNotice"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/owner": {
         parameters: {
             query?: never;
@@ -2333,6 +2367,18 @@ export interface components {
             summary: string | null;
             text: string;
         };
+        /** @description One notice switch moved, the kind named by the path. */
+        NoticeSwitch: {
+            on: boolean;
+        };
+        /**
+         * @description The owner's private chat's two notice switches: the restart's notices, and the rest's line and its lifting's
+         *     notice.
+         */
+        NoticeSwitches: {
+            rest: boolean;
+            restart: boolean;
+        };
         /** @description One quiet instruction a round settled. */
         Opening: {
             /**
@@ -3919,6 +3965,70 @@ export interface operations {
                 };
             };
             /** @description A refusal or failure: unauthorized */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    noticeSwitches: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NoticeSwitches"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    switchNotice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NoticeSwitch"];
+            };
+        };
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NoticeSwitches"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, bad-request, not-found, failed */
             default: {
                 headers: {
                     [name: string]: unknown;

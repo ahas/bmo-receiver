@@ -333,6 +333,10 @@ that room's supervisor, whose round there writes them as its message, its stages
   the call that woke it, so the words a round cut by the restart held are handed again whole. A line older than
   the while wakes nothing, so a restart never answers a call gone cold, and the lines before the first waking one
   open no turn: they are read once a turn's read mark passes them.
+- **The same scan runs as a rest lifts** (`docs/receiver.md`, 「What it carries」): no room is read past the words
+  the rest held, and each agent is served from the first unread line that wakes it, sent since the rest first held
+  a word however long ago that was, or within the policy's while where that reaches further back. A room whose
+  agent kept answering on a road the rest did not close holds nothing unread, so it is not served again.
 - **Rooms are served one at a time, in room order:** the next room waits until this room's turns have gone out
   and its read mark stands at the last line handed, or until the room holds nothing more to answer for any agent
   served.

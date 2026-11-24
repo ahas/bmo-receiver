@@ -1462,6 +1462,28 @@ pub fn openapi() -> Value {
     vec!["unauthorized", "one-switch", "upstream-failed"]
   );
   add!(
+    "GET",
+    "/notice-switches",
+    "noticeSwitches",
+    "Notices",
+    "The owner's private chat's two notice switches, the restart's and the rest's, as they stand.",
+    vec![],
+    None,
+    vec![(200, json_answer::<NoticeSwitches>(&mut generator))],
+    vec!["unauthorized"]
+  );
+  add!(
+    "PUT",
+    "/notice-switches/{kind}",
+    "switchNotice",
+    "Notices",
+    "One of the owner's private chat's notice switches moved, answered with both as they now stand.",
+    vec![name_parameter("kind")],
+    Some(generator.subschema_for::<NoticeSwitch>()),
+    vec![(200, json_answer::<NoticeSwitches>(&mut generator))],
+    vec!["unauthorized", "bad-request", "not-found", "failed"]
+  );
+  add!(
     "POST",
     "/rooms/{roomId}/messages/{messageId}/reading",
     "readLine",

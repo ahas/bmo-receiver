@@ -21,12 +21,9 @@ const ORDER_KIND: &str = "failure-order";
 
 /// Whether a room has fallen silent for the agent answering it: the rest closes that agent's road and nothing
 /// else would answer it. The road asked of is the answering agent's own, so a room a supervisor on another road
-/// answers is not closed by the rest of the default answerer's. The owner's chat never falls silent.
-pub async fn silenced(receiver: &Receiver, agent: &str, chat_id: i64) -> bool {
-  if receiver.roads().is_owner_room(chat_id).await {
-    return false;
-  }
-
+/// answers is not closed by the rest of the default answerer's. The owner's private chat falls silent the same
+/// way, its words waiting for the rest to lift rather than going into a turn that could only fail.
+pub async fn silenced(receiver: &Receiver, agent: &str, _chat_id: i64) -> bool {
   road_rests(receiver, agent).await
 }
 

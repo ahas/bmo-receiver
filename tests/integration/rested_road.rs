@@ -1,5 +1,6 @@
 //! The default answerer's road closed by the rest (docs/receiver.md; docs/wake.md, 「Who reaches the session」;
-//! docs/bmo-window.md, 「Quiet instruction」): while its rounds fail, words that wake a supervisor on an open road
+//! docs/bmo-window.md, 「Quiet instruction」; docs/messages.md, 「Backlog」): the owner's words in his own chat wait
+//! with no turn and no failure and are answered once the rest lifts, words that wake a supervisor on an open road
 //! in a room other than the owner's still start that supervisor's round, and a quiet instruction for the rested
 //! road waits for it rather than failing in rounds and being let go.
 
@@ -9,11 +10,13 @@ use std::time::Duration;
 use bmo_receiver::chat::around::Around;
 use bmo_receiver::chat::conversation::Timings;
 use bmo_receiver::chat::instructions::{Queued, deliver_pending, queue};
+use bmo_receiver::chat::restart::{backlog_since, lift_rest_if_due, resume_backlog_since};
 use bmo_receiver::chat::runner::Runner;
 use bmo_receiver::chat::talk::{TalkFailure, TalkRequest};
 use bmo_receiver::data_root::DataRoot;
 use bmo_receiver::now_ms;
 use bmo_receiver::receiver::{Context, Inbound, Room, rows};
+use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_ports::agency::{Rest, RestKind};
 use serde_json::json;
 
@@ -165,21 +168,19 @@ impl Rested {
     self.session.rooms().contains(&Some(chat_id))
   }
 
-  // The default answerer's round in the owner's chat, failed as a session on a rested road fails its turn; the
-  // turns after it answer again.
-  async fn failed_in_the_owners_chat(&self) {
-    self.session.end_as(Some(json!({ "outcome": "failed", "reason": "the road rests" })));
+  // The owner's words in his own chat while the rest closes the default answerer's road: no turn goes out, no
+  // round fails, and the words stay unread.
+  async fn held_in_the_owners_chat(&self) {
+    rows::set_last_read(self.scratch.db(), OWNER, 0).await.unwrap();
     self.say(said(OWNER, 1, OWNER, ASKED), room(true, None)).await;
-    until("the default answerer's failed round", || {
-      self
-        .standing
-        .heard
-        .events("run-failed")
-        .iter()
-        .any(|event| event["chatId"] == json!(OWNER))
-    })
-    .await;
-    self.session.end_as(None);
+    tokio::time::sleep(Duration::from_millis(50)).await;
+
+    assert!(!self.turned_in(OWNER), "no turn went out in the owner's chat");
+    assert!(self.standing.heard.events("run-failed").is_empty(), "no round failed");
+    assert!(
+      !rows::is_read(self.scratch.db(), OWNER, 1).await.unwrap(),
+      "the owner's words stay unread"
+    );
   }
 
   // The row's standing as `handed|failures|let go`.
@@ -197,7 +198,7 @@ impl Rested {
 async fn a_persons_words_in_their_own_supervisors_room_start_its_round_while_the_default_road_rests() {
   let rested = Rested::new().await;
 
-  rested.failed_in_the_owners_chat().await;
+  rested.held_in_the_owners_chat().await;
   rested.say(said(PRIVATE, 2, PERSON, "are you there"), room(false, Some(PERSON))).await;
 
   until("the supervisor's turn in the private room", || rested.turned_in(PRIVATE)).await;
@@ -208,7 +209,7 @@ async fn the_owners_words_in_a_group_room_naming_a_supervisor_start_its_round_wh
 {
   let rested = Rested::new().await;
 
-  rested.failed_in_the_owners_chat().await;
+  rested.held_in_the_owners_chat().await;
   rested.say(said(GROUP, 2, OWNER, "what is planned for today"), room(false, None)).await;
 
   until("the supervisor's turn in the group room", || rested.turned_in(GROUP)).await;
@@ -252,4 +253,55 @@ async fn a_talk_while_the_rest_closes_the_default_road_is_refused_as_resting_wit
 
   assert_ne!(conversations.talk(&talk).await, Err(TalkFailure::Resting));
   assert!(!rested.session.prompts().is_empty(), "the turn went out");
+}
+
+// The words the rest held in the owner's chat are answered once it lifts, by the backlog reaching back to the
+// moment the rest first held a word, however long ago; nothing lifts while the deployment still rests.
+#[tokio::test]
+async fn the_owners_words_wait_through_the_rest_and_are_answered_once_it_lifts() {
+  let rested = Rested::new().await;
+  let receiver = &rested.standing.receiver;
+
+  rested.held_in_the_owners_chat().await;
+
+  assert_eq!(lift_rest_if_due(receiver).await.unwrap(), None, "nothing lifts while the rest stands");
+
+  rested.standing.agency.at_rest(Rest {
+    resting: false,
+    until: None,
+    kind: None,
+  });
+  rested
+    .standing
+    .agency
+    .answering_on_their_roads(vec![AGENT.to_owned(), SUPERVISOR.to_owned()]);
+  *rested.standing.agency.passed.lock().unwrap() = Some(RestKind::Limit);
+
+  let since = lift_rest_if_due(receiver).await.unwrap().expect("the rest lifted");
+
+  *rested.standing.agency.passed.lock().unwrap() = None;
+
+  assert_eq!(
+    since,
+    said(OWNER, 1, OWNER, ASKED).sent_at,
+    "the backlog reaches back to the held words"
+  );
+
+  resume_backlog_since(receiver, &rested.runner, since).await.unwrap();
+
+  until("the owner's held words answered", || {
+    rested.session.prompts().iter().any(|prompt| prompt.contains(ASKED))
+  })
+  .await;
+  assert_eq!(lift_rest_if_due(receiver).await.unwrap(), None, "the lift is answered once");
+}
+
+#[test]
+fn a_lifted_rests_backlog_reaches_back_to_the_earlier_of_the_held_words_and_its_while() {
+  let now = 1_800_000_000_000;
+  let within = now - CHAT_ROUND.backlog.within_minutes * 60_000;
+
+  assert_eq!(backlog_since(None, now), within);
+  assert_eq!(backlog_since(Some(within - 1), now), within - 1);
+  assert_eq!(backlog_since(Some(now - 1), now), within);
 }

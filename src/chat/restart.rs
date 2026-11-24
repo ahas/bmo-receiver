@@ -1,6 +1,6 @@
 //! The restart as the process holding the conversations meets it (docs/voiced-notices.md, 「Deploy and restart」;
-//! docs/receiver.md): a rest lifted once its moment has passed, every room but the owner's read up to its latest
-//! message and the owner told where it was a limit's rest; and, as the process starts, the owner's back notice
+//! docs/receiver.md): a rest lifted once its moment has passed, the words it held answered as a backlog and the
+//! owner told where it was a limit's rest; and, as the process starts, the owner's back notice
 //! with the deployment's purpose, then the words a restart left unread handed to the rooms where they wake the
 //! agent.
 
@@ -65,11 +65,12 @@ async fn latest(db: &DatabaseConnection, chat_id: i64) -> Option<i64> {
     .and_then(|row| row.try_get::<i64>("", "message_id").ok())
 }
 
-/// A rest past its end lifted: every room but the owner's read up to its latest message, and the owner told where
-/// it was a limit's rest — an outage's lifts in silence, since whether the service is back is known only when a
-/// run answers.
-pub async fn lift_rest_if_due(receiver: &Receiver) -> Result<(), Fault> {
-  let db = receiver.db();
+/// A rest past its end lifted (docs/receiver.md, 「What it carries」): the owner told where it was a limit's rest
+/// and his private chat's rest switch is on — an outage's lifts in silence, since whether the service is back is
+/// known only when a run answers — and the moment the backlog that answers the words the rest held reaches back to
+/// answered: the earlier of the moment the rest first held a word and the backlog's own while. No room is read
+/// past those words. None where no rest lifted, or where words were held and the deployment still rests.
+pub async fn lift_rest_if_due(receiver: &Receiver) -> Result<Option<i64>, Fault> {
   let passed = rest::clear_passed_rests(receiver).await;
   let kind = match passed {
     Ok(passed) => passed,
@@ -79,46 +80,49 @@ pub async fn lift_rest_if_due(receiver: &Receiver) -> Result<(), Fault> {
       return Err(Fault::new(why.to_string()));
     }
   };
-  let Some(kind) = kind else {
-    return Ok(());
-  };
 
-  for row in all(db, r#"SELECT DISTINCT "chat_id" FROM "messages""#, vec![])
-    .await
-    .unwrap_or_default()
-  {
-    let chat_id = row.try_get::<i64>("", "chat_id").ok().unwrap_or(0);
-
-    if receiver.roads().is_owner_room(chat_id).await {
-      continue;
-    }
-
-    if let Some(latest) = latest(db, chat_id).await {
-      let _ = rows::set_last_read(db, chat_id, latest).await;
-    }
+  // Words a rest held whose end no silence told — one only refusals held — are served once the rest has gone.
+  if kind.is_none() && (rest::held_since(receiver).await?.is_none() || still_resting(receiver).await) {
+    return Ok(None);
   }
+
+  let held = rest::take_held(receiver).await?;
+  let since = backlog_since(held, now_ms());
 
   println!("rest lifted");
 
-  if kind == RestKind::Outage {
-    return Ok(());
+  if kind == Some(RestKind::Limit)
+    && notice_enabled(receiver.db(), receiver.owner_room(), rest::NOTICE).await
+  {
+    let said = &CHAT_HEALTH.rest_lifted;
+    let notice = Voiced {
+      fact: said.fact.clone(),
+      intent: said.intent.clone(),
+      follow_up: said.follow_up.clone(),
+      optional: false,
+      kind: Some(said.kind.clone()),
+      events: vec![],
+      rides_ms: None,
+    };
+
+    let _ = notices::queue_notice(receiver, receiver.notices_room(), &notice).await;
+    kick(receiver);
   }
 
-  let said = &CHAT_HEALTH.rest_lifted;
-  let notice = Voiced {
-    fact: said.fact.clone(),
-    intent: said.intent.clone(),
-    follow_up: said.follow_up.clone(),
-    optional: false,
-    kind: Some(said.kind.clone()),
-    events: vec![],
-    rides_ms: None,
-  };
+  Ok(Some(since))
+}
 
-  let _ = notices::queue_notice(receiver, receiver.notices_room(), &notice).await;
-  kick(receiver);
+// Whether the deployment still rests, read as resting where it cannot be read.
+async fn still_resting(receiver: &Receiver) -> bool {
+  rest::resting(receiver).await.unwrap_or(true)
+}
 
-  Ok(())
+/// The moment a backlog served as a rest lifts reaches back to, in epoch milliseconds: the moment the rest first held
+/// a word, or the backlog's own while before `now` where that reaches further back.
+pub fn backlog_since(held: Option<i64>, now: i64) -> i64 {
+  let within = now - CHAT_ROUND.backlog.within_minutes * 60_000;
+
+  held.map_or(within, |held| held.min(within))
 }
 
 /// Why the process restarted, read once and spent: the reason a deployment recorded, else the receiver's own
@@ -344,10 +348,15 @@ async fn from_first_waking(
 /// the conversation writes after the turn keeps a line from being served twice; a room with nothing waiting is not
 /// served and says nothing.
 pub async fn resume_backlog(receiver: &Receiver, runner: &Runner) -> Result<(), Fault> {
+  resume_backlog_since(receiver, runner, now_ms() - CHAT_ROUND.backlog.within_minutes * 60_000).await
+}
+
+/// The backlog served with its first waking line sent at or after `since`, in epoch milliseconds: the restart's
+/// within the policy's while, a lifted rest's from the moment it first held a word.
+pub async fn resume_backlog_since(receiver: &Receiver, runner: &Runner, since: i64) -> Result<(), Fault> {
   let db = receiver.db();
   let owner = receiver.deployment().owner_id;
   let rooms = receiver.roads();
-  let since = now_ms() - CHAT_ROUND.backlog.within_minutes * 60_000;
   let mut open: Vec<i64> = all(db, r#"SELECT DISTINCT "chat_id" FROM "messages""#, vec![])
     .await?
     .iter()
@@ -460,20 +469,32 @@ pub fn keep(receiver: Receiver, runner: Runner) {
 
     tokio::time::sleep(Duration::from_millis(CHAT_ROUND.backlog.settle_ms)).await;
 
-    if let Err(why) = lift_rest_if_due(&receiver).await {
-      eprintln!("restart: the rest: {}", why.detail);
-    }
+    let lifted = lift_rest(&receiver).await;
+    let served = match lifted {
+      Some(since) => resume_backlog_since(&receiver, &runner, since).await,
+      None => resume_backlog(&receiver, &runner).await,
+    };
 
-    if let Err(why) = resume_backlog(&receiver, &runner).await {
+    if let Err(why) = served {
       eprintln!("restart: the backlog: {}", why.detail);
     }
 
     loop {
       tokio::time::sleep(Duration::from_secs(REST.lift_check_seconds)).await;
 
-      if let Err(why) = lift_rest_if_due(&receiver).await {
-        eprintln!("restart: the rest: {}", why.detail);
+      if let Some(since) = lift_rest(&receiver).await
+        && let Err(why) = resume_backlog_since(&receiver, &runner, since).await
+      {
+        eprintln!("restart: the rest's backlog: {}", why.detail);
       }
     }
   });
+}
+
+// A rest past its end lifted, its failure said; the moment its backlog reaches back to where one lifted.
+async fn lift_rest(receiver: &Receiver) -> Option<i64> {
+  lift_rest_if_due(receiver).await.unwrap_or_else(|why| {
+    eprintln!("restart: the rest: {}", why.detail);
+    None
+  })
 }

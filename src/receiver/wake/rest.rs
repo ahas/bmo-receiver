@@ -9,8 +9,54 @@ use receiver_codes::FixedLine;
 use receiver_ports::agency::{Event, Rest, RestKind};
 use serde::Deserialize;
 
+use crate::chat::restart::notice_enabled;
 use crate::hearing::Hearer;
 use crate::receiver::{NotReceived, NotSaid, Receiver};
+use crate::store::{Fault, settings};
+
+// The setting the moment the rest first held a word back stands under, in epoch milliseconds, kept until the rest
+// lifts and its backlog is served (docs/messages.md, 「Backlog」).
+const HELD_SINCE: &str = "rest_held_since";
+
+/// The owner's private chat's switch the rest's line and its lifting's notice stand under.
+pub const NOTICE: &str = "rest";
+
+/// A word the rest held back, sent at `sent_at` in epoch milliseconds: the earliest such moment is kept, so the
+/// backlog that serves the held words as the rest lifts reaches back to it.
+pub async fn note_held(receiver: &Receiver, sent_at: i64) {
+  let db = receiver.db();
+  let kept = settings::get(db, HELD_SINCE)
+    .await
+    .ok()
+    .flatten()
+    .and_then(|held| held.trim().parse::<i64>().ok());
+
+  if kept.is_some_and(|kept| kept <= sent_at) {
+    return;
+  }
+
+  if let Err(why) = settings::set(db, HELD_SINCE, &sent_at.to_string()).await {
+    eprintln!("bmo-receiver: the moment the rest held a word was not kept: {why}");
+  }
+}
+
+/// The moment the rest first held a word back, taken as it is read: none where it held none.
+pub async fn take_held(receiver: &Receiver) -> Result<Option<i64>, Fault> {
+  Ok(
+    settings::take(receiver.db(), HELD_SINCE)
+      .await?
+      .and_then(|held| held.trim().parse().ok()),
+  )
+}
+
+/// The moment the rest first held a word back, left in place.
+pub async fn held_since(receiver: &Receiver) -> Result<Option<i64>, Fault> {
+  Ok(
+    settings::get(receiver.db(), HELD_SINCE)
+      .await?
+      .and_then(|held| held.trim().parse().ok()),
+  )
+}
 
 /// The deployment's rest: whether it stands, until when, and why.
 pub async fn rest(receiver: &Receiver) -> Result<Rest, NotReceived> {
@@ -47,8 +93,13 @@ pub fn rest_line(kind: RestKind, until: Option<i64>) -> FixedLine {
   }
 }
 
-/// The line the owner hears as the silence begins, rendered in the rooms' language where the web unit stands.
+/// The line the owner hears as the silence begins, rendered in the rooms' language where the web unit stands; none
+/// where his private chat's rest switch is off.
 pub async fn tell_rest(receiver: &Receiver, line: &FixedLine) -> Result<(), NotSaid> {
+  if !notice_enabled(receiver.db(), receiver.owner_room(), NOTICE).await {
+    return Ok(());
+  }
+
   receiver.speech().say_line(receiver.owner_room(), line).await.map(drop)
 }
 

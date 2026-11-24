@@ -34,8 +34,8 @@ agent that answers the room says the line.
   out; and that it answers no `<<WAIT>>` or `<<REPLY>>`, and skips only under the optional marker, in the round's
   form, which names why (`docs/instruction.md`, 「What it is」).
 - **Recipients and switches are the notice's own.** A voiced notice goes to exactly the chats the line is for,
-  under the per-chat switch (`notice:restart`), and the rest rule holds: a rest and its lifting are told to the
-  owner alone, and a room's session folding says nothing to any room.
+  under the per-chat switches (「Operating notices per chat」), and the rest rule holds: a rest and its lifting are
+  told to the owner alone, and a room's session folding says nothing to any room.
 - **Pass-through content is not a notice.** A search, browse or say result, or a session's own answer is already
   written by an agent and goes out as it is. A job's report is not among them: it is the worker's English to the
   agent, and the agent tells it (「A job's end」 below).
@@ -104,8 +104,10 @@ agent that answers the room says the line.
      its checks or never went live has no deployment record and is named in no brief; the deployment outcome
      notice tells that release's outcome as it happened.
 - **Rest and a run's fall.** Going to rest is a fixed line (see below), said in the owner's notices room as the
-  agency's `rest.changed` comes: `rest-begins` with its end for a limit, `provider-down` for an outage. Coming back
-  (the rest lifted, the outage over, the provider answering again, a downgraded answer) is voiced. A supervisor
+  agency's `rest.changed` comes: `rest-begins` with its end for a limit, carried as `until` so the line names
+  until when it rests, `provider-down` for an outage. Coming back (the rest lifted, the outage over, the provider
+  answering again, a downgraded answer) is voiced. Both the line and the lifting's notice stand under the owner's
+  private chat's `rest` switch. A supervisor
   stands on one road, so no stand-in answers for it while that road is closed and no notice tells of one. The
   agency publishes a job's run's fall as an event (`worker.changed`) and the receiver queues its notice for the
   owner's notices room: the role the run ran as and the repository it ran in, with the checkout of it beside it,
@@ -343,6 +345,9 @@ an agent makes, a voice generated through the voice's own tool among them, is a 
 
 ## Operating notices per chat
 
+- **The owner's private chat holds two notice switches,** each on until it is set off: `restart`, set in the room
+  by the owner's command (`notice:restart:on` and `notice:restart:off`), and `rest`, the rest's line and its
+  lifting's notice; the console reads and sets both (`docs/api.md`, 「Notices」).
 - **The restart notice is the owner's private room's.** The going-down line is a system notice the stopping
   receiver sends, a deployment's or an unannounced stop's (「System notices」). On the next start-up the owner's
   session is told it is back, with the deployment's purpose, and says so in the same turn as the deployment's

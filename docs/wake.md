@@ -100,7 +100,8 @@ its rounds.
 - **A conversation that took a person's words and lets them go unanswered says so the same way**, once with
   the messages it held: a round its agent's road cannot take under the rest (「The room's queue and the round」),
   words a restart left unread in a room whose answerer's road the rest closes, and words given back by rounds
-  that failed the policy's limit.
+  that failed the policy's limit. Words the rest held stay unread, the owner's private chat's among them, and
+  are answered as the rest lifts (`docs/messages.md`, 「Backlog」).
 
 ## The names and the window
 

@@ -1944,6 +1944,34 @@
         ],
         "type": "object"
       },
+      "NoticeSwitch": {
+        "description": "One notice switch moved, the kind named by the path.",
+        "properties": {
+          "on": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "on"
+        ],
+        "type": "object"
+      },
+      "NoticeSwitches": {
+        "description": "The owner's private chat's two notice switches: the restart's notices, and the rest's line and its lifting's\nnotice.",
+        "properties": {
+          "rest": {
+            "type": "boolean"
+          },
+          "restart": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "restart",
+          "rest"
+        ],
+        "type": "object"
+      },
       "Opening": {
         "description": "One quiet instruction a round settled.",
         "properties": {
@@ -5302,6 +5330,97 @@
         ],
         "x-codes": [
           "unauthorized"
+        ]
+      }
+    },
+    "/notice-switches": {
+      "get": {
+        "operationId": "noticeSwitches",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NoticeSwitches"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized"
+          }
+        },
+        "summary": "The owner's private chat's two notice switches, the restart's and the rest's, as they stand.",
+        "tags": [
+          "Notices"
+        ],
+        "x-codes": [
+          "unauthorized"
+        ]
+      }
+    },
+    "/notice-switches/{kind}": {
+      "put": {
+        "operationId": "switchNotice",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NoticeSwitch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NoticeSwitches"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, bad-request, not-found, failed"
+          }
+        },
+        "summary": "One of the owner's private chat's notice switches moved, answered with both as they now stand.",
+        "tags": [
+          "Notices"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "bad-request",
+          "not-found",
+          "failed"
         ]
       }
     },

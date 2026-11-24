@@ -524,6 +524,27 @@ async fn the_deployment_resting_is_told_in_its_fixed_line_and_a_logins_end_in_th
   assert!(heard.rows().await.is_empty(), "neither wakes a session");
 }
 
+// The owner's private chat's rest switch off keeps the rest's line from him; a login's end is told all the same.
+#[tokio::test]
+async fn the_rest_switch_off_keeps_the_rests_line_from_the_owner() {
+  let heard = Heard::on().await;
+
+  bmo_receiver::receiver::rows::set_notice(heard.db(), OWNER, "rest", false)
+    .await
+    .unwrap();
+  heard.session.told(
+    RESTING,
+    json!({ "account": "account-a", "kind": "limit", "until": 1_900_000_000, "notice": "resting" }),
+  );
+  heard.session.told(LOGIN_NOTICE, json!({ "account": "account-a", "login": "here", "stands": "ending", "leftMs": 60_000, "notice": "The login ends soon: run the login command." }));
+  until("the login's line in the owner's chat", || async { !heard.said().is_empty() }).await;
+
+  let said = heard.said();
+
+  assert_eq!(said.len(), 1, "{said:?}");
+  assert!(said[0].contains("The login ends soon"), "{}", said[0]);
+}
+
 #[tokio::test]
 async fn a_run_past_its_clock_is_an_order_withdrawn_where_its_ask_closes_before_a_round_took_it() {
   let heard = Heard::on().await;

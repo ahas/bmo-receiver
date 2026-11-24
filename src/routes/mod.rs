@@ -17,6 +17,7 @@ mod hooks;
 mod instructions;
 mod message_acts;
 mod message_files;
+mod notice_switches;
 mod openings;
 mod owner_words;
 mod presence;
@@ -283,6 +284,8 @@ fn table() -> Vec<(String, String, MethodRouter<Served>)> {
     ("POST", "/talks", post(talk)),
     ("POST", "/handoffs/{agentName}", post(handoffs::hand_off)),
     ("POST", "/handovers/{agentName}", post(handovers::hand_over)),
+    ("GET", "/notice-switches", get(notice_switches::switches)),
+    ("PUT", "/notice-switches/{kind}", put(notice_switches::switch)),
     ("GET", "/voice-briefing", get(briefing::switches)),
     ("PUT", "/voice-briefing", put(briefing::switch)),
     ("POST", "/rooms/{roomId}/messages/{messageId}/reading", post(briefing::reading)),
