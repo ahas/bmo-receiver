@@ -24,9 +24,6 @@ hints = { open_world = true }
 capabilities = ["room.tools"]
 unbounded = true
 
-[entry.facts]
-verb = "text"
-
 [[entry]]
 namespace = "bmo"
 name = "photo"
@@ -38,9 +35,6 @@ unbounded = true
 
 [entry.bundle."room.send"]
 shown = ["pictures", "caption"]
-
-[entry.facts]
-verb = "album"
 
 [[entry]]
 namespace = "bmo"
@@ -54,9 +48,6 @@ unbounded = true
 [entry.bundle."room.send"]
 shown = ["files", "caption"]
 
-[entry.facts]
-verb = "document"
-
 [[entry]]
 namespace = "bmo"
 name = "voice"
@@ -69,9 +60,6 @@ unbounded = true
 [entry.bundle."room.send"]
 shown = ["path", "caption", "transcript"]
 
-[entry.facts]
-verb = "voice"
-
 [[entry]]
 namespace = "bmo"
 name = "speak"
@@ -80,9 +68,6 @@ input = "speak.json"
 hints = { open_world = true }
 capabilities = ["room.tools"]
 unbounded = true
-
-[entry.facts]
-verb = "voice"
 
 [[entry]]
 namespace = "bmo"
@@ -96,9 +81,6 @@ unbounded = true
 [entry.bundle."room.send"]
 shown = ["message", "emoji"]
 
-[entry.facts]
-verb = "reaction"
-
 [[entry]]
 namespace = "bmo"
 name = "pin"
@@ -110,9 +92,6 @@ unbounded = true
 
 [entry.bundle."room.send"]
 shown = ["message", "unpin"]
-
-[entry.facts]
-verb = "pin"
 
 [[entry]]
 namespace = "bmo"
@@ -126,9 +105,6 @@ unbounded = true
 [entry.bundle."room.send"]
 shown = ["emoji"]
 
-[entry.facts]
-verb = "sticker"
-
 [[entry]]
 namespace = "bmo"
 name = "random_draw"
@@ -139,5 +115,4 @@ capabilities = ["room.tools"]
 unbounded = true
 
 [entry.facts]
-verb = "text"
 icon = "material-symbols:casino-outline-sharp"

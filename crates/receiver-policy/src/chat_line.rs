@@ -47,9 +47,6 @@ pub struct Capabilities {
   pub document: String,
   pub withheld: String,
   pub handed: String,
-  pub sending: String,
-  pub sending_none: String,
-  pub sending_handed: String,
 }
 
 #[derive(Debug, Deserialize)]

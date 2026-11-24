@@ -44,7 +44,7 @@ pub struct SayInput {
   /// The room, by chat id, where it is not this turn's own.
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub chat: Option<i64>,
-  /// The road to send on, where the room block names the room's own road for this.
+  /// The road to send on, where it is not the one this turn answers on.
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub via: Option<String>,
   /// The words.
@@ -74,7 +74,7 @@ pub struct PhotoInput {
   /// The room, by chat id, where it is not this turn's own.
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub chat: Option<i64>,
-  /// The road to send on, where the room block names the room's own road for this.
+  /// The road to send on, where it is not the one this turn answers on.
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub via: Option<String>,
   /// The pictures, in order.
@@ -104,7 +104,7 @@ pub struct FileInput {
   /// The room, by chat id, where it is not this turn's own.
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub chat: Option<i64>,
-  /// The road to send on, where the room block names the room's own road for this.
+  /// The road to send on, where it is not the one this turn answers on.
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub via: Option<String>,
   /// The files, in order: one goes as a document, several as one album.
@@ -123,7 +123,7 @@ pub struct VoiceInput {
   /// The room, by chat id, where it is not this turn's own.
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub chat: Option<i64>,
-  /// The road to send on, where the room block names the room's own road for this.
+  /// The road to send on, where it is not the one this turn answers on.
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub via: Option<String>,
   /// The path of an OGG/Opus file on this machine.
@@ -150,7 +150,7 @@ pub struct TalkInput {
   /// The room, by chat id, where it is not this turn's own.
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub chat: Option<i64>,
-  /// The road to send on, where the room block names the room's own road for this.
+  /// The road to send on, where it is not the one this turn answers on.
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub via: Option<String>,
   /// The trained voice the line is spoken in.
@@ -181,7 +181,7 @@ pub struct ReactInput {
   /// The room, by chat id, where it is not this turn's own.
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub chat: Option<i64>,
-  /// The road to send on, where the room block names the room's own road for this.
+  /// The road to send on, where it is not the one this turn answers on.
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub via: Option<String>,
   /// The message.
@@ -196,7 +196,7 @@ pub struct PinInput {
   /// The room, by chat id, where it is not this turn's own.
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub chat: Option<i64>,
-  /// The road to send on, where the room block names the room's own road for this.
+  /// The road to send on, where it is not the one this turn answers on.
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub via: Option<String>,
   /// The message.
@@ -212,7 +212,7 @@ pub struct StickerInput {
   /// The room, by chat id, where it is not this turn's own.
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub chat: Option<i64>,
-  /// The road to send on, where the room block names the room's own road for this.
+  /// The road to send on, where it is not the one this turn answers on.
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub via: Option<String>,
   /// The sticker's emoji.
@@ -239,7 +239,7 @@ pub struct RandomDrawInput {
   /// The room, by chat id, where it is not this turn's own.
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub chat: Option<i64>,
-  /// The road to send on, where the room block names the room's own road for this.
+  /// The road to send on, where it is not the one this turn answers on.
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub via: Option<String>,
   /// dice: count dice of sides faces plus modifier. range: one integer in min..max. pick: take of items. shuffle: items in a fair order.

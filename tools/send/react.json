@@ -19,7 +19,7 @@
       "type": "integer"
     },
     "via": {
-      "description": "The road to send on, where the room block names the room's own road for this.",
+      "description": "The road to send on, where it is not the one this turn answers on.",
       "type": [
         "string",
         "null"

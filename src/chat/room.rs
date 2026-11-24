@@ -74,24 +74,21 @@ pub async fn room_kind(receiver: &Receiver, chat_id: i64) -> Result<&'static str
   Ok(if receiver.roads().is_owner_room(chat_id).await { "owner" } else { "group" })
 }
 
-/// What BMO's own server says of itself for the chat line: the digest of what it shows, the verb each sending
-/// tool needs and the record each recording tool leaves, as the tool host keeps them; none where the host does
-/// not say.
+/// What BMO's own server says of itself for the chat line: the digest of what it shows and the record each
+/// recording tool leaves, as the tool host keeps them; none where the host does not say.
 pub struct ServerFacts {
   pub digest: Option<String>,
-  pub sending: Vec<(String, String)>,
   pub records: Vec<(String, String)>,
 }
 
-/// What the receiver's own server says of itself for the chat line: the digest of what it shows, the verb each
-/// sending tool needs and the record each recording tool leaves. The tools bound to this repository state them
-/// beside themselves; where none stands, the room is told nothing.
+/// What the receiver's own server says of itself for the chat line: the digest of what it shows and the record
+/// each recording tool leaves. The tools bound to this repository state them beside themselves; where none
+/// stands, the room is told nothing.
 pub async fn server_facts(receiver: &Receiver) -> ServerFacts {
   let _receiver = receiver;
 
   ServerFacts {
     digest: None,
-    sending: vec![],
     records: vec![],
   }
 }
@@ -140,40 +137,6 @@ fn joined(parts: Vec<String>, by: &str) -> String {
   parts.into_iter().filter(|part| !part.is_empty()).collect::<Vec<_>>().join(by)
 }
 
-// The sending tools of BMO's own server the road carries, and those the room's own road carries instead.
-fn sending_tools(server: &ServerFacts, road: &Facts, home: Option<&Facts>) -> String {
-  let said = &CHAT_LINE.capabilities;
-  let carried: Vec<&str> = server
-    .sending
-    .iter()
-    .filter(|(_, verb)| performs(road, verb))
-    .map(|(name, _)| name.as_str())
-    .collect();
-  let handed: Vec<&str> = match home {
-    Some(home) => server
-      .sending
-      .iter()
-      .filter(|(_, verb)| !performs(road, verb) && performs(home, verb))
-      .map(|(name, _)| name.as_str())
-      .collect(),
-    None => vec![],
-  };
-  let tools = if carried.is_empty() { said.sending_none.clone() } else { carried.join(", ") };
-
-  joined(
-    vec![
-      fill_marks(&said.sending, &[("tools", &tools)]),
-      match home {
-        Some(home) if !handed.is_empty() => {
-          fill_marks(&said.sending_handed, &[("key", &home.key), ("tools", &handed.join(", "))])
-        }
-        _ => String::new(),
-      },
-    ],
-    " ",
-  )
-}
-
 // Whether a road performs a chat verb, by the protocol's name for it.
 fn performs(facts: &Facts, verb: &str) -> bool {
   facts.can.iter().any(|one| one == verb)
@@ -190,13 +153,9 @@ fn offers(facts: &Facts, name: &str) -> bool {
 }
 
 /// What a turn is told about what it can send: the sections the road performs, the rest named in one line,
-/// and where the turn answers on another road than the room's own, what that road sends instead.
-pub fn capability_context(
-  trees: &Trees,
-  server: &ServerFacts,
-  road: &Facts,
-  home: Option<&Facts>,
-) -> Result<String, Fault> {
+/// and where the turn answers on another road than the room's own, what that road sends instead. The sending
+/// entries are not named: the road judges every send itself, whichever entries the tool shows.
+pub fn capability_context(trees: &Trees, road: &Facts, home: Option<&Facts>) -> Result<String, Fault> {
   let said = &CHAT_LINE.capabilities;
   let (opening, sections) = capability_document(trees)?;
   let named =
@@ -224,7 +183,7 @@ pub fn capability_context(
       " ",
     )
   };
-  let mut parts = vec![opening, sending_tools(server, road, home)];
+  let mut parts = vec![opening];
 
   parts.extend(given.iter().map(|section| section.text.clone()));
   parts.push(withheld);
@@ -486,7 +445,6 @@ pub async fn room_context(
   let road = receiver.roads().facts(&answering).await;
   let elsewhere = (road.key != home.key).then_some(&home);
   let title = serde_json::to_string(&rows::chat_title(receiver.db(), chat_id).await?).unwrap_or_default();
-  let server = server_facts(receiver).await;
   let process = process_part();
   let process_mark = process_mark_of(&process);
   let mut parts = vec![
@@ -550,7 +508,7 @@ pub async fn room_context(
       .map(|shows| fill_marks(&said.shows, &[("shows", shows)]))
       .unwrap_or_default(),
   );
-  parts.push(capability_context(&trees, &server, &road, elsewhere)?);
+  parts.push(capability_context(&trees, &road, elsewhere)?);
   parts.push(fill_marks(&said.road, &[("key", &road.key)]));
   parts.push(super::tone::layer(
     &trees,
