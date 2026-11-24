@@ -376,15 +376,15 @@ an agent makes, a voice generated through the voice's own tool among them, is a 
 
 ## System notices
 
-- **A line the receiver sends as the service, not as an agent, is a system notice.** It opens with the system
-  mark and states what the service is doing, in no persona's voice; the archive files it as the service's own
-  line, mark and all.
+- **A line the receiver sends as the service, not as an agent, is a system notice.** It states what the service is
+  doing, in no persona's voice, and opens with no mark: it is said as a fixed line (「Lines that stay fixed」), so
+  the room's record keeps it with the kind `fixed-line` and the line it was said from, and the chat service is
+  handed its words alone.
 - **The going-down notice is one.** The receiver sends it to the owner's private room as it stops, under the
   restart switch: a stop a fresh deployment record speaks for names the items the record carries, and a stop no
   deployment announced says the service restarts. The back line stays the agent's own, voiced (「What each path
   says」).
-- **The console stands it as a system line** rather than a bubble: a message filed under the service's own
-  sender whose words open with the mark.
+- **The console stands it as a system line** rather than a bubble, by its kind, as every fixed line.
 - **It is never heard in an agent's voice.** It carries no full-reading chip, and no turn sends it, so no notice
   turn's summary speaks it.
 - **It never makes a round a conversation.** Handed to a round as a new message, it counts as nobody speaking,
@@ -399,8 +399,10 @@ web unit's language packs (`POST /words/render`, `docs/boundary-api.md`, 「The 
 - **A person never reads a code.** Where the web unit cannot render a line, or its pack holds no sentence for the
   code, the line falls back to the plain sentence the receiver's policy keeps for that code in the rooms' language
   (`policy/fixed-lines.toml`), its fields filled in as words: a list as its members, a draw's result as its values.
-  A line whose words differ by one of its fields takes the sentence the policy keeps for that field's value where
-  it keeps one, and its code's otherwise: `session-handed-over` reads as a reset for the cause `reset`, and as
+  An agent the line names stands as the label its registration carries, its name where it carries none, as the
+  console shows it and the web unit's rendering names it; the policy's sentence takes no particle by the name's
+  sound, so a Korean sentence there carries both where one follows the name. A line whose words differ by one of
+  its fields takes the sentence the policy keeps for that field's value where it keeps one, and its code's otherwise: `session-handed-over` reads as a reset for the cause `reset`, and as
   the agent going to sleep to tidy its memories and waking in a fresh session for every other cause. Where the policy holds no sentence for the code in that language, the line is dropped, nothing reaches the room,
   and the journal says which line and why. A code and its fields, or any JSON, never stand in a room.
 - **A fixed line is the service's own, never an agent's.** No send asks for one: a session's words reach a room
@@ -413,10 +415,10 @@ web unit's language packs (`POST /words/render`, `docs/boundary-api.md`, 「The 
   were rendered, with the kind `fixed-line` and the line it was said from, its code and its fields, so a screen
   reading the room knows what the line is without matching its words (`docs/api.md`, 「Messages」). This holds for
   each line in the table below the receiver says on its own: the rest, a broken run's last resort, a shut room, a
-  memory being tidied, a room's members by account, a session handed over, and a person's supply left empty, which
-  the agency asks for beside the instruction it queues (`docs/api.md`, 「Instructions」, its `line`), and an agent's
-  night of sleep, which the agency asks to be kept (`docs/api.md`, 「Kept lines」). A draw's line goes out as the agent's send and the
-  going-down notices as system notices under the service's mark (「System notices」), so neither carries the kind.
+  memory being tidied, a room's members by account, a session handed over, the going-down notices (「System
+  notices」), and a person's supply left empty, which the agency asks for beside the instruction it queues (`docs/api.md`, 「Instructions」, its `line`), and an agent's
+  night of sleep, which the agency asks to be kept (`docs/api.md`, 「Kept lines」). A draw's line goes out as the agent's send, so it does
+  not carry the kind.
 - **A line kept in the record alone goes to no chat service.** `session-handed-over` and `slept` are kept in the room's record,
   in the road's own voice and with its kind and line, and the screens reading the room are told; it is carried to
   none of the room's providers, whatever road the room has. A read-only room keeps it as any room does, since

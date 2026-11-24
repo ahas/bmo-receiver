@@ -163,9 +163,9 @@ pub fn own_deployment() -> Option<Deployed> {
   })
 }
 
-/// The going-down line as it stands at a moment, under the service's own mark; none where the room turned restart
-/// notices off.
-pub async fn stop_line(receiver: &Receiver, at: i64) -> Option<String> {
+/// The going-down line as it stands at a moment, kept as the fixed line it is said from; none where the room turned
+/// restart notices off.
+pub async fn stop_line(receiver: &Receiver, at: i64) -> Option<FixedLine> {
   let owner = receiver.owner_room();
 
   if !notice_enabled(receiver.db(), owner, "restart").await {
@@ -176,27 +176,29 @@ pub async fn stop_line(receiver: &Receiver, at: i64) -> Option<String> {
   let reason = raw
     .and_then(|held| serde_json::from_str::<Value>(held.as_str()).ok())
     .filter(|reason| reason["at"].as_i64().is_some_and(|held| at - held <= RESTART.fresh_minutes * 60_000));
-  match reason {
-    None => receiver.speech().rendered(&FixedLine::GoingDown).await,
+
+  Some(match reason {
+    None => FixedLine::GoingDown,
     Some(reason) => {
       let items: Vec<i64> = reason["items"]
         .as_array()
         .map(|items| items.iter().filter_map(Value::as_i64).collect())
         .unwrap_or_default();
 
-      receiver.speech().rendered(&FixedLine::GoingDownForUpdate { items }).await
+      FixedLine::GoingDownForUpdate { items }
     }
-  }
+  })
 }
 
 /// The stopping service's line to the owner, the service's own notice since a turn woken only to say it is going
-/// down costs more than the line is worth and no session outlives the stop to say it afterwards.
+/// down costs more than the line is worth and no session outlives the stop to say it afterwards. It is said as a
+/// fixed line, so the room's record keeps it under that kind and a screen stands it as a system line.
 pub async fn say_stop(receiver: &Receiver) {
   let Some(line) = stop_line(receiver, now_ms()).await else {
     return;
   };
 
-  if let Err(why) = receiver.speech().say(receiver.owner_room(), &line).await {
+  if let Err(why) = receiver.speech().say_line(receiver.owner_room(), &line).await {
     eprintln!("the stop notice was not said: {why}");
   }
 }

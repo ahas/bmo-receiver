@@ -1,12 +1,18 @@
 //! The going-down line the service says to the owner as it stops (docs/voiced-notices.md, 「Deploy and restart」):
 //! the deployment's, where a fresh record says a deployment asked for the stop, the unannounced one otherwise, and
-//! nothing where the owner turned restart notices off. The line is the web unit's to word; the tests read the
-//! service's own mark for it.
+//! nothing where the owner turned restart notices off. It is said as a fixed line, kept in the owner's room under
+//! that kind so a screen stands it as a system line; the line is the web unit's to word.
 
 use crate::integration::common::Scratch;
-use crate::integration::common::units::{AGENT, OWNER, deployment, registration, standing, unrun};
-use bmo_receiver::chat::restart::{notice_enabled, queue_back_notice, stop_line};
+use std::sync::Arc;
+
+use crate::integration::common::units::{
+  AGENT, OWNER, StandInChat, deployment, registration, standing, unrun, woken,
+};
+use bmo_chat_client::ChatSend;
+use bmo_receiver::chat::restart::{notice_enabled, queue_back_notice, say_stop, stop_line};
 use bmo_receiver::data_root::DataRoot;
+use receiver_codes::FixedLine;
 use receiver_policy::restart::RESTART;
 use serde_json::json;
 use tempfile::TempDir;
@@ -33,13 +39,18 @@ async fn a_deployments_stop_line_names_its_items_where_a_fresh_record_stands() {
 
   assert_eq!(
     stop_line(&receiver, NOW + 5_000).await,
-    Some("going-down-for-update in en".to_owned()),
+    Some(FixedLine::GoingDownForUpdate {
+      items: vec![1358, 1360]
+    }),
     "the deployment's line, naming its items"
   );
 
   record(&scratch, json!({ "purpose": "why", "commit": "abc", "items": [], "at": NOW })).await;
 
-  assert_eq!(stop_line(&receiver, NOW + 5_000).await, Some("going-down-for-update in en".to_owned()));
+  assert_eq!(
+    stop_line(&receiver, NOW + 5_000).await,
+    Some(FixedLine::GoingDownForUpdate { items: vec![] })
+  );
   // The record stands for the start to spend.
   assert_eq!(
     scratch
@@ -55,7 +66,7 @@ async fn the_unannounced_stop_line_stands_without_a_fresh_record_and_none_where_
   let scratch = Scratch::new().await;
   let data = TempDir::new().unwrap();
   let receiver = standing(scratch.db(), DataRoot::new(data.path()), vec![]).receiver;
-  let unannounced = Some("going-down in en".to_owned());
+  let unannounced = Some(FixedLine::GoingDown);
 
   assert_eq!(stop_line(&receiver, NOW).await, unannounced);
 
@@ -76,6 +87,37 @@ async fn the_unannounced_stop_line_stands_without_a_fresh_record_and_none_where_
 
   assert_eq!(stop_line(&receiver, NOW).await, None);
   assert!(!notice_enabled(scratch.db(), OWNER, "restart").await);
+}
+
+#[tokio::test]
+async fn the_stop_line_is_kept_in_the_owners_room_as_a_fixed_line_and_carried_as_its_words_alone() {
+  let scratch = Scratch::new().await;
+  let data = TempDir::new().unwrap();
+  let chat = Arc::new(StandInChat::new("road-a").owners(OWNER));
+  let standing = woken(unrun(scratch.db(), DataRoot::new(data.path()), vec![chat.clone()], deployment()));
+
+  say_stop(&standing.receiver).await;
+
+  assert_eq!(
+    scratch
+      .texts(&format!(
+        r#"SELECT "text" || ' | ' || "line" FROM "messages" WHERE "chat_id" = {OWNER} AND "kind" = 'fixed-line'"#
+      ))
+      .await,
+    [format!("going-down in en | {}", json!({ "code": "going-down", "fields": {} }))],
+    "kept as the fixed line it is said from"
+  );
+
+  let carried: Vec<String> = chat
+    .sent()
+    .into_iter()
+    .filter_map(|sent| match sent.send {
+      ChatSend::Text { text, .. } => Some(text),
+      _ => None,
+    })
+    .collect();
+
+  assert_eq!(carried, ["going-down in en"], "the chat service is handed the words alone");
 }
 
 #[tokio::test]

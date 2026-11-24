@@ -215,13 +215,23 @@ impl Speech {
 
     match self.units.web.render(&asked).await {
       Ok(text) if !text.trim().is_empty() => Some(text),
-      Ok(_) => plain(&self.deployment.language, code, &fields),
+      Ok(_) => self.plain_named(code, fields).await,
       Err(why) => {
         eprintln!("bmo-receiver: the {code} line went unrendered by the web unit: {why}");
 
-        plain(&self.deployment.language, code, &fields)
+        self.plain_named(code, fields).await
       }
     }
+  }
+
+  // The policy's plain sentence for a line, the agent it names standing as the label it is shown by, as the web
+  // unit's rendering names it.
+  async fn plain_named(&self, code: &str, mut fields: Map<String, Value>) -> Option<String> {
+    if let Some(Value::String(agent)) = fields.get("agent").cloned() {
+      fields.insert("agent".to_owned(), Value::String(self.label_of(&agent).await));
+    }
+
+    plain(&self.deployment.language, code, &fields)
   }
 
   /// The line kept in the room's record as an agent's own, the default answerer's where it names none: filed under
@@ -374,7 +384,8 @@ impl Speech {
     self.label_of(agent).await
   }
 
-  // An agent's own name: the label its registration carries, its registration name where it carries none.
+  // An agent's own name: the label its registration carries, its registration name where it carries none, as the
+  // console shows it.
   async fn label_of(&self, agent: &str) -> String {
     let listed = self.units.agency.supervisors().await.ok();
 

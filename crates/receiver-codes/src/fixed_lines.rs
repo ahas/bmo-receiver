@@ -82,8 +82,8 @@ pub enum FixedLine {
 coded!(FixedLine);
 
 impl FixedLine {
-  /// Whether the line is a system notice, said as the service rather than as an agent, which the room's record
-  /// files as the service's own line with the system mark.
+  /// Whether the line is a system notice, said as the service rather than as an agent; the room's record keeps it
+  /// as the fixed line it is said from, as every fixed line the receiver says itself.
   pub fn is_system_notice(&self) -> bool {
     matches!(self, Self::GoingDownForUpdate { .. } | Self::GoingDown)
   }
