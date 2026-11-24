@@ -66,6 +66,17 @@ pub enum FixedLine {
   /// while no turn can go out there: `why` names the reason as the agency gives it, a kebab-case word the web unit's
   /// packs carry a sentence for, and `until` the moment the source reopens in epoch seconds, where one is named.
   SupplyClosed { why: String, until: Option<i64> },
+  /// An agent's brain slept the night through: its one pass over its brain outside every room, told in the agent's
+  /// owner's private room and kept in its record alone, never sent to a chat service. `agent` is the agent's
+  /// registered name, `date` the day it slept for (`YYYY-MM-DD`), and the counts what the sleep learned, merged and
+  /// closed.
+  Slept {
+    agent: String,
+    date: String,
+    learned: i64,
+    merged: i64,
+    closed: i64,
+  },
 }
 
 coded!(FixedLine);
@@ -82,5 +93,11 @@ impl FixedLine {
   /// own.
   pub fn asked_by_unit(&self) -> bool {
     matches!(self, Self::SupplyClosed { .. })
+  }
+
+  /// Whether another unit may ask the receiver to keep the line in a room's record alone, sent to no chat service
+  /// (docs/api.md, 「Kept lines」): the record-only lines a unit composes.
+  pub fn kept_by_unit(&self) -> bool {
+    matches!(self, Self::Slept { .. })
   }
 }

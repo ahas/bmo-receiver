@@ -67,6 +67,8 @@ export type HandoffAsked = Schemas["HandoffAsked"];
 export type HandoffWritten = Schemas["HandoffWritten"];
 export type HandoverAsked = Schemas["HandoverAsked"];
 export type HandoverPending = Schemas["HandoverPending"];
+export type KeptLineAsked = Schemas["KeptLineAsked"];
+export type KeptLine = Schemas["KeptLine"];
 export type VoiceBriefing = Schemas["VoiceBriefing"];
 export type VoiceBriefingSwitch = Schemas["VoiceBriefingSwitch"];
 export type LineReading = Schemas["LineReading"];
@@ -526,6 +528,11 @@ export function receiverClient(options: ReceiverOptions) {
     /** `POST /handovers/{agentName}`: the agent's one session hands over at its next turn. */
     async handOver(agentName: string, body: HandoverAsked): Promise<HandoverPending> {
       return answered(await client.POST("/handovers/{agentName}", { params: { path: { agentName } }, body }));
+    },
+
+    /** `POST /lines/{agentName}`: a fixed line kept in the agent's owner's private room, in its record alone. */
+    async keepLine(agentName: string, body: KeptLineAsked): Promise<KeptLine> {
+      return answered(await client.POST("/lines/{agentName}", { params: { path: { agentName } }, body }));
     },
 
     /** `GET /voice-briefing`. */

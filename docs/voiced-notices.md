@@ -414,9 +414,10 @@ web unit's language packs (`POST /words/render`, `docs/boundary-api.md`, 「The 
   reading the room knows what the line is without matching its words (`docs/api.md`, 「Messages」). This holds for
   each line in the table below the receiver says on its own: the rest, a broken run's last resort, a shut room, a
   memory being tidied, a room's members by account, a session handed over, and a person's supply left empty, which
-  the agency asks for beside the instruction it queues (`docs/api.md`, 「Instructions」, its `line`). A draw's line goes out as the agent's send and the
+  the agency asks for beside the instruction it queues (`docs/api.md`, 「Instructions」, its `line`), and an agent's
+  night of sleep, which the agency asks to be kept (`docs/api.md`, 「Kept lines」). A draw's line goes out as the agent's send and the
   going-down notices as system notices under the service's mark (「System notices」), so neither carries the kind.
-- **A line kept in the record alone goes to no chat service.** `session-handed-over` is kept in the room's record,
+- **A line kept in the record alone goes to no chat service.** `session-handed-over` and `slept` are kept in the room's record,
   in the road's own voice and with its kind and line, and the screens reading the room are told; it is carried to
   none of the room's providers, whatever road the room has. A read-only room keeps it as any room does, since
   nothing is sent anywhere; an archived room is locked and keeps nothing, and neither does a room no road holds.
@@ -431,5 +432,6 @@ web unit's language packs (`POST /words/render`, `docs/boundary-api.md`, 「The 
 | `account-let-in`, `accounts-let-in`, `unit-let-in`, `account-left`, `account-taken-out` (an account let into a room, several let in at once, an organisation unit's members let in, an account leaving or taken out, each naming the accounts by their keys, `docs/receiver.md`, 「Console rooms and accounts」) | It records who did it, as it was done, for every member to read; no session is woken for it. |
 | `session-handed-over` (an agent's session handed over to a fresh one or started afresh, with why, kept in the record alone, `docs/unified-bmo.md`, 「The room's line」) | It records what became of the session as it was done, whichever road asked it; no session is woken for it, and the fresh session has said nothing yet. |
 | `supply-closed` (a person's run found no supply source left, said once into the room the run answers while it stays so, with why) | No turn can go out in the room until a source opens, so no session can tell the person; the supply fact the agency queues there only rides a round that never comes. |
+| `slept` (an agent's brain slept the night through: the date and what it learned, merged and closed, kept in the agent's owner's private room alone, `docs/api.md`, 「Kept lines」) | The sleep is a run apart that answers no room, so no session says it, and the owner reads it as a record rather than a message. |
 | `draw` (a fair draw's room line) | A gate that rewrote it would make the draw impossible to check (`docs/random-draw.md`). |
 | A login's end (「What each path says」) | The agency composed it from its policy, and the model whose login ended may be the one that would say it. |

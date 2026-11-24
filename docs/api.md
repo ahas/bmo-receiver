@@ -834,6 +834,21 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   409 `conflict`, since a room's own session is the agency's to resume, and **a failure to reach the agency** 502
   `upstream-failed`.
 
+## Kept lines
+
+| Route | Body | Answers |
+|---|---|---|
+| `POST /lines/{agentName}` | `line` (a fixed line: its `code` and its fields) | 201 `room`, `messageId` (its number in the room's record, null where no sentence could be made of it) |
+
+- **A line another unit composes, kept in a room's record alone.** The line is one a unit asks to be kept (the
+  fixed lines that say so in `docs/codes.md`, `slept` alone today); any other, or one that does not read, is refused
+  400 `bad-request`. It is kept as every record-only line is (`docs/voiced-notices.md`, 「Lines that stay fixed」): in
+  the road's own voice, with the kind `fixed-line` and the line it was said from, the screens reading the room told,
+  and nothing sent to any chat service, so no person is messaged and no session is woken.
+- **The room is the agent's owner's private room:** the agent's own room on the record, where one was made for it
+  (「Supervisors」), else the owner's private room. An archived room, or one no road holds, keeps nothing and is
+  answered 409 `conflict`; a road that fails is answered 502 `upstream-failed`.
+
 ## Rounds
 
 | Route | Query | Answers |

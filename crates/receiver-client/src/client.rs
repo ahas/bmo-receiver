@@ -717,6 +717,11 @@ impl ReceiverClient {
     Self::answered(self.send(Method::POST, &["handovers", agent_name], asked)).await
   }
 
+  /// `POST /lines/{agentName}`: a fixed line kept in the agent's owner's private room, in its record alone.
+  pub async fn keep_line(&self, agent_name: &str, asked: &KeptLineAsked) -> Answer<KeptLine> {
+    Self::answered(self.send(Method::POST, &["lines", agent_name], asked)).await
+  }
+
   /// `POST /events`.
   pub async fn publish_event(&self, event: &PublishedEvent) -> Answer<Created> {
     Self::answered(self.send(Method::POST, &["events"], event)).await

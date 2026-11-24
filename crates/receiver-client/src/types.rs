@@ -1216,6 +1216,23 @@ pub struct HandoverPending {
   pub session_reason: String,
 }
 
+/// A line another unit asks to be kept in an agent's owner's private room, in that room's record alone: the fixed
+/// line, its `code` and its fields, which must be one a unit asks to be kept.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct KeptLineAsked {
+  pub line: serde_json::Value,
+}
+
+/// Where a kept line stands: the room it was kept in, and its number there, none where no sentence could be made
+/// of it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct KeptLine {
+  pub room: i64,
+  pub message_id: Option<i64>,
+}
+
 /// The voice briefing's two switches: the whole briefing, and whether a summary plays by itself.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]

@@ -1501,6 +1501,37 @@
         ],
         "type": "object"
       },
+      "KeptLine": {
+        "description": "Where a kept line stands: the room it was kept in, and its number there, none where no sentence could be made\nof it.",
+        "properties": {
+          "messageId": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "room": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "room",
+          "messageId"
+        ],
+        "type": "object"
+      },
+      "KeptLineAsked": {
+        "description": "A line another unit asks to be kept in an agent's owner's private room, in that room's record alone: the fixed\nline, its `code` and its fields, which must be one a unit asks to be kept.",
+        "properties": {
+          "line": true
+        },
+        "required": [
+          "line"
+        ],
+        "type": "object"
+      },
       "LetIn": {
         "description": "`PUT /rooms/{roomId}/accounts/{account}`: the account letting another in.",
         "properties": {
@@ -5315,6 +5346,63 @@
           "unauthorized",
           "not-found",
           "failed"
+        ]
+      }
+    },
+    "/lines/{agentName}": {
+      "post": {
+        "operationId": "keepLine",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agentName",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KeptLineAsked"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KeptLine"
+                }
+              }
+            },
+            "description": "Created."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, bad-request, conflict, upstream-failed"
+          }
+        },
+        "summary": "A fixed line another unit composes kept in the agent's owner's private room, in its record alone and sent to no chat service.",
+        "tags": [
+          "Kept lines"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "bad-request",
+          "conflict",
+          "upstream-failed"
         ]
       }
     },

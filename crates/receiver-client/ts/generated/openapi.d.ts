@@ -316,6 +316,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/lines/{agentName}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** A fixed line another unit composes kept in the agent's owner's private room, in its record alone and sent to no chat service. */
+        post: operations["keepLine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/live": {
         parameters: {
             query?: never;
@@ -2182,6 +2199,23 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /**
+         * @description Where a kept line stands: the room it was kept in, and its number there, none where no sentence could be made
+         *     of it.
+         */
+        KeptLine: {
+            /** Format: int64 */
+            messageId: number | null;
+            /** Format: int64 */
+            room: number;
+        };
+        /**
+         * @description A line another unit asks to be kept in an agent's owner's private room, in that room's record alone: the fixed
+         *     line, its `code` and its fields, which must be one a unit asks to be kept.
+         */
+        KeptLineAsked: {
+            line: unknown;
+        };
         /** @description `PUT /rooms/{roomId}/accounts/{account}`: the account letting another in. */
         LetIn: {
             /** Format: int64 */
@@ -3941,6 +3975,41 @@ export interface operations {
                 content?: never;
             };
             /** @description A refusal or failure: unauthorized, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    keepLine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agentName: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KeptLineAsked"];
+            };
+        };
+        responses: {
+            /** @description Created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KeptLine"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, bad-request, conflict, upstream-failed */
             default: {
                 headers: {
                     [name: string]: unknown;

@@ -20,6 +20,7 @@ accounts-let-in = "계정 {by}이(가) 계정 {accounts}을(를) 대화상대로
 unit-let-in = "계정 {by}이(가) {unitName}을(를) 대화상대로 추가했어요."
 supply-closed = "이 방의 실행에 쓸 공급원이 남아 있지 않아 지금은 답할 수 없어요. 설정의 공급에서 확인해 주세요."
 session-handed-over = "{agent}이(가) 잠들어 기억을 정리하고 새 세션으로 깨어납니다. {reason}"
+slept = "{date} 밤 {agent}의 수면: 새로 익힌 것 {learned}개, 합친 것 {merged}개, 끝낸 것 {closed}개."
 
 [sentences.en]
 rest-begins = "A usage limit has been reached, so I cannot answer for a while. I will answer again once it lifts."
@@ -37,6 +38,7 @@ accounts-let-in = "Account {by} let accounts {accounts} into this room."
 unit-let-in = "Account {by} let the members of {unitName} into this room."
 supply-closed = "No supply source is left for runs in this room, so nothing can answer now. Check the supply in your settings."
 session-handed-over = "{agent} went to sleep to tidy its memories and wakes in a fresh session. {reason}"
+slept = "{agent} slept on the night of {date} and tidied its memory: {learned} learned, {merged} merged, {closed} closed."
 
 [choices.ko.session-handed-over.cause]
 reset = "{agent}의 세션을 새로 시작했습니다. 대화 기록은 그대로 남습니다. {reason}"

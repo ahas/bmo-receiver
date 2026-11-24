@@ -1448,6 +1448,17 @@ pub fn openapi() -> Value {
     vec!["unauthorized", "bad-request", "not-found", "conflict", "upstream-failed"]
   );
   add!(
+    "POST",
+    "/lines/{agentName}",
+    "keepLine",
+    "Kept lines",
+    "A fixed line another unit composes kept in the agent's owner's private room, in its record alone and sent to no chat service.",
+    vec![name_parameter("agentName")],
+    Some(generator.subschema_for::<KeptLineAsked>()),
+    vec![(201, json_answer::<KeptLine>(&mut generator))],
+    vec!["unauthorized", "bad-request", "conflict", "upstream-failed"]
+  );
+  add!(
     "GET",
     "/voice-briefing",
     "voiceBriefing",
