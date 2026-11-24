@@ -563,9 +563,6 @@ Statements the receiver makes that a sibling's document does not yet match, each
 - **The testbed's deployment record** names its commit, subject, time and backup, and no version or deploy
   message. The receiver reads `message` and `version` where a record carries them and stands in the subject and
   the release's `VERSION` file where it does not (「The deployments」).
-- **The brain's `docs/boundary-api.md`** does not yet state `GET /brains/{brainId}/consolidation`; the receiver
-  reads it as 「The brain」 above states, `consolidationDue` among `unconsolidatedImportance`, `threshold` and
-  `unconsolidatedCount`, until it does.
 - **The brain's tool** reports its `brain_fold` under the turn's `BMO_RUN_NAME`, a name new with every turn of a
   chat session, while the receiver reports a fold under the agency's id of the session (「The brain」 above): the
   fold the agent reports at a hand-off clears the marks of no key that outlives its own turn, until the brain's

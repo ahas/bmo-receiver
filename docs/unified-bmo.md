@@ -404,8 +404,9 @@ at those moments and tells the brain of a fold it asks of the session itself.
 
 - **A consolidation** goes in four steps, in one turn: the unconsolidated episodes read, most important first
   (`brain_unconsolidated`); what each one worth keeping comes to drafted, a fact, a reflection or a correction,
-  with the standing fact it would confirm, strengthen or close; each draft written (`brain_learn`), a
-  consequential one only once it passes the review below; and every episode read marked consolidated
+  with the standing fact it would confirm, strengthen or close; each draft written (`brain_learn`) with the
+  episodes it rests on as its `grounds`, so a memory names what it was learned from, a consequential one only
+  once it passes the review below; and every episode read marked consolidated
   (`brain_consolidated`), those that came to nothing among them, so none is read again, except the episodes of a
   draft the review stopped for a contradiction, which stay unconsolidated.
 - **The review is for consequential drafts alone:** a draft that would close a live fact (`replaces`) or that
@@ -417,7 +418,11 @@ at those moments and tells the brain of a fold it asks of the session itself.
   is the agent's own second reading in the same turn: it costs reading, never a second model or a turn of its
   own.
 - **At a hand-off** the closing session consolidates what it holds, then tells the brain it folds
-  (`brain_fold`), then writes its handoff (「Replacing the session」 above).
+  (`brain_fold`), then writes its handoff (「Replacing the session」 above). A room's own session, which the
+  agency hands over in a turn of its own, consolidates the same way in that turn, bounded as at a fold and
+  calling no `brain_fold`, before it writes its note (the agency's `docs/supervisors.md`, 「Its limit」); the
+  receiver reports that fold as it releases the generation that ended. No handover of either kind lets a
+  session go without consolidating.
 - **When the brain says it is due,** the room's block carries the due line at session opening
   (`docs/bmo-window.md`, 「What every turn carries」), and the round's message turn consolidates in that turn,
   bounded to what the turn can afford: the first episodes the brain answers, never all of them, and no

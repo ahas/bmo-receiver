@@ -156,6 +156,19 @@ fn the_other_lines_carry_their_marks_and_numbers() {
   assert!(!KEEPALIVE.prompt.is_empty());
 }
 
+// Both consolidations, at a hand-off and before a fold, write each memory with the episodes it rests on as its
+// grounds, so a memory names what it was learned from (docs/unified-bmo.md, 「The brain's consolidation」).
+#[test]
+fn a_consolidation_writes_each_memory_on_its_grounds() {
+  for rule in [&HANDOVER.chat.ask_rule, &HANDOVER.chat.consolidate_rule] {
+    let learn = rule.find("brain_learn").expect(rule);
+    let grounds = rule.find("as its grounds").expect(rule);
+    let marked = rule.find("brain_consolidated").expect(rule);
+
+    assert!(learn < grounds && grounds < marked, "{rule}");
+  }
+}
+
 #[test]
 fn the_roads_roles_lines_and_providers_answer_what_the_receiver_asks() {
   assert_eq!(ROADS.record.key, "record");
