@@ -1,8 +1,8 @@
 //! A generation the agency opens under an agent's session (docs/unified-bmo.md, 「Replacing the session」): a turn
 //! whose state names a generation past the one the session last answered on releases what the ended generation held,
 //! once, and reports the fold to the brain; a resumed session and a return to another room release nothing. The
-//! round log the console reads then starts from zero. A room's own session handed over by the agency is told in its
-//! room by one fixed line kept in its record alone, naming a reset where the agency carried one out.
+//! round log the console reads then starts from zero. A room's own session handed over by the agency tells its room
+//! nothing of itself as a turn finds the generation: the agency asks for that line.
 
 use std::path::Path;
 use std::sync::Arc;
@@ -490,16 +490,6 @@ async fn a_handoff_kept_ahead_of_a_fresh_generation_rides_its_first_turn() {
   );
 }
 
-// Every row a room's record holds, whole, in the order of its numbers.
-async fn record_of(round: &Round, chat_id: i64) -> Vec<String> {
-  round
-    .scratch
-    .texts(&format!(
-      r#"SELECT row_to_json(m)::text FROM "messages" m WHERE "chat_id" = {chat_id} ORDER BY "message_id""#
-    ))
-    .await
-}
-
 // The `session-handed-over` lines a room's record keeps, in the order kept, each as the line it was said from.
 async fn handed_lines(round: &Round, chat_id: i64) -> Vec<Value> {
   round
@@ -514,60 +504,27 @@ async fn handed_lines(round: &Round, chat_id: i64) -> Vec<Value> {
     .collect()
 }
 
-fn handed(cause: &str) -> Value {
-  json!({ "code": "session-handed-over", "fields": { "agent": AGENT, "cause": cause } })
-}
-
 #[tokio::test]
-async fn a_generation_the_agency_opens_under_a_rooms_session_is_told_there_once_and_touches_no_word() {
+async fn a_generation_the_agency_opens_under_a_rooms_session_tells_the_room_nothing_of_itself() {
   let round = Round::new(StandInSession::new(SESSION, ANSWER).at_generation(1), false).await;
 
   round.round(1).await;
-  assert!(handed_lines(&round, OWNER).await.is_empty(), "a first generation is no handover");
 
-  // The owner resets the room's session through the agency, which carries it out as it opens the next generation.
-  tokio::time::sleep(Duration::from_millis(1100)).await;
-  round
-    .standing
-    .agency
-    .room_resets
-    .lock()
-    .unwrap()
-    .insert((AGENT.to_owned(), OWNER), bmo_receiver::now_ms() / 1000);
-
-  let before = record_of(&round, OWNER).await;
   let sent = round.chat.sent().len();
 
+  // The agency hands the room's session over and opens the next generation; it tells that handover itself, so the
+  // turn that finds the generation releases what the ended one held and tells nothing.
   round.opens_generation(2);
   round.round(2).await;
+  round.opens_generation(3);
+  round.round(3).await;
 
-  assert_eq!(
-    handed_lines(&round, OWNER).await,
-    [handed("reset")],
-    "the room is told once, as a reset"
-  );
+  assert!(handed_lines(&round, OWNER).await.is_empty(), "no line is told of a generation alone");
 
-  let after = record_of(&round, OWNER).await;
-
-  assert!(
-    before.iter().all(|row| after.contains(row)),
-    "the room's earlier words stand as they were: {before:?} against {after:?}"
-  );
-
-  // The round's own answer went out on the road, and the line did not.
   let carried: Vec<String> = round.chat.sent()[sent..].iter().map(|sent| format!("{sent:?}")).collect();
 
   assert!(
     carried.iter().all(|sent| !sent.contains("session-handed-over")),
-    "the line went to no chat service: {carried:?}"
+    "nothing of a handover went to the chat service: {carried:?}"
   );
-
-  // A turn on the same generation tells nothing again.
-  round.round(3).await;
-  assert_eq!(handed_lines(&round, OWNER).await, [handed("reset")]);
-
-  // A generation opened later, with no reset carried out since, names nothing more of why.
-  round.opens_generation(3);
-  round.round(4).await;
-  assert_eq!(handed_lines(&round, OWNER).await, [handed("reset"), handed("other")]);
 }

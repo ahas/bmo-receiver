@@ -327,6 +327,16 @@
   resumed lets it go. Where the session asked wrote nothing, the transcript the receiver keeps is kept for that
   first turn in the file's place (`<agent>_transcript_pending`), and where none is kept the first turn opens on
   `NEW SESSION.` with the owner told once, as above. Where the agent has no session to ask, nothing is kept.
+- **A reset asked through the agency starts the fresh session clean.** The agency asks with `clean`
+  (`docs/api.md`, 「Handoffs」): the standing session is asked one turn marked `CLEAN CLOSE.`, whose rule stands in
+  the room's block (`handover.toml`, `clean_rule`), and in it consolidates its brain and tells the brain it folds
+  exactly as the `HANDOFF ASK.` turn does, writes no handoff file and nothing else, and answers the exact skip;
+  no owed situation note is written ahead of it. Nothing is kept for the fresh session: a handoff, a transcript
+  or the word of a lost memory kept for it before is let go, and a mark is kept in their place
+  (`<agent>_handoff_clean`, or `<agent>_handoff_clean:<room>` for a room's own session, `docs/store.md`) that
+  the next turn takes as the others are taken. The first turn of a fresh session that takes it opens on no note:
+  no `HANDOFF.`, no `WHAT YOU ANSWERED BEFORE.` and no `NEW SESSION.`, even where the agency's state names
+  `handoffLost`, and the owner is told of no lost memory. A turn on a session the agency resumed lets the mark go.
 - **A handoff is asked at most once in a span** (`handover.toml`, `again_minutes`). The agency asking again for
   the same agent's handoff within that span of the last one the standing session was asked for is answered with
   the file that one kept, where it is still kept, else with nothing, and the standing session is not asked. Each
@@ -376,20 +386,21 @@
   `full` for a full window, `road` for a road moved or a model replaced, `documents` for a head moved or the rules
   for reading a turn changed, and `other` for anything else. A replacement owed by a session no turn went on hands
   nothing over and tells nothing; the handover asked of it is spent with it.
-- **The one session across rooms, handed over ahead of a fresh session the agency opens,** is told once the
-  standing session was asked for its handoff (`docs/api.md`, 「Handoffs」), whether or not it wrote one: in the
-  room the asking named, else the room of the round under way the asking stood behind, else the owner's private
-  room, with the cause the asking names and `other` where it names none. An asking that reaches no standing
-  session, one answered by the handoff kept within the policy's span, and one made from inside the handoff under
-  way tell nothing.
-- **A room's own session, handed over by the agency,** is told in that room when the receiver learns of it: by
-  the turn that finds the session's generation past the one it last answered on, or the session gone. The
-  agency's state of the session names no reason for a generation, so the cause is what the receiver can tell
-  itself: `reset` where the supervisor's settings page names a reset of the room's session carried out since the
-  receiver first answered on the generation before (`docs/boundary-api.md`, 「The agency」), `road` where the state
-  names another provider or model than that generation stood on, and `other` otherwise. The receiver keeps what
-  it saw of each generation for this (`<agent>_generation_seen:<session>`, `docs/store.md`); a generation it never
-  saw tells `other`.
+- **The one session across rooms, handed over or started clean ahead of a fresh session the agency opens,** is
+  told once the agency's asking is done (`docs/api.md`, 「Handoffs」), with the cause and the asker's account the
+  asking names, `other` where it names no cause. An asking that asks the standing session tells it whether or not
+  a session stood there to ask and whether or not it wrote anything, in the room the asking named, else the room
+  of the round under way the asking stood behind, else the owner's private room; so a fresh session the agency
+  opens after an old program went down is told all the same. An asking answered by the handoff kept within the
+  policy's span, and one made from inside the handoff under way, tell nothing: the asking they repeat tells it.
+- **What the agency hands over itself is told when it says so.** The agency makes the handover or the clean reset
+  of a room's own session itself, and opens a fresh one-session program where no standing program was there to
+  ask; for each it asks the receiver with `ask: false`, naming the exact cause (`reset`, `road`, `documents`,
+  `full` or `other`), the room, and the asker's account where one asked. The receiver asks no session and writes
+  the line at once, in the room named, else the owner's private room. A generation the agency opens under a
+  room's own session tells nothing of itself when a turn finds it: that turn releases what the ended generation
+  held (「Replacing the session」 above), and the line is the agency's asking's alone, so no handover is told
+  twice.
 - **A handover touches nothing of the room's record.** No message, file or minutes is deleted or hidden: only the
   session is replaced. What goes with an ended session is the session's own — the room block it read, the note
   versions it was handed, the record of its cache and the round log's count of what it read — and the agency
@@ -421,8 +432,9 @@ at those moments and tells the brain of a fold it asks of the session itself.
   (`brain_fold`), then writes its handoff (「Replacing the session」 above). A room's own session, which the
   agency hands over in a turn of its own, consolidates the same way in that turn, bounded as at a fold and
   calling no `brain_fold`, before it writes its note (the agency's `docs/supervisors.md`, 「Its limit」); the
-  receiver reports that fold as it releases the generation that ended. No handover of either kind lets a
-  session go without consolidating.
+  receiver reports that fold as it releases the generation that ended. A session asked to close clean
+  consolidates and tells the brain it folds the same way, and writes no handoff (「Replacing the session」 above).
+  No handover of either kind lets a session go without consolidating.
 - **When the brain says it is due,** the room's block carries the due line at session opening
   (`docs/bmo-window.md`, 「What every turn carries」), and the round's message turn consolidates in that turn,
   bounded to what the turn can afford: the first episodes the brain answers, never all of them, and no

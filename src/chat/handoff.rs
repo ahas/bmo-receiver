@@ -2,11 +2,13 @@
 //! agent's one session is ended it is asked one more turn to write its handoff file under the data root, and the
 //! new session's first turn opens on that file, on the receiver's transcript of the old session where it wrote
 //! nothing, and on the word that nothing was recovered only where neither stands, the owner told so once.
+//! A session closed clean is asked one more turn that consolidates its brain and folds with no handoff, and its
+//! successor's first turn opens on no note at all.
 
 use std::path::{Path, PathBuf};
 
 use futures_util::StreamExt;
-use receiver_codes::{HealthFact, SessionReason};
+use receiver_codes::{HandoverCause, HealthFact, SessionReason};
 use receiver_policy::fill_marks;
 use receiver_policy::handover::HANDOVER;
 use receiver_ports::agency::{Events, Turn, TurnRoom};
@@ -16,6 +18,17 @@ use super::notices::{self, Voiced};
 use super::room::room_context;
 use crate::receiver::Receiver;
 use crate::{now_ms, rounds};
+
+/// What the agency's asking for a handoff names (docs/api.md, 「Handoffs」): the room whose session is asked and
+/// whose line is told, the cause and the asker's account the line names, and whether the session closes clean,
+/// writing no handoff, so the fresh session opens on no note.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Request {
+  pub room: Option<i64>,
+  pub cause: HandoverCause,
+  pub by: Option<i64>,
+  pub clean: bool,
+}
 
 /// A handoff file a closing session wrote: where it stands and its whole text.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -94,6 +107,12 @@ async fn waited(events: &mut Events, session: &str) -> bool {
   false
 }
 
+/// The instruction a session about to be closed clean consolidates and folds by: its marker, with the rule in the
+/// room's block.
+pub fn clean_instruction() -> String {
+  format!("{}\n", HANDOVER.chat.clean_marker)
+}
+
 /// The closing session asked one more turn to write its handoff file, waited on until the turn ends however long it
 /// takes; the file it wrote, where it stands and is not empty. A turn the session is already in is waited out on the
 /// agency's stream and the asking made again, so a handoff is not lost to a session that was working. A run that
@@ -108,18 +127,39 @@ pub async fn ask(receiver: &Receiver, agent: &str, session: &str, chat_id: i64) 
     return None;
   }
 
+  let path = folder.join(format!("{}.md", now_ms()));
+
+  closing_turn(receiver, agent, session, chat_id, instruction(&path)).await;
+
+  let handed = read(&path);
+
+  if handed.is_none() {
+    eprintln!("{agent}: session {session} wrote no handoff at {}", path.display());
+  }
+
+  handed
+}
+
+/// The closing session asked one more turn to consolidate its brain and tell it of the fold exactly as the handoff
+/// turn does, writing no handoff (docs/unified-bmo.md, 「Replacing the session」), waited on as that turn is.
+pub async fn close_clean(receiver: &Receiver, agent: &str, session: &str, chat_id: i64) {
+  closing_turn(receiver, agent, session, chat_id, clean_instruction()).await;
+}
+
+// One more turn of a closing session, answering `chat_id` with that room's block, waited on until it ends however
+// long it takes: a turn the session is already in is waited out on the agency's stream and the asking made again.
+async fn closing_turn(receiver: &Receiver, agent: &str, session: &str, chat_id: i64, prompt: String) {
   let room = match room_context(receiver, agent, chat_id, None).await {
     Ok(room) => room,
     Err(why) => {
-      eprintln!("{agent}: the handoff turn's room {chat_id} could not be composed: {}", why.detail);
+      eprintln!("{agent}: the closing turn's room {chat_id} could not be composed: {}", why.detail);
 
-      return None;
+      return;
     }
   };
-  let path = folder.join(format!("{}.md", now_ms()));
   let turn = Turn {
     session: session.to_owned(),
-    prompt: instruction(&path),
+    prompt,
     room: Some(TurnRoom {
       chat_id,
       text: room.text,
@@ -143,7 +183,7 @@ pub async fn ask(receiver: &Receiver, agent: &str, session: &str, chat_id: i64) 
   let mut ended = match agency.events(&["turn.ended"]).await {
     Ok(ended) => Some(ended),
     Err(why) => {
-      eprintln!("{agent}: the agency's events were not read for the handoff turn: {why}");
+      eprintln!("{agent}: the agency's events were not read for the closing turn: {why}");
 
       None
     }
@@ -153,37 +193,29 @@ pub async fn ask(receiver: &Receiver, agent: &str, session: &str, chat_id: i64) 
     match agency.turn(&turn).await {
       Ok(_) => break,
       Err(why) if busy(&why) => {
-        eprintln!("{agent}: session {session} is in a turn; the handoff turn waits for it to end");
+        eprintln!("{agent}: session {session} is in a turn; the closing turn waits for it to end");
 
         let Some(ended) = ended.as_mut() else {
-          eprintln!("{agent}: the handoff turn of session {session} was not waited on: no events are read");
+          eprintln!("{agent}: the closing turn of session {session} was not waited on: no events are read");
 
           break;
         };
 
         if !waited(ended, session).await {
           eprintln!(
-            "{agent}: the handoff turn of session {session} was not waited on: the stream ended first"
+            "{agent}: the closing turn of session {session} was not waited on: the stream ended first"
           );
 
           break;
         }
       }
       Err(why) => {
-        eprintln!("{agent}: the handoff turn of session {session} failed: {why}");
+        eprintln!("{agent}: the closing turn of session {session} failed: {why}");
 
         break;
       }
     }
   }
-
-  let handed = read(&path);
-
-  if handed.is_none() {
-    eprintln!("{agent}: session {session} wrote no handoff at {}", path.display());
-  }
-
-  handed
 }
 
 /// The note a new session's first turn opens with, in the handover policy's lines.
@@ -298,6 +330,42 @@ pub fn carried_key(agent: &str) -> String {
 /// session's first turn opens on it.
 pub fn lost_key(agent: &str) -> String {
   format!("{agent}_handoff_lost")
+}
+
+/// The settings key the mark that an agent's session was asked to start clean is kept under, until the fresh
+/// session's first turn takes it: the agent's one session, or its session of `room` (docs/unified-bmo.md,
+/// 「Replacing the session」).
+pub fn clean_key(agent: &str, room: Option<i64>) -> String {
+  match room {
+    Some(chat_id) => format!("{agent}_handoff_clean:{chat_id}"),
+    None => format!("{agent}_handoff_clean"),
+  }
+}
+
+/// The agent's next fresh session made to start clean: whatever was kept for it let go, and the mark kept that its
+/// first turn opens on no note — the agent's one session's, or its session of `room`'s.
+pub async fn keep_clean(receiver: &Receiver, agent: &str, room: Option<i64>) {
+  let db = receiver.db();
+
+  for key in [pending_key(agent), carried_key(agent), lost_key(agent)] {
+    if let Err(why) = crate::store::settings::take(db, &key).await {
+      eprintln!("{agent}: what was kept for its fresh session was not let go: {}", why.detail);
+    }
+  }
+
+  if let Err(why) = crate::store::settings::set(db, &clean_key(agent, room), "clean").await {
+    eprintln!("{agent}: the mark to start its fresh session clean was not kept: {}", why.detail);
+  }
+}
+
+/// Whether the agent's session — its one session, or its session of `room` — was asked to start clean, the mark
+/// taken either way, so a session the agency resumed lets it go.
+pub async fn take_clean(receiver: &Receiver, agent: &str, room: Option<i64>) -> bool {
+  crate::store::settings::take(receiver.db(), &clean_key(agent, room))
+    .await
+    .ok()
+    .flatten()
+    .is_some()
 }
 
 /// The note kept for an agent's next fresh session taken: the handoff where its file still stands, else the

@@ -369,15 +369,14 @@ pub trait Touching: Send + Sync {
   /// false where none was owed or a round holds the agent's turn, which makes it once it ends.
   fn settle_owed<'a>(&'a self, receiver: &'a Receiver, agent: &'a str) -> BoxFuture<'a, bool>;
 
-  /// The agent's standing session asked for its handoff ahead of a fresh session the agency opens, behind any
-  /// round of the agent's: the file it wrote, none where it had no session to ask or wrote nothing. `cause` is what
-  /// the room's line names.
+  /// The agent's standing session asked for its handoff, or to close clean, ahead of a fresh session the agency
+  /// opens, behind any round of the agent's: the file it wrote, none where it had no session to ask, wrote nothing
+  /// or closed clean. `asked` names the room, and the cause and the asker the room's line names.
   fn hand_off<'a>(
     &'a self,
     receiver: &'a Receiver,
     agent: &'a str,
-    room: Option<i64>,
-    cause: receiver_codes::HandoverCause,
+    asked: super::handoff::Request,
   ) -> BoxFuture<'a, Result<Option<super::handoff::Handoff>, Failure>>;
 }
 
@@ -1014,11 +1013,10 @@ impl Conversations {
   /// fresh session. A round that itself waits on the agency is not waited for, since the turn it waits on cannot
   /// end before the handoff is answered; it keeps the agent's turn while the asking goes. Once it is asked, the
   /// words failed rounds gave back go to the fresh session's first turn in their rooms. The room's line for it
-  /// goes to `room`, else the room of the round it was asked behind, else the owner's private room.
+  /// goes to the room `asked` names, else the room of the round it was asked behind, else the owner's private room.
   pub async fn hand_off(
     &self,
-    room: Option<i64>,
-    cause: receiver_codes::HandoverCause,
+    asked: super::handoff::Request,
   ) -> Result<Option<super::handoff::Handoff>, Failure> {
     let turn = tokio::select! {
       biased;
@@ -1026,7 +1024,7 @@ impl Conversations {
       () = self.0.receiver.round_at_agency(self.agent()) => None,
     };
     let behind = self.round_room();
-    let handed = Carry::new(self.0.receiver.clone()).hand_off(self.agent(), room, behind, cause).await;
+    let handed = Carry::new(self.0.receiver.clone()).hand_off(self.agent(), asked, behind).await;
 
     if handed.is_ok() {
       self.hand_given_back(None).await;

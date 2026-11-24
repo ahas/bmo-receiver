@@ -2001,12 +2001,17 @@ export interface components {
         };
         /**
          * @description A handoff the agency asks for ahead of a fresh session it opens for an agent that had one: why, and the room
-         *     whose session is asked where the agent keeps one in each room, whose line the room is told in where the agent
-         *     keeps one session across its rooms; and the cause that line names, a `HandoverCause` kind, `other` where none is
-         *     named.
+         *     whose session is asked where the agent keeps one in each room, and the room the line is told in; the cause that
+         *     line names, a `HandoverCause` kind, `other` where none is named, and the account key of the person who asked,
+         *     where one did. `clean` asks the session to consolidate and close with no handoff, so the fresh session opens on
+         *     no note; `ask` false asks no session at all and tells the room's line alone.
          */
         HandoffAsked: {
+            ask?: boolean | null;
+            /** Format: int64 */
+            by?: number | null;
             cause?: string | null;
+            clean?: boolean | null;
             reason: string;
             /** Format: int64 */
             room?: number | null;

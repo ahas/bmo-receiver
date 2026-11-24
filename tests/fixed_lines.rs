@@ -101,3 +101,32 @@ fn a_code_no_sentence_can_be_made_of_is_dropped() {
     "an empty field leaves no gap"
   );
 }
+
+#[test]
+fn a_handover_line_reads_as_a_reset_for_the_cause_reset_and_as_a_sleep_for_any_other() {
+  let line = |cause: &str| {
+    let mut fields = Map::new();
+
+    fields.insert("agent".to_owned(), json!("agent-a"));
+    fields.insert("cause".to_owned(), json!(cause));
+    fields
+  };
+
+  for language in ["ko", "en"] {
+    let reset = plain(language, "session-handed-over", &line("reset")).unwrap();
+    let full = plain(language, "session-handed-over", &line("full")).unwrap();
+
+    assert!(reset.contains("agent-a") && full.contains("agent-a"), "{reset} / {full}");
+    assert_ne!(reset, full, "the reset reads apart from the sleep in {language}");
+    assert_eq!(full, plain(language, "session-handed-over", &line("other")).unwrap());
+  }
+
+  assert_eq!(
+    plain("en", "session-handed-over", &line("reset")).as_deref(),
+    Some("Started agent-a's session afresh. The conversation history stays as it is.")
+  );
+  assert_eq!(
+    plain("en", "session-handed-over", &line("road")).as_deref(),
+    Some("agent-a went to sleep to tidy its memories and wakes in a fresh session.")
+  );
+}

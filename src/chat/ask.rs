@@ -13,7 +13,7 @@ use std::time::Duration;
 use serde_json::Value;
 use tokio::time::MissedTickBehavior;
 
-use receiver_codes::{HandoverCause, SessionReason};
+use receiver_codes::SessionReason;
 use receiver_policy::chat_round::CHAT_ROUND;
 use receiver_policy::handover::HANDOVER;
 use receiver_ports::agency::{Agency, Delivery, Event, Said, Scope, Session, Turn, TurnRoom};
@@ -387,44 +387,68 @@ impl Carry {
   /// The agent's standing session asked for its handoff ahead of a fresh session the agency is about to open
   /// (docs/api.md, 「Handoffs」), exactly as a replacement asks it, and the file kept for the next fresh session's
   /// first turn: the file where it was written, none where the agent has no session to ask or it wrote nothing.
-  /// The agency lets its record of the session go before it asks, so the state it answers names no generation and
-  /// is no reason not to ask; only the asking itself tells whether a session stood. Where the agent keeps one
-  /// session across its rooms and one stood to ask, a room is told so in one line kept in its record, for `cause`:
-  /// `room` where the asking named one, else `behind`, the room of the round behind which it was asked, else the
-  /// owner's private room. A room's own session is the agency's, and its room hears of it as its next turn finds
-  /// the generation the agency opened.
+  /// Asked to close clean, the session is asked instead the one turn that consolidates its brain and folds with no
+  /// handoff, nothing is kept, and the fresh session's first turn opens on no note. The agency lets its record of
+  /// the session go before it asks, so the state it answers names no generation and is no reason not to ask; only
+  /// the asking itself tells whether a session stood. Where the agent keeps one session across its rooms, a room is
+  /// told so in one line kept in its record once the asking is done, whether or not a session stood to ask: the
+  /// room the asking named, else `behind`, the room of the round behind which it was asked, else the owner's
+  /// private room. A room's own session is the agency's, which tells its room's line itself.
   pub async fn hand_off(
     &self,
     agent: &str,
-    room: Option<i64>,
+    asked: handoff::Request,
     behind: Option<i64>,
-    cause: HandoverCause,
   ) -> Result<Option<handoff::Handoff>, Failure> {
     let receiver = &self.receiver;
     let agency = receiver.units().agency.clone();
     let unified = unified_session(receiver, agent).await;
-    let chat_id = room.unwrap_or_else(|| receiver.owner_room());
+    let chat_id = asked.room.unwrap_or_else(|| receiver.owner_room());
     let scope = scope_of(unified, chat_id);
+    // The line of the one session across rooms, told once the asking is done; a room's own session's is the
+    // agency's to ask for.
+    let told = async || {
+      if unified {
+        super::handed_over::handed_off(receiver, agent, asked.room.or(behind), asked.cause, asked.by).await;
+      }
+    };
     let standing = match agency.start(agent, scope).await {
       Ok(standing) => standing,
       Err(why) if matches!(why.status(), Some(404 | 422)) => {
         eprintln!("{agent}: no session was started to ask for a handoff: {why}");
+
+        if asked.clean {
+          handoff::keep_clean(receiver, agent, (!unified).then_some(chat_id)).await;
+        }
+
+        told().await;
 
         return Ok(None);
       }
       Err(why) => return Err(Failure::Failed(why.to_string())),
     };
 
-    // The standing session writes the situation notes it owes before it is asked for its handoff.
     receiver.replacing_begins(agent);
-    owed_notes(receiver, agent, &standing.id).await;
 
-    let handed = handoff::ask(receiver, agent, &standing.id, chat_id).await;
+    // A session closed clean is asked the one turn that consolidates and folds, and writes nothing else; one asked
+    // for its handoff writes the situation notes it owes first.
+    let handed = if asked.clean {
+      handoff::close_clean(receiver, agent, &standing.id, chat_id).await;
+
+      None
+    } else {
+      owed_notes(receiver, agent, &standing.id).await;
+
+      handoff::ask(receiver, agent, &standing.id, chat_id).await
+    };
 
     receiver.replacing_ends(agent);
+    told().await;
 
-    if unified {
-      super::handed_over::handed_off(receiver, agent, room, behind, cause).await;
+    if asked.clean {
+      handoff::keep_clean(receiver, agent, (!unified).then_some(chat_id)).await;
+
+      return Ok(None);
     }
 
     // The session asked wrote nothing: what the receiver keeps of its answers stands in for the fresh session's
@@ -547,25 +571,13 @@ impl Carry {
     };
     let released = !replacing && (expected || generation::changed(answered, opened));
 
+    // A generation the agency opened under a room's own session tells its room nothing here: the agency asks for
+    // that line itself (docs/unified-bmo.md, 「The room's line」).
     if released {
-      // A room's own session handed over by the agency is told in its room, in one line kept in its record, for the
-      // cause the receiver can tell from the generation it saw before (docs/unified-bmo.md, 「The room's line」).
-      if !unified {
-        let before = generation::seen(db, agent, &session.id).await;
-        let cause =
-          super::handed_over::generation_cause(receiver, agent, chat_id, before.as_ref(), &standing).await;
-
-        super::handed_over::new_generation(receiver, agent, chat_id, cause).await;
-      }
-
       generation::release(receiver, agent, &session.id).await;
 
       if let Err(why) = generation::keep(db, agent, &session.id, opened.released()).await {
         eprintln!("{agent}: session {}'s generation was not written down: {}", session.id, why.detail);
-      }
-
-      if let Err(why) = generation::see(db, agent, &session.id, opened.released(), &standing).await {
-        eprintln!("{agent}: session {}'s generation was not seen: {}", session.id, why.detail);
       }
     } else if replacing && let Err(why) = generation::settle(db, agent, &session.id).await {
       eprintln!("{agent}: session {}'s coming generation was not settled: {}", session.id, why.detail);
@@ -577,13 +589,16 @@ impl Carry {
     // session, which this turn releases; a turn on a session it resumed lets the kept handoff go
     // (docs/unified-bmo.md, 「Replacing the session」).
     let fresh = !standing.generation.as_i64().is_some_and(|generation| generation > 0) || released;
-    let pending = handoff::take_pending(receiver, agent, fresh && note.is_none()).await;
+    // A fresh session asked to start clean opens on no note at all, whatever was kept or lost
+    // (docs/unified-bmo.md, 「Replacing the session」).
+    let clean = handoff::take_clean(receiver, agent, (!unified).then_some(chat_id)).await && fresh;
+    let pending = handoff::take_pending(receiver, agent, fresh && note.is_none() && !clean).await;
     let note = note.or_else(|| pending.as_ref().map(carried_note));
     // A session the agency opened without the handoff it was owed opens on what the receiver keeps of its answers
     // — a room's own session on that room's — or on the word that nothing was recovered (docs/unified-bmo.md,
     // 「Replacing the session」).
     let lost = match &note {
-      None if standing.handoff_lost => {
+      None if standing.handoff_lost && !clean => {
         Some(handoff::fallback(receiver, agent, (!unified).then_some(chat_id), SessionReason::Asked).await)
       }
       _ => None,
@@ -887,10 +902,6 @@ impl Carry {
 
     if let Err(why) = generation::keep(db, agent, &session.id, marker).await {
       eprintln!("{agent}: session {}'s generation was not written down: {}", session.id, why.detail);
-    }
-
-    if let Err(why) = generation::see(db, agent, &session.id, marker, &standing).await {
-      eprintln!("{agent}: session {}'s generation was not seen: {}", session.id, why.detail);
     }
 
     let ended: Value = ended.clone().unwrap_or(Value::Null);

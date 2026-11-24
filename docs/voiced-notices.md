@@ -399,7 +399,9 @@ web unit's language packs (`POST /words/render`, `docs/boundary-api.md`, 「The 
 - **A person never reads a code.** Where the web unit cannot render a line, or its pack holds no sentence for the
   code, the line falls back to the plain sentence the receiver's policy keeps for that code in the rooms' language
   (`policy/fixed-lines.toml`), its fields filled in as words: a list as its members, a draw's result as its values.
-  Where the policy holds no sentence for the code in that language, the line is dropped, nothing reaches the room,
+  A line whose words differ by one of its fields takes the sentence the policy keeps for that field's value where
+  it keeps one, and its code's otherwise: `session-handed-over` reads as a reset for the cause `reset`, and as
+  the agent going to sleep to tidy its memories and waking in a fresh session for every other cause. Where the policy holds no sentence for the code in that language, the line is dropped, nothing reaches the room,
   and the journal says which line and why. A code and its fields, or any JSON, never stand in a room.
 - **A fixed line is the service's own, never an agent's.** No send asks for one: a session's words reach a room
   only as its round's message, which its instruction stages check (`docs/instruction.md`).

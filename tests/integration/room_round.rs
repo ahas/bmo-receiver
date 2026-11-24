@@ -868,6 +868,10 @@ async fn a_replaced_sessions_first_turn_carries_the_archived_messages_behind_the
     fill_marks(&TOOL_HOST.rule, &[("marker", &TOOL_HOST.marker)]),
     fill_marks(&HANDOVER.chat.ask_rule, &[("marker", &HANDOVER.chat.ask_marker)]),
     fill_marks(&HANDOVER.chat.consolidate_rule, &[("marker", &HANDOVER.chat.consolidate_marker)]),
+    fill_marks(
+      &HANDOVER.chat.clean_rule,
+      &[("marker", &HANDOVER.chat.clean_marker), ("handoff", &HANDOVER.chat.ask_marker)],
+    ),
     fill_marks(&HANDOVER.chat.handed_rule, &[("marker", &HANDOVER.chat.handed_marker)]),
     fill_marks(&HANDOVER.chat.carried_rule, &[("marker", &HANDOVER.chat.carried_marker)]),
     fill_marks(&HANDOVER.chat.lost_rule, &[("marker", &HANDOVER.chat.lost_marker)]),

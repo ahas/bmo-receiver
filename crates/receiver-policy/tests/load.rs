@@ -169,6 +169,17 @@ fn a_consolidation_writes_each_memory_on_its_grounds() {
   }
 }
 
+// A clean close consolidates and folds as the hand-off's turn says, and writes no handoff of its own: its rule names
+// the hand-off's marker and the fold, and no file of its own (docs/unified-bmo.md, 「Replacing the session」).
+#[test]
+fn a_clean_close_consolidates_and_folds_as_the_hand_off_does_and_writes_no_handoff() {
+  let rule = &HANDOVER.chat.clean_rule;
+
+  assert!(rule.contains("{marker}") && rule.contains("{handoff}"), "{rule}");
+  assert!(rule.contains("brain_fold") && rule.contains("Write no handoff"), "{rule}");
+  assert!(!HANDOVER.chat.clean_marker.is_empty() && HANDOVER.chat.clean_marker != HANDOVER.chat.ask_marker);
+}
+
 #[test]
 fn the_roads_roles_lines_and_providers_answer_what_the_receiver_asks() {
   assert_eq!(ROADS.record.key, "record");

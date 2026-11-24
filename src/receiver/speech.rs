@@ -470,11 +470,13 @@ fn code_and_fields(line: &FixedLine) -> Option<(String, Map<String, Value>)> {
   Some((code, fields))
 }
 
-/// A fixed line as the policy's plain sentence for its code in the rooms' language, its fields filled in as words;
+/// A fixed line as the policy's plain sentence for its code in the rooms' language, the one chosen by a field's
+/// value where the policy keeps one, its fields filled in as words;
 /// none, with the journal told, where the policy holds no sentence for it (docs/voiced-notices.md, 「Lines that
 /// stay fixed」).
 pub fn plain(language: &str, code: &str, fields: &Map<String, Value>) -> Option<String> {
-  let Some(sentence) = FIXED_LINES.sentence(language, code) else {
+  let value_of = |field: &str| fields.get(field).and_then(Value::as_str).map(str::to_owned);
+  let Some(sentence) = FIXED_LINES.chosen(language, code, value_of) else {
     eprintln!("bmo-receiver: the {code} line has no sentence in {language}, so nothing was said");
 
     return None;

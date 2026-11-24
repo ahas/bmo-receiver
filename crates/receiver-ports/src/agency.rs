@@ -578,17 +578,6 @@ pub trait Agency: Send + Sync {
     Box::pin(async { Ok(Switches::default()) })
   }
 
-  /// When a reset of a supervisor's session in a room was last carried out, in epoch seconds, as its settings page
-  /// lists its room sessions: none where it never was, where no supervisor has the name or no session of it
-  /// stands in the room, and on an agency that keeps no such record.
-  fn room_reset_at<'a>(
-    &'a self,
-    _supervisor: &'a str,
-    _chat_id: i64,
-  ) -> BoxFuture<'a, Answer<Option<i64>>> {
-    Box::pin(async { Ok(None) })
-  }
-
   /// The deployment's rest: whether it stands, until when, and why.
   fn rest(&self) -> BoxFuture<'_, Answer<Rest>>;
 
@@ -823,24 +812,11 @@ struct SupervisorRoad {
   answers: bool,
 }
 
-/// A supervisor as its settings page answers it, of which the receiver reads its two switches and, of each of its
-/// room sessions, when a reset of it was last carried out.
+/// A supervisor as its settings page answers it, of which the receiver reads its two switches.
 #[derive(Deserialize)]
 struct SupervisorSettingsPage {
   #[serde(default)]
   settings: Option<Switches>,
-  #[serde(default)]
-  sessions: Vec<RoomSessionRow>,
-}
-
-/// A room session as a supervisor's settings page lists it: the room, and when a reset of it was last carried out,
-/// in epoch seconds.
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct RoomSessionRow {
-  chat_id: i64,
-  #[serde(default)]
-  last_reset_at: Option<i64>,
 }
 
 /// A supervisor's switches over what of its brain reaches its turns, each on where its settings do not
@@ -919,21 +895,6 @@ impl Agency for HttpAgency {
         self.caller.found(&["supervisors", supervisor, "settings"], &[]).await?;
 
       Ok(page.and_then(|page| page.settings).unwrap_or_default())
-    })
-  }
-
-  fn room_reset_at<'a>(&'a self, supervisor: &'a str, chat_id: i64) -> BoxFuture<'a, Answer<Option<i64>>> {
-    Box::pin(async move {
-      let page: Option<SupervisorSettingsPage> =
-        self.caller.found(&["supervisors", supervisor, "settings"], &[]).await?;
-
-      Ok(
-        page
-          .into_iter()
-          .flat_map(|page| page.sessions)
-          .find(|session| session.chat_id == chat_id)
-          .and_then(|session| session.last_reset_at),
-      )
     })
   }
 

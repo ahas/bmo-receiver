@@ -3,11 +3,9 @@
 //! made so every road shows it, and sent to no chat service. Nothing of the room's record goes with the session.
 
 use receiver_codes::{FixedLine, HandoverCause, SessionReason};
-use receiver_ports::agency::SessionState;
 use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
 
-use super::generation::Seen;
 use crate::receiver::Receiver;
 use crate::store::{Fault, settings};
 
@@ -90,74 +88,23 @@ pub async fn let_go(receiver: &Receiver, agent: &str) {
   let _ = take_asked(receiver.db(), agent).await;
 }
 
-/// The line for the agent's one session handed over ahead of a fresh session the agency opens (docs/api.md,
-/// 「Handoffs」), for the cause the agency named: into the room the asking named, else the room of the round behind
-/// which it was asked, else the owner's private room.
+/// The line for a handover the agency asked about (docs/api.md, 「Handoffs」), for the cause and the asker it
+/// named: into `room`, the room the asking named or the room of the round behind which it was asked, else the
+/// owner's private room.
 pub async fn handed_off(
   receiver: &Receiver,
   agent: &str,
   room: Option<i64>,
-  behind: Option<i64>,
   cause: HandoverCause,
+  by: Option<i64>,
 ) {
-  let room = room.or(behind).unwrap_or_else(|| receiver.owner_room());
+  let room = room.unwrap_or_else(|| receiver.owner_room());
   let line = FixedLine::SessionHandedOver {
     agent: agent.to_owned(),
     cause,
     reason: None,
-    by: None,
+    by,
   };
 
   tell(receiver, room, &line).await;
-}
-
-/// The cause a generation the agency opened under a room's own session goes by, from what the receiver saw of the
-/// generation before it (`before`) and the session's state now (docs/unified-bmo.md, 「The room's line」): `reset`
-/// where the agency's settings page names a reset of the room's session carried out since the receiver first
-/// answered on that generation, `road` where the state names another provider or model than that generation stood
-/// on, and `other` otherwise, the state naming nothing more of why.
-pub async fn generation_cause(
-  receiver: &Receiver,
-  agent: &str,
-  chat_id: i64,
-  before: Option<&Seen>,
-  standing: &SessionState,
-) -> HandoverCause {
-  let Some(before) = before else {
-    return HandoverCause::Other;
-  };
-
-  match receiver.units().agency.room_reset_at(agent, chat_id).await {
-    Ok(Some(at)) if at.saturating_mul(1000) >= before.at => return HandoverCause::Reset,
-    Ok(_) => {}
-    Err(why) => eprintln!("chat {chat_id}: {agent}'s last reset of the room's session was not read: {why}"),
-  }
-
-  let moved = |kept: &Option<String>, now: &Option<String>| match (kept, named(now)) {
-    (Some(kept), Some(now)) => kept != now,
-    _ => false,
-  };
-
-  if moved(&before.provider, &standing.provider) || moved(&before.model, &standing.model) {
-    return HandoverCause::Road;
-  }
-
-  HandoverCause::Other
-}
-
-/// The line for a generation the agency opened under a room's own session, kept in that room.
-pub async fn new_generation(receiver: &Receiver, agent: &str, chat_id: i64, cause: HandoverCause) {
-  let line = FixedLine::SessionHandedOver {
-    agent: agent.to_owned(),
-    cause,
-    reason: None,
-    by: None,
-  };
-
-  tell(receiver, chat_id, &line).await;
-}
-
-/// A name a state gives, where it gives one that is not empty.
-pub fn named(given: &Option<String>) -> Option<&str> {
-  given.as_deref().map(str::trim).filter(|given| !given.is_empty())
 }

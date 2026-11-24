@@ -1,7 +1,8 @@
 # The plain sentence each fixed line falls back to where the web unit's language packs cannot render it
 # (docs/voiced-notices.md, 「Lines that stay fixed」), by the rooms' language and the line's code. `{name}` marks a
 # field of the line, filled in as words: a list as its members, a draw's result as its values. A code with no
-# sentence in the rooms' language is dropped, never sent as its code and fields.
+# sentence in the rooms' language is dropped, never sent as its code and fields. A line whose words differ by one of
+# its fields takes, under `choices`, the sentence kept for that field's value, and its code's for any other value.
 
 [sentences.ko]
 rest-begins = "사용 한도에 걸려 한동안 답할 수 없어요. 한도가 풀리면 다시 답할게요."
@@ -18,7 +19,7 @@ account-taken-out = "계정 {by}이(가) 계정 {account}을(를) 이 방에서 
 accounts-let-in = "계정 {by}이(가) 계정 {accounts}을(를) 대화상대로 추가했어요."
 unit-let-in = "계정 {by}이(가) {unitName}을(를) 대화상대로 추가했어요."
 supply-closed = "이 방의 실행에 쓸 공급원이 남아 있지 않아 지금은 답할 수 없어요. 설정의 공급에서 확인해 주세요."
-session-handed-over = "{agent}의 세션을 새로 시작했어요. {reason}"
+session-handed-over = "{agent}이(가) 잠들어 기억을 정리하고 새 세션으로 깨어납니다. {reason}"
 
 [sentences.en]
 rest-begins = "A usage limit has been reached, so I cannot answer for a while. I will answer again once it lifts."
@@ -35,4 +36,10 @@ account-taken-out = "Account {by} took account {account} out of this room."
 accounts-let-in = "Account {by} let accounts {accounts} into this room."
 unit-let-in = "Account {by} let the members of {unitName} into this room."
 supply-closed = "No supply source is left for runs in this room, so nothing can answer now. Check the supply in your settings."
-session-handed-over = "The session of {agent} was handed over to a fresh one. {reason}"
+session-handed-over = "{agent} went to sleep to tidy its memories and wakes in a fresh session. {reason}"
+
+[choices.ko.session-handed-over.cause]
+reset = "{agent}의 세션을 새로 시작했습니다. 대화 기록은 그대로 남습니다. {reason}"
+
+[choices.en.session-handed-over.cause]
+reset = "Started {agent}'s session afresh. The conversation history stays as it is. {reason}"

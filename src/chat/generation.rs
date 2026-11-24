@@ -3,13 +3,11 @@
 //! past the one the receiver answered on releases what the ended generation held.
 
 use sea_orm::ConnectionTrait;
-use serde::{Deserialize, Serialize};
 
 use receiver_ports::agency::SessionState;
 use receiver_ports::http::PortFailure;
 
 use super::cache::forget_state;
-use crate::now_ms;
 use crate::receiver::Receiver;
 use crate::store::{Fault, settings};
 
@@ -83,64 +81,6 @@ pub async fn keep(
   };
 
   settings::set(db, &key(agent, session), &generation.to_string()).await
-}
-
-/// What the receiver saw of the generation a session last answered on, which a room's line reads once the agency
-/// opens the next one (docs/unified-bmo.md, 「The room's line」): its number, the moment in epoch milliseconds the
-/// receiver first answered on it, and the provider and model its state named then.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Seen {
-  pub generation: u64,
-  pub at: i64,
-  #[serde(default)]
-  pub provider: Option<String>,
-  #[serde(default)]
-  pub model: Option<String>,
-}
-
-/// Where what the receiver saw of a session's generation is kept, under the agent and the session's id.
-pub fn seen_key(agent: &str, session: &str) -> String {
-  format!("{agent}_generation_seen:{session}")
-}
-
-/// What the receiver saw of the generation a session last answered on, none where it kept nothing.
-pub async fn seen(db: &impl ConnectionTrait, agent: &str, session: &str) -> Option<Seen> {
-  settings::get(db, &seen_key(agent, session))
-    .await
-    .ok()
-    .flatten()
-    .and_then(|held| serde_json::from_str(&held).ok())
-}
-
-/// The generation a session answered on seen, where `state` names it and it is not the one already seen: the moment
-/// and the road it stood on written down. A generation the state does not name, or 0, is no generation seen.
-pub async fn see(
-  db: &impl ConnectionTrait,
-  agent: &str,
-  session: &str,
-  generation: Option<u64>,
-  state: &SessionState,
-) -> Result<(), Fault> {
-  let Some(generation) = generation.filter(|generation| *generation > 0) else {
-    return Ok(());
-  };
-
-  if state.generation.as_u64() != Some(generation)
-    || seen(db, agent, session).await.is_some_and(|seen| seen.generation == generation)
-  {
-    return Ok(());
-  }
-
-  let named = |given: &Option<String>| super::handed_over::named(given).map(str::to_owned);
-  let seen = Seen {
-    generation,
-    at: now_ms(),
-    provider: named(&state.provider),
-    model: named(&state.model),
-  };
-  let held = serde_json::to_string(&seen).map_err(|why| Fault::new(why.to_string()))?;
-
-  settings::set(db, &seen_key(agent, session), &held).await
 }
 
 /// Where a generation the agency said it was opening under a session is kept until the turn after it.

@@ -21,7 +21,8 @@ pub struct Transcript {
 
 /// The markers and data of a replacement, with the rules they stand for in the room's block: the instruction
 /// asking the closing session for its handoff file, the one asking a session about to be folded to consolidate
-/// its brain first, and the three notes a new session is handed: the handoff, the transcript under its heading,
+/// its brain first, the one asking a session about to be closed clean to consolidate and fold with no handoff, and
+/// the three notes a new session is handed: the handoff, the transcript under its heading,
 /// and the word that nothing was recovered.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -31,6 +32,8 @@ pub struct Notes {
   pub ask_rule: String,
   pub consolidate_marker: String,
   pub consolidate_rule: String,
+  pub clean_marker: String,
+  pub clean_rule: String,
   pub handed_marker: String,
   pub handed: String,
   pub handed_rule: String,

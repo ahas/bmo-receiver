@@ -1032,11 +1032,30 @@
         "type": "object"
       },
       "HandoffAsked": {
-        "description": "A handoff the agency asks for ahead of a fresh session it opens for an agent that had one: why, and the room\nwhose session is asked where the agent keeps one in each room, whose line the room is told in where the agent\nkeeps one session across its rooms; and the cause that line names, a `HandoverCause` kind, `other` where none is\nnamed.",
+        "description": "A handoff the agency asks for ahead of a fresh session it opens for an agent that had one: why, and the room\nwhose session is asked where the agent keeps one in each room, and the room the line is told in; the cause that\nline names, a `HandoverCause` kind, `other` where none is named, and the account key of the person who asked,\nwhere one did. `clean` asks the session to consolidate and close with no handoff, so the fresh session opens on\nno note; `ask` false asks no session at all and tells the room's line alone.",
         "properties": {
+          "ask": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "by": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "cause": {
             "type": [
               "string",
+              "null"
+            ]
+          },
+          "clean": {
+            "type": [
+              "boolean",
               "null"
             ]
           },

@@ -755,7 +755,7 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
 
 | Route | Body | Answers |
 |---|---|---|
-| `POST /handoffs/{agentName}` | `reason`, `room?`, `cause?` | 200 `path`, `bytes`: the handoff file the agent's standing session wrote; 204 where it has no session to ask or wrote nothing |
+| `POST /handoffs/{agentName}` | `reason`, `room?`, `cause?`, `by?`, `clean?`, `ask?` | 200 `path`, `bytes`: the handoff file the agent's standing session wrote; 204 where it has no session to ask, wrote nothing, was asked to start clean, or was not asked |
 
 - **The agency asks this before it opens a fresh session for an agent that had one** (`docs/unified-bmo.md`,
   「Replacing the session」). The receiver asks the agent's standing session — its one session, or the session of
@@ -768,11 +768,29 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   did not send is waited for: the receiver waits for that turn's end on the agency's event stream and asks again,
   however long it takes. The handoff turn answers `room`, carrying its block, and the owner's private
   chat where none is named. `reason` names why a fresh session is coming, for the receiver's journal.
-- **A room is told of it** where the agent keeps one session across its rooms and a standing session was asked:
-  one `session-handed-over` line kept in the record alone of `room`, else of the room of the round under way the
-  asking stood behind, else of the owner's private chat (`docs/unified-bmo.md`, 「The room's line」). `cause`, one
-  of the `HandoverCause` kinds (`docs/codes.md`), is the cause the line names; a word that is none, or none
-  given, names `other`.
+- **`clean: true` starts the fresh session clean.** The standing session is asked one turn, marked `CLEAN CLOSE.`,
+  in which it consolidates its brain and tells the brain it folds exactly as the handoff turn does, and writes
+  no handoff file and nothing else; it writes no owed situation note either. Nothing is kept for the fresh
+  session: a note kept for it before is let go, and its first turn opens on no handoff, no transcript and no word
+  that nothing was recovered, even where the agency's state names the handoff lost, and the owner is told of no
+  lost memory (`docs/unified-bmo.md`, 「Replacing the session」). The asking waits, stands in line and answers
+  `stopping` as a handoff's does, and is answered 204. `clean` absent or false asks for the handoff.
+- **`ask: false` asks no session at all.** The agency sends it where no standing program is left to ask, or where it
+  made the handover itself, as it does for a room's own session: the receiver writes the room's line alone, at
+  once, waiting on no round and no asking in line, and answers 204; with `clean: true` it also lets go whatever
+  was kept for the fresh session and has its first turn open on no note, as a clean asking does. `ask` absent
+  or true asks.
+- **A room is told of it in one line,** `session-handed-over`, kept in the record alone of one room and sent to no
+  chat service (`docs/unified-bmo.md`, 「The room's line」). `cause`, one of the `HandoverCause` kinds
+  (`docs/codes.md`), is the cause the line names, and a word that is none, or none given, names `other`; `by`,
+  the account key of the person who asked, is named by the line where given. An asking of the agent's one
+  session across rooms tells it once the asking is done, whether or not a standing session was there to ask
+  and whether or not it wrote anything: in `room`, else the room of the round under way the asking stood behind,
+  else the owner's private chat. An asking with `ask: false` tells it for either kind of session: in `room`,
+  else the owner's private chat. An asking of a room's own session with `ask` true tells nothing, since the
+  agency tells that handover with `ask: false` once it has made it. An asking answered by the handoff kept within
+  `again_minutes`, and one made from inside the handoff under way, tell nothing. Nothing of the room's record is
+  deleted or hidden.
 - **The agency lets its record of the session go before it asks,** so the session's state names no generation
   while its program still stands. The receiver reads no generation to decide whether to ask: it asks the standing
   session, and the asking itself tells whether there was one to ask.
@@ -785,8 +803,8 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   handoff under way writes the note the fresh session opens on.
 - **An asking within `again_minutes` of the last one asked** (`handover.toml`) does not reach the standing
   session: it answers 200 with the file that one kept where it is still kept, else 204, and the journal counts
-  the askings in a row.
-- **A failure to reach the agency** answers 502 `upstream-failed`.
+  the askings in a row. A clean one answers 204 and keeps nothing for the fresh session all the same.
+- **A failure to reach the agency** answers 502 `upstream-failed`, and tells no room.
 
 ## Handovers
 

@@ -18,6 +18,7 @@ mod double_slots;
 mod expiry;
 mod failure_orders;
 mod handed_sends;
+mod handoff_lines;
 mod handoffs;
 mod handovers;
 mod import;

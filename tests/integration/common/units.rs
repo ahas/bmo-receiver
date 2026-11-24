@@ -1393,9 +1393,8 @@ pub struct StandInAgency {
   pub brain_off: Mutex<BTreeSet<String>>,
   /// The supervisors whose settings switch their reference off, where a test names any.
   pub reference_off: Mutex<BTreeSet<String>>,
-  /// When a reset of a supervisor's session in a room was last carried out, in epoch seconds, by the supervisor and
-  /// the room, where a test sets one.
-  pub room_resets: Mutex<BTreeMap<(String, i64), i64>>,
+  /// Whether no session stands to start, its program gone: a start answers 404.
+  pub none_standing: Mutex<bool>,
 }
 
 impl StandInAgency {
@@ -1408,7 +1407,7 @@ impl StandInAgency {
       removal_refused: Mutex::default(),
       brain_off: Mutex::default(),
       reference_off: Mutex::default(),
-      room_resets: Mutex::default(),
+      none_standing: Mutex::default(),
       resets: Mutex::default(),
       pushes: Mutex::default(),
       saying: Mutex::default(),
@@ -1521,6 +1520,11 @@ impl StandInAgency {
     *self.rest_unreadable.lock().unwrap() = true;
   }
 
+  /// No session standing to start from now on, as where the agent's program went down: a start answers 404.
+  pub fn none_standing(&self) {
+    *self.none_standing.lock().unwrap() = true;
+  }
+
   /// The session its turns go on.
   pub fn carrying_on(&self, session: Arc<StandInSession>) {
     *self.session.lock().unwrap() = Some(session);
@@ -1556,12 +1560,6 @@ impl Agency for StandInAgency {
     };
 
     Box::pin(async move { Ok(switches) })
-  }
-
-  fn room_reset_at<'a>(&'a self, supervisor: &'a str, chat_id: i64) -> BoxFuture<'a, Answer<Option<i64>>> {
-    let at = self.room_resets.lock().unwrap().get(&(supervisor.to_owned(), chat_id)).copied();
-
-    Box::pin(async move { Ok(at) })
   }
 
   fn supervisors(&self) -> BoxFuture<'_, Answer<Agents>> {
@@ -1653,6 +1651,16 @@ impl Agency for StandInAgency {
   }
 
   fn start<'a>(&'a self, agent: &'a str, scope: Scope) -> BoxFuture<'a, Answer<Session>> {
+    if *self.none_standing.lock().unwrap() {
+      return Box::pin(async {
+        Err(PortFailure::Answered {
+          url: "http://agency.invalid/sessions".to_owned(),
+          status: 404,
+          answer: None,
+        })
+      });
+    }
+
     let Some(session) = self.standing_session() else {
       return not_asked_agency("a session");
     };
