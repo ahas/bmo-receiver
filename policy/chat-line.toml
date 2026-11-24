@@ -36,15 +36,12 @@ roster_owner_room = "{owner}'s private chat (you, the owner's private chat)"
 supervisor = "supervisors: you and the other supervisors below, each answering in the rooms that name it, in a persona of its own. A room that names only other supervisors is never yours to speak in; in a room you share with one, the receiver wakes each of you by the same rule, and each of you judges first whether the words are for it."
 role = "roles: what a piece of work you hand off runs as — a delegation, a job filed to a repository, a worker ask — each run on its role's own provider order. A run is named by its role and, for a job, its repository; none of them is a supervisor."
 
-# What a turn is told about what it can send: the capabilities' names the road does not perform ({names}), those
-# the room's own road {key} does, and the sending entries of the send tool the road carries ({tools}).
+# What a turn is told about what it can send: the capabilities' names the road does not perform ({names}), and
+# those the room's own road {key} does.
 [capabilities]
 document = "capabilities.md"
 withheld = "NOT SENT ON THIS ROAD — the road this turn answers on cannot send these, whatever an earlier room's block said: {names}. That is what this road can send, never what the room's readers can see or hear."
 handed = "The room's own road, {key}, sends these into this same room: {names}. When one of them is asked for here, give its tool via {key} — or its script --via {key} — instead of this turn's road."
-sending = "SENDING TOOLS ON THIS ROAD — {tools}. A sending tool this line does not name refuses here and sends nothing."
-sending_none = "none"
-sending_handed = "On the room's own road, {key}, with via {key}: {tools}."
 
 # What the owner is told, by the default answerer in the owner's own chat, where a room's answer came off a lesser model
 # than the session was launched on: {where} names the room and {model} the model it fell to.

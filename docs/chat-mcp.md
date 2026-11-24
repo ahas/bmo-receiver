@@ -36,8 +36,8 @@ the supervisor of any other (`docs/messages.md`, 「Words handed to the room's s
 - **`random_draw`**: a fair draw (`docs/random-draw.md`).
 
 Every entry is marked open-world. Its arguments are its schema, one JSON schema file beside the manifest for each
-entry, and an argument the schema does not name is malformed. Each entry declares in the manifest the chat verb it
-needs its road to perform, so the room's block names the sending entries a room's road carries.
+entry, and an argument the schema does not name is malformed. The road a send goes out on judges its verb itself,
+and an entry that road cannot carry is refused at the call and sends nothing.
 
 ## How a call runs
 
@@ -93,12 +93,13 @@ needs its road to perform, so the room's block names the sending entries a room'
 
 - **The tool shows the same entries in every room and on every road,** since one session serves every room and the
   tools it is shown are the front of that session's cached prefix.
-- **What differs per room is said in the room's block,** where the prefix has already ended: its capability section
-  names the sending entries this room's road can carry (read off each entry's declared verb and the road's
-  declared capabilities, `POST /sends/can`) and leaves out the rest.
-- **Where a turn answers on a road other than the room's own,** the section also names the sending entries the
-  room's own road carries instead, and a sending entry takes `via` naming that road. It is the one place a call
-  names a road.
+- **The room's block names no sending entries.** It carries the capability document's sections for what the
+  answering road performs, the reply and the fold, and the rest of the block says what that road cannot do. The
+  sending entries are shown by the tool alone, and the road a send goes out on judges its verb itself, so no list
+  in the block can disagree with what the road does. `POST /sends/can` answers the verbs a room's road performs,
+  for a caller that asks.
+- **Where a turn answers on a road other than the room's own,** a sending entry takes `via` naming the road it is
+  to go out on. It is the one place a call names a road.
 - **A room on the record performs the same entries** a messenger does where they take a room: `react`, `pin` and
   `sticker` are kept by the record on its own messages, as an edit and a delete the receiver makes are
   (`docs/messages.md`, 「What an agent can send back」), so a call names no other entry for a record room.

@@ -51,10 +51,11 @@
   only what changes from turn to turn: the room and its facts, the words themselves, the round's mark and the
   material the gate attaches.
 - **Kept out of the system prompt:** each room's tone layer, the group-room rules, the private chat's
-  instructions and agent list, and the rules for what can be done in the room (a picture, a file, a reaction, a
-  sticker, a voice briefing, pinning, an answer aimed at a message, a folded answer), which the room's chat
-  service declares and which reach the turn marked by capability, with one line naming what that service cannot
-  do. A section stands where the road performs its verb, and the one on folding where the road's dialect folds.
+  instructions and agent list, and the capability document's sections for what the answering road performs (an
+  answer aimed at a message, a folded answer), which the room's chat service declares and which reach the turn
+  marked by capability, with one line naming what that service cannot do. A section stands where the road performs
+  its verb, and the one on folding where the road's dialect folds. The sending entries are not named in the block:
+  the tool shows them in every room, and the road judges each send itself.
 - **The room-switch block is the receiver's,** handed to the agency as the turn's `room` (`chatId`, `text`,
   `mark`):
   - When the room changes in the actual run order, the room's context stands at the very front of the request
