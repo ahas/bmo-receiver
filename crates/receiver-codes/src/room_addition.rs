@@ -30,6 +30,9 @@ pub enum RoomAdditionRefusal {
   /// The provider refused to start the conversation, for its own reason.
   #[error("{label} did not start the conversation: {detail}")]
   StartRefused { label: String, detail: String },
+  /// The room was added, and its chat service stays the one it was added on.
+  #[error("room {room} was added on its chat service, which stays as it was chosen")]
+  ProvidersFixed { room: i64 },
 }
 
 impl RoomAdditionRefusal {
@@ -42,7 +45,8 @@ impl RoomAdditionRefusal {
       | Self::ContactsUnlisted { .. }
       | Self::ChatsUnstarted { .. }
       | Self::ContactUnknown { .. }
-      | Self::StartRefused { .. } => StatusCode::CONFLICT,
+      | Self::StartRefused { .. }
+      | Self::ProvidersFixed { .. } => StatusCode::CONFLICT,
     }
   }
 }

@@ -193,7 +193,10 @@ async fn an_avatar_is_refused_where_no_chat_service_stands_in_the_room() {
 
   added(&front, "record-only").await;
   scratch.message(ROOM, 1, 55).await;
-  put(&front, "/rooms/-100/providers", json!({ "providers": ["record"] })).await;
+  // An added room's list is fixed on the routes, so the store sets it here.
+  bmo_receiver::roads::providers::choose(scratch.db(), ROOM, &["record".to_owned()])
+    .await
+    .unwrap();
 
   let (status, refused) = put(&front, &registration_path(ROOM), json!({ "mode": "avatar" })).await;
 

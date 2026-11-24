@@ -5964,7 +5964,7 @@ export interface operations {
                     "application/json": components["schemas"]["RoomProviders"];
                 };
             };
-            /** @description A refusal or failure: unauthorized, bad-request, not-found, private-room, upstream-failed, failed */
+            /** @description A refusal or failure: unauthorized, bad-request, not-found, providers-fixed, private-room, upstream-failed, failed */
             default: {
                 headers: {
                     [name: string]: unknown;

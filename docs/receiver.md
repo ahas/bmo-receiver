@@ -127,10 +127,14 @@ flowchart TD
   road the receiver keeps itself, which is the web console's, since the console reads the archive. Each is named
   by its key, as the record's stands in the policy and a chat service's in the configuration; nothing here names
   one provider apart from the others.
-- **The list is read and set over `GET` and `PUT /rooms/{roomId}/providers`** (`docs/api.md`, 「Rooms」). A room
+- **The list is read over `GET /rooms/{roomId}/providers` and set over its `PUT`** (`docs/api.md`, 「Rooms」). A room
   whose list was never set is on every provider that has handed it a message or kept one in it, in the order
   each first did, and on the chat service that says the room is its own, so a room stands where it stood until
   its list is set.
+- **An added room's chat service is fixed as it is added.** Adding sets its list to the chat service it was chosen
+  on and the record (「Adding a room」), and the list stays so while the room stands added: a `PUT` of an added
+  room's list is refused 409 `providers-fixed` and nothing is written. Which chat service carries a room is chosen
+  only by adding it.
 - **Every message kept in a room goes to each of the room's providers,** whoever said it and whichever road it
   came in on: a person's words a chat service handed over, the owner's words from the console, an agent's
   answer, a line the receiver says itself. The rule is the same in every room and turns on nothing but the list.
@@ -188,9 +192,9 @@ flowchart TD
   stand under no number of a road's, no road reads it in the owner's account, and its own road is the record. Its
   words are kept and wake its answerers by the one rule every room's words are judged by (`docs/wake.md`). Every
   other room's facts are asked of the chat services that may hold it.
-- **Detaching a messenger is taking it off the list,** and attaching it again is putting it back, from the
-  console's provider setting: from then on its messages for the room are taken again and every message kept is
-  carried to it. Nothing else of the room changes, its record and its registration among them.
+- **A list set on a room never added rules from then on:** a messenger taken off it has its messages for the room
+  no longer taken and is sent nothing of it, and one put back has its messages taken again and every message kept
+  from then on carried to it. Nothing else of the room changes, its record and its registration among them.
 
 ## A read-only room
 
@@ -358,8 +362,8 @@ flowchart TD
   reading of the person's name answers it, so the console tells the record a changed name without any words. The
   web unit links it to the account's user
   as it links any chat service's identity, so every reading that asks whose user a sender is reads it as that
-  account's: a member's own supervisor reading the room, and the call of one's own supervisor where the room grants
-  `ask` (`docs/wake.md`, 「Who reaches the session」).
+  account's: a member's own supervisor reading the room, and a member's call of their own supervisor by name
+  (`docs/wake.md`, 「Who reaches the session」).
 - **An account's words** (`POST /rooms/{roomId}/words`, `POST /rooms/{roomId}/word-files`) are filed under the
   owner's sender where the account is the one the web unit links to the owner's sender, and under the account's
   record identity otherwise, made where it is missing; under the owner's name in the room for the owner, as his
@@ -800,8 +804,7 @@ flowchart TD
 - **The owner's private chat is the room numbered as his own number,** the one he has always had, or the room the
   configuration's `owner_room` names in its place. It reads as the owner's private chat on every screen and in
   every round, and a chat service's `kind` of `owner` is read for no other room. Which messengers it is on is its
-  list of providers like any room's: on the record alone, it is answered in the console alone, and a messenger he
-  detached from it is attached again from the console's provider setting.
+  list of providers like any room's: on the record alone, it is answered in the console alone.
 - **`owner-room` stands up a room on the record alone** (`docs/boundary-api.md`, 「The service and its commands」),
   the owner and the default answerer its members and naming no supervisor, so the default answerer answers it, for a
   configuration that names it as `owner_room`.

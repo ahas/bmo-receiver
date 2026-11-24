@@ -19,13 +19,15 @@ its rounds.
   group room naming none carries none, and the default answerer answers it. The journal says once for a group
   room which BMO answers it. A member's own BMO reads the room without answering it (`docs/api.md`,
   「Messages」).
-- **A member calls their own supervisor into a group room by name where the room grants them `ask`.** A person
-  whose sender the account model links to a user, a messenger's identity or an account's record identity alike,
-  and who holds the room's `ask` relation (the web unit's room
-  check), wakes the awake supervisor that user owns by calling it by its name, though the room does not name it:
-  that call reaches the supervisor's session as a call does, and opens its window in the room. Without the grant,
-  or without the name, the person's own supervisor only reads the room. The grant is set room by room, by the
-  room's opener or a head of its unit (`STRUCTURE.md`, 「Accounts, companies and units」).
+- **A member calls their own supervisor into a group room by name: membership is the call right.** A person whose
+  sender the account model links to a user, a messenger's identity or an account's record identity alike, and who
+  is a member of the room wakes the awake supervisor that user owns by calling it by its name, though the room does
+  not name it: that call reaches the supervisor's session as a call does, and opens its window in the room. A
+  member is a person whose words came over a chat service carrying the room, which holds them among the room's
+  people, or an account the room holds among its console members (`docs/receiver.md`, 「Console rooms and
+  accounts」); no grant is asked of either. A person who is neither calls it only where the room grants them `ask`
+  (the web unit's room check). Without that, or without the name, the person's own supervisor only reads the
+  room.
 - **One rule for every designated agent.** The receiver decides for every designated agent of a room by one
   rule, every supervisor alike, over every word filed in the room, a person's or an agent's, and never wakes an
   agent with its own words.

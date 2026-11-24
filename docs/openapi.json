@@ -8837,7 +8837,7 @@
                 }
               }
             },
-            "description": "A refusal or failure: unauthorized, bad-request, not-found, private-room, upstream-failed, failed"
+            "description": "A refusal or failure: unauthorized, bad-request, not-found, providers-fixed, private-room, upstream-failed, failed"
           }
         },
         "summary": "A room's chat providers set whole.",
@@ -8848,6 +8848,7 @@
           "unauthorized",
           "bad-request",
           "not-found",
+          "providers-fixed",
           "private-room",
           "upstream-failed",
           "failed"

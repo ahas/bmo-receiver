@@ -201,8 +201,9 @@ repository's, in `VERSION`; it is never taken from a registry, and no downstream
   screen reading the archive shows, and each chat service the configuration lists, each named by its key and
   called by its label. A room whose list was never set is on every provider that has handed it a message or kept
   one in it and on the chat service that holds it, and `chosen` is false; a list set is the room's from then on.
-  A list that is empty, names a key no provider stands under or names one twice is refused 400 `bad-request`, and
-  a room the receiver does not hold 404 `not-found`. Every message kept in the room goes to each of its providers, and a
+  A list that is empty, names a key no provider stands under or names one twice is refused 400 `bad-request`,
+  a room the receiver does not hold 404 `not-found`, and an added room 409 `providers-fixed`, its list being the one
+  its addition set: the chat service it was chosen on and the record. Every message kept in the room goes to each of its providers, and a
   set list rules both ways: a chat service it does not name has its messages for the room not taken and is sent
   nothing of it (`docs/receiver.md`, 「A room's chat providers」).
 - **Adding a room** is three choices made in turn, each offered by what the chat service declares and never by

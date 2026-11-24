@@ -16,7 +16,7 @@ use receiver_policy::wake::WAKE;
 
 use super::{How, Inbound, NotReceived, Receiver, Room, Wake, rows};
 use crate::roads::added::{self, RoomMode};
-use crate::roads::providers;
+use crate::roads::{Road, providers};
 use crate::secrets;
 use agents::{
   Designated, default_designated, group_room, holds_own, own_number, owned_by, room_designated,
@@ -253,8 +253,8 @@ impl KeptOut {
   }
 }
 
-/// The caller's own supervisor a person calls by name into a group room that does not name it, where the room
-/// grants the person `ask` (docs/wake.md, 「Who reaches the session」); none otherwise.
+/// The caller's own supervisor a person calls by name into a group room that does not name it, where the person is a
+/// member of the room or the room grants them `ask` (docs/wake.md, 「Who reaches the session」); none otherwise.
 async fn called_own(
   receiver: &Receiver,
   inbound: &Inbound,
@@ -280,6 +280,10 @@ async fn called_own(
     return Ok(None);
   }
 
+  if member(receiver, inbound, &user).await? {
+    return Ok(Some(own));
+  }
+
   let check = receiver_ports::web::RoomCheck {
     room: inbound.chat_id,
     sender: Some(sender),
@@ -288,6 +292,20 @@ async fn called_own(
   let granted = receiver.units.web.check_room(&check).await.is_ok_and(|checked| checked.allowed);
 
   Ok(granted.then_some(own))
+}
+
+/// Whether the person who said a message is a member of its room: one whose words a chat service carrying the room
+/// handed over, which holds them among the room's people, or an account the room holds among its console members.
+async fn member(receiver: &Receiver, inbound: &Inbound, user: &str) -> Result<bool, NotReceived> {
+  if inbound.via != Road::Record.key() {
+    return Ok(true);
+  }
+
+  let Ok(account) = user.trim().parse::<i64>() else {
+    return Ok(false);
+  };
+
+  Ok(crate::accounts::member(receiver.db(), inbound.chat_id, account).await?.is_some())
 }
 
 /// A message carrying a file, once its file is gathered, woken on by the same rule as words, read off its

@@ -11,7 +11,7 @@ use bmo_receiver::roads::Facts;
 use serde_json::{Value, json};
 
 use crate::integration::common::Scratch;
-use crate::integration::common::queue::{Front, get, post, stood_on};
+use crate::integration::common::queue::{Front, get, post, put, stood_on};
 use crate::integration::common::units::{OWNER, StandInChat, registration};
 
 // A service that lists its account's rooms and answers as the person it reads, and one that does neither.
@@ -167,6 +167,26 @@ async fn a_room_added_is_kept_with_its_mode_its_title_and_its_service_beside_the
   assert_eq!(
     (status.as_u16(), room["title"].as_str(), room["mode"].as_str()),
     (201, Some("Named Room"), Some("avatar"))
+  );
+}
+
+#[tokio::test]
+async fn an_added_rooms_chat_service_is_fixed_and_a_change_of_its_providers_is_refused() {
+  let scratch = Scratch::new().await;
+  let (front, _listing, _plain) = front(&scratch).await;
+
+  post(&front, "/rooms", adding("road-a", -200, "record-only")).await;
+
+  for providers in [json!(["record"]), json!(["road-b", "record"]), json!(["road-a", "road-b", "record"])] {
+    let (status, refused) = put(&front, "/rooms/-200/providers", json!({ "providers": providers })).await;
+
+    assert_eq!((status.as_u16(), refused["code"].as_str()), (409, Some("providers-fixed")), "{refused}");
+  }
+
+  assert_eq!(
+    get(&front, "/rooms/-200/providers").await.1,
+    json!({ "providers": ["road-a", "record"], "chosen": true, "fileLimit": null }),
+    "a refusal wrote nothing"
   );
 }
 

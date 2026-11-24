@@ -796,9 +796,8 @@ async fn an_account_on_its_record_identity_alone_calls_its_own_supervisor_and_it
     "a member by account, before saying a word"
   );
 
-  // The web unit links her record identity to her account as it links any identity, and the room grants her ask.
+  // The web unit links her record identity to her account as it links any identity; a member, she needs no grant.
   stood.standing.web.linking(beas, BEA.to_string());
-  stood.standing.web.granting(room, beas, "ask".to_owned());
 
   let words = said(&stood.port, room, BEA, "Bea", "agent-b, have a look").await;
 

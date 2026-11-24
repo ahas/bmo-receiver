@@ -842,13 +842,20 @@ pub async fn room_members(State(served): State<Served>, Path(room): Path<i64>) -
   }
 }
 
-/// A room's providers set whole: a list of providers that stand, each once, and at least one.
+/// A room's providers set whole: a list of providers that stand, each once, and at least one. An added room's list
+/// is the one its addition set and is refused.
 pub async fn choose_providers(State(served): State<Served>, writable: WritableRoom) -> Answered {
   let room = writable.room;
   let asked = read::<Choosing>(writable.writer.body())?;
   let receiver: Receiver = (*served.receiver).clone();
 
   held(&receiver, room).await?;
+
+  // An added room's chat service was chosen as it was added, and stays (docs/receiver.md, 「A room's chat
+  // providers」).
+  if added::mode_of(receiver.db(), room).await.map_err(store)?.is_some() {
+    return Err(code(&RoomAdditionRefusal::ProvidersFixed { room }));
+  }
 
   if asked.providers.is_empty() {
     return Err(refused(StatusCode::BAD_REQUEST, "bad-request", "A room is on one provider at least."));

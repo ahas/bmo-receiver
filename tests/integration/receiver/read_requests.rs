@@ -13,7 +13,7 @@ use serde_json::{Value, json};
 use tower::ServiceExt;
 
 use crate::integration::common::Scratch;
-use crate::integration::common::queue::{Front, post, put, stood_on};
+use crate::integration::common::queue::{Front, post, stood_on};
 use crate::integration::common::units::{OWNER, StandInChat};
 
 /// A room the service says it reads through the owner's account alone, though an account of its own is there.
@@ -129,11 +129,11 @@ async fn a_room_is_asked_to_be_read_only_once_added_on_the_asking_service_and_wh
     "an added room is asked for though the service answers in it"
   );
 
-  // Taken off the service's list, the room is no longer the service's to read.
-  let (status, chosen) =
-    put(&front, &format!("/rooms/{READER_ROOM}/providers"), json!({ "providers": ["record"] })).await;
-
-  assert_eq!(status.as_u16(), 200, "{chosen}");
+  // Off the service's list, the room is no longer the service's to read. An added room's list is fixed on the
+  // routes, so the store sets it here.
+  bmo_receiver::roads::providers::choose(scratch.db(), READER_ROOM, &["record".to_owned()])
+    .await
+    .unwrap();
   assert!(!read(&front, READER_ROOM, "road-a").await);
 }
 

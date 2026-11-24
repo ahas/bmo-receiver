@@ -132,6 +132,7 @@ family. No code carries a sentence in a room's language.
 | `chats-unstarted` | 409 | `label` | the provider does not declare that it starts a conversation of the shape asked |
 | `contact-unknown` | 409 | `label` | the provider does not know a contact the start names |
 | `start-refused` | 409 | `label`, `detail` | the provider refused to start the conversation, for its own reason |
+| `providers-fixed` | 409 | `room` | the room was added, so its chat service stays the one it was added on and its list of providers is not set |
 
 ### RoomAccountRefusal
 

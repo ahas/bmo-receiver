@@ -755,7 +755,15 @@ pub fn openapi() -> Value {
     vec![path_parameter("roomId"), parameter("account", "integer", false)],
     Some(generator.subschema_for::<ChooseProviders>()),
     vec![(200, json_answer::<RoomProviders>(&mut generator))],
-    vec!["unauthorized", "bad-request", "not-found", "private-room", "upstream-failed", "failed"]
+    vec![
+      "unauthorized",
+      "bad-request",
+      "not-found",
+      "providers-fixed",
+      "private-room",
+      "upstream-failed",
+      "failed"
+    ]
   );
   add!(
     "GET",
