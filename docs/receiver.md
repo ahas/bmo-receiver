@@ -269,9 +269,11 @@ flowchart TD
 - **The mode is what the room is to the agents:**
   - `record-only` is the user alone: the room's messages are kept and carried as any room's, and no agent is
     woken by them (`docs/wake.md`, 「Who reaches the session」);
-  - `avatar` is a room answered as the user: the room's designated agents are woken by the one rule, and every
-    send the receiver makes there that names no voice of its own, an answer, a line or a typing indicator, goes
-    in the `human-avatar` voice, the account of the person the service reads.
+  - `avatar` is a room answered as the user: the supervisors the room names are the whole of who its words can
+    wake there, each of them woken by the one rule and no supervisor outside the list
+    (`docs/wake.md`, 「Who reaches the session」), and every send the receiver makes there that names no voice of
+    its own, an answer, a line or a typing indicator, goes in the `human-avatar` voice, the account of the
+    person the service reads. A room naming none is the setting left unset and wakes as any room naming none.
 - **A group room names its leader's BMO where it names one,** one of the supervisors of the person who made the
   room and no other member's; a group naming none carries none, and the default answerer answers it
   (`docs/wake.md`, 「Who reaches the session」). A member's own supervisor reads the room's messages without

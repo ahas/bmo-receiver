@@ -935,6 +935,159 @@ async fn one_who_is_no_member_of_the_room_calls_no_supervisor_into_it() {
 }
 
 #[tokio::test]
+async fn an_avatar_room_naming_supervisors_calls_no_supervisor_outside_them() {
+  let (scratch, _data, standing) = stood(&[-164]).await;
+  let member = 9414;
+
+  standing.web.linking(member, "84".to_owned());
+
+  let mut own = registration("agent-c", "Agent C", vec!["agent-c"], None);
+  own.row.insert("ownerAccount".to_owned(), json!(84));
+  standing.agency.registering(vec![
+    registration(AGENT, "Agent A", vec![ADDRESS], None),
+    registration("agent-b", "Agent B", vec!["agent-b"], None),
+    own,
+  ]);
+  everyone_heard(&scratch).await;
+
+  assert!(added::add(scratch.db(), -164, "road-a", RoomMode::Avatar, None).await.unwrap());
+  scratch
+    .run(
+      r#"INSERT INTO "room_supervisors" ("chat_id", "supervisor") VALUES (-164, 'agent-b')"#,
+      vec![],
+    )
+    .await;
+
+  // The member calls their own supervisor, which the avatar room does not name: the named list is the whole of
+  // who the room may call, so membership wakes nothing outside it. The named agent, the one the room answers
+  // with, takes the words as its own rule gives.
+  standing
+    .receiver
+    .message(&inbound(-164, 1, member, "agent-c, sum this up"), &Context::default(), room())
+    .await
+    .unwrap();
+
+  let woken = standing.taken.handed();
+
+  assert_eq!(woken.len(), 1, "{woken:?}");
+  assert_eq!(woken[0].agent, "agent-b");
+  assert_eq!(woken[0].message_id, 1);
+
+  // Words that call the named agent by name reach it on the call ground, as any designated agent's do.
+  standing
+    .receiver
+    .message(&inbound(-164, 2, member, "agent-b, sum this up"), &Context::default(), room())
+    .await
+    .unwrap();
+
+  let woken = standing.taken.handed();
+
+  assert_eq!(woken.len(), 2, "{woken:?}");
+  assert_eq!(woken[1].agent, "agent-b");
+  assert_eq!(woken[1].message_id, 2);
+
+  // A receiver started again over the same database finds the room's mode and its named list standing: the
+  // call of the off-list supervisor is gated there exactly as it was.
+  let data = tempfile::tempdir().unwrap();
+  let chat = Arc::new(StandInChat::new("road-a").holding(&[-164]));
+  let again = crate::integration::common::units::woken(crate::integration::common::units::standing(
+    scratch.db(),
+    DataRoot::new(data.path()),
+    vec![chat],
+  ));
+
+  again.web.linking(member, "84".to_owned());
+
+  let mut own = registration("agent-c", "Agent C", vec!["agent-c"], None);
+  own.row.insert("ownerAccount".to_owned(), json!(84));
+  again.agency.registering(vec![
+    registration(AGENT, "Agent A", vec![ADDRESS], None),
+    registration("agent-b", "Agent B", vec!["agent-b"], None),
+    own,
+  ]);
+
+  again
+    .receiver
+    .message(&inbound(-164, 3, member, "agent-c, sum this up"), &Context::default(), room())
+    .await
+    .unwrap();
+
+  let woken = again.taken.handed();
+
+  assert_eq!(woken.len(), 1, "{woken:?}");
+  assert_eq!(woken[0].agent, "agent-b");
+  assert_eq!(woken[0].message_id, 3);
+}
+
+#[tokio::test]
+async fn an_avatar_room_naming_no_supervisor_keeps_the_call_of_a_members_own() {
+  let (scratch, _data, standing) = stood(&[-165]).await;
+  let member = 9415;
+
+  standing.web.linking(member, "85".to_owned());
+
+  let mut own = registration("agent-c", "Agent C", vec!["agent-c"], None);
+  own.row.insert("ownerAccount".to_owned(), json!(85));
+  standing
+    .agency
+    .registering(vec![registration(AGENT, "Agent A", vec![ADDRESS], None), own]);
+  everyone_heard(&scratch).await;
+
+  assert!(added::add(scratch.db(), -165, "road-a", RoomMode::Avatar, None).await.unwrap());
+
+  // The avatar room names none, which is the setting left unset: the member's own supervisor is still called
+  // into it, as into any room naming none.
+  standing
+    .receiver
+    .message(&inbound(-165, 1, member, "agent-c, sum this up"), &Context::default(), room())
+    .await
+    .unwrap();
+
+  let woken = standing.taken.handed();
+
+  assert_eq!(woken.len(), 1, "{woken:?}");
+  assert_eq!(woken[0].agent, "agent-c");
+}
+
+#[tokio::test]
+async fn a_room_never_added_keeps_membership_as_the_call_right_though_it_names_supervisors() {
+  let (scratch, _data, standing) = stood(&[-166]).await;
+  let member = 9416;
+
+  standing.web.linking(member, "86".to_owned());
+
+  let mut own = registration("agent-c", "Agent C", vec!["agent-c"], None);
+  own.row.insert("ownerAccount".to_owned(), json!(86));
+  standing.agency.registering(vec![
+    registration(AGENT, "Agent A", vec![ADDRESS], None),
+    registration("agent-b", "Agent B", vec!["agent-b"], None),
+    own,
+  ]);
+  everyone_heard(&scratch).await;
+
+  scratch
+    .run(
+      r#"INSERT INTO "room_supervisors" ("chat_id", "supervisor") VALUES (-166, 'agent-b')"#,
+      vec![],
+    )
+    .await;
+
+  // The room names agent-b and stands never added, so it takes no avatar mode: membership stays the call
+  // right, and the member's own off-list supervisor is woken by the call beside the named one.
+  standing
+    .receiver
+    .message(&inbound(-166, 1, member, "agent-c, sum this up"), &Context::default(), room())
+    .await
+    .unwrap();
+
+  let woken = standing.taken.handed();
+
+  assert_eq!(woken.len(), 2, "{woken:?}");
+  assert_eq!(woken[0].agent, "agent-b");
+  assert_eq!(woken[1].agent, "agent-c");
+}
+
+#[tokio::test]
 async fn a_supervisor_of_an_account_whose_machine_is_gone_is_woken_nowhere() {
   let (scratch, _data, standing) = stood(&[-162]).await;
   let member = 9412;

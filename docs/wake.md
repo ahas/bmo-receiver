@@ -27,6 +27,10 @@ its rounds.
   people, or an account the room holds among its console members (`docs/receiver.md`, 「Console rooms and
   accounts」); no grant is asked of either, and nobody who is neither calls it. Without membership, or without the
   name, the person's own supervisor only reads the room.
+- **In a room added `avatar` the supervisors the room names are the whole of who its words may wake.** The
+  member's call of their own supervisor reaches no supervisor outside that list; membership opens no door past
+  it. A room added `avatar` naming none is the setting left unset and wakes by the fallbacks above. Every other
+  room keeps membership as the call right.
 - **One rule for every designated agent.** The receiver decides for every designated agent of a room by one
   rule, every supervisor alike, over every word filed in the room, a person's or an agent's, and never wakes an
   agent with its own words.

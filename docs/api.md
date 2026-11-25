@@ -155,9 +155,10 @@ placeholder that never moves; the package is never taken from a registry, and no
   questions and answers of work filed from it are told, and `mode`, the mode it was added in:
   - `record-only`: the user alone. The room is kept and its messages carried to its providers as any room's, and
     no agent is woken in it.
-  - `avatar`: the room's designated agents answer it as any room's do, and every line the receiver sends there
-    that names no voice of its own goes in the provider's `human-avatar` voice, the account of the person the
-    provider reads.
+  - `avatar`: the room's designated agents answer it as any room's do, and where it names supervisors they are
+    the only agents its words can wake there (`docs/wake.md`, 「Who reaches the session」); every line the
+    receiver sends there that names no voice of its own goes in the provider's `human-avatar` voice, the account
+    of the person the provider reads.
   - null for a room never added: it stands as the roads that handed it messages make it, and every line the
     receiver sends there that names no voice of its own goes in the provider's `human-avatar` voice where
     that is the one mode the provider declares active, and names none otherwise (`docs/receiver.md`, 「A room's
@@ -962,7 +963,10 @@ placeholder that never moves; the package is never taken from a registry, and no
   the supervisor the user it is a one-to-one with owns, where one stands, and otherwise by the default answerer;
   a room is added naming none, so the default answerer is also the supervisor a new room gets. `PUT
   /rooms/{roomId}/supervisors` writes the whole list, each name one the agency registers; an empty list hands
-  the room back to the supervisor its user owns where one stands, and otherwise to the default answerer.
+  the room back to the supervisor its user owns where one stands, and otherwise to the default answerer. In a
+  room added `avatar` the list is also the whole of who its words may wake there: the member's call of their own
+  supervisor reaches no supervisor outside the list, and an empty list is that setting left unset
+  (`docs/wake.md`, 「Who reaches the session」).
 - **The default answerer is a setting of the receiver's,** naming one supervisor: the one that answers every room
   naming none that is no user's own private chat, and every such chat whose user owns no awake supervisor; it
   says the system's own lines there, takes the console's talks, the warmer's touch and a line typed into its

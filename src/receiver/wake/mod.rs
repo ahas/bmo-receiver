@@ -14,7 +14,7 @@ use futures_util::future::BoxFuture;
 
 use receiver_policy::wake::WAKE;
 
-use super::{How, Inbound, NotReceived, Receiver, Room, Wake, rows};
+use super::{How, Inbound, NotReceived, Receiver, Room, Wake, figures, rows};
 use crate::roads::added::{self, RoomMode};
 use crate::roads::{Road, providers};
 use crate::secrets;
@@ -254,7 +254,8 @@ impl KeptOut {
 }
 
 /// The caller's own supervisor a person calls by name into a group room that does not name it, where the person is a
-/// member of the room (docs/wake.md, 「Who reaches the session」); none otherwise.
+/// member of the room and the room is no avatar room naming a narrower list of its own (docs/wake.md,
+/// 「Who reaches the session」); none otherwise.
 async fn called_own(
   receiver: &Receiver,
   inbound: &Inbound,
@@ -277,6 +278,19 @@ async fn called_own(
   };
 
   if agents.iter().any(|agent| agent.name == own.name) || !own.called_by(basis.text) {
+    return Ok(None);
+  }
+
+  // A room added `avatar` that names supervisors may call only those: membership opens no door past the list
+  // there, and the call of an agent outside it wakes nobody (docs/receiver.md, 「Adding a room」).
+  if added::mode_of(receiver.db(), inbound.chat_id).await? == Some(RoomMode::Avatar)
+    && !figures::answerers(receiver.db(), inbound.chat_id).await?.is_empty()
+  {
+    println!(
+      "chat {}: the avatar room names its supervisors, so the call of {} wakes nobody",
+      inbound.chat_id, own.name
+    );
+
     return Ok(None);
   }
 
