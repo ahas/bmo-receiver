@@ -1,13 +1,13 @@
 //! The web unit's port against a stand-in of the routes the receiver states for it (`docs/boundary-api.md`,
 //! 「The web unit」).
 
-use receiver_ports::web::{Checked, HttpWeb, ObjectCheck, OrganisationUnit, Render, User, Web};
+use receiver_ports::web::{HttpWeb, OrganisationUnit, Render, User, Web};
 use serde_json::{Map, json};
 
 use crate::stand_in::{StandIn, call};
 
 #[tokio::test]
-async fn the_account_model_an_object_check_and_a_fixed_line_go_out_as_the_receiver_states_them() {
+async fn the_account_model_a_user_and_a_fixed_line_go_out_as_the_receiver_states_them() {
   let unit = StandIn::start().await;
   let web = HttpWeb::new(&unit.peer("t"));
 
@@ -19,11 +19,6 @@ async fn the_account_model_an_object_check_and_a_fixed_line_go_out_as_the_receiv
     json!({ "code": "not_found", "error": "No user is linked." }),
   );
   unit.answer("GET /users/user-a", 200, json!({ "user": "user-a", "administrator": true }));
-  unit.answer(
-    "POST /checks/object",
-    200,
-    json!({ "allowed": true, "grant": "bmo_worker:w-1#run", "user": "user-a" }),
-  );
   unit.answer("POST /words/render", 200, json!({ "text": "Resting until nine." }));
 
   assert!(web.model_in_force().await.unwrap());
@@ -38,22 +33,6 @@ async fn the_account_model_an_object_check_and_a_fixed_line_go_out_as_the_receiv
     User {
       user: "user-a".to_owned(),
       administrator: true,
-    }
-  );
-
-  let object = ObjectCheck {
-    kind: "bmo_worker".to_owned(),
-    object: "w-1".to_owned(),
-    relation: "run".to_owned(),
-    user: "user-a".to_owned(),
-  };
-
-  assert_eq!(
-    web.check_object(&object).await.unwrap(),
-    Checked {
-      allowed: true,
-      grant: "bmo_worker:w-1#run".to_owned(),
-      user: Some("user-a".to_owned()),
     }
   );
 
@@ -76,11 +55,6 @@ async fn the_account_model_an_object_check_and_a_fixed_line_go_out_as_the_receiv
       call("GET /senders/42/user", "", None),
       call("GET /senders/43/user", "", None),
       call("GET /users/user-a", "", None),
-      call(
-        "POST /checks/object",
-        "",
-        Some(json!({ "kind": "bmo_worker", "object": "w-1", "relation": "run", "user": "user-a" }))
-      ),
       call(
         "POST /words/render",
         "",

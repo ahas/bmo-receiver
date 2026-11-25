@@ -1,5 +1,4 @@
-//! The web unit's port: the account model, a sender's user, a user, a user's relation on an object, an
-//! organisation unit's people, and the words of a fixed line (`docs/boundary-api.md`, 「The web unit」). The web unit's `docs/boundary.md` states these
+//! The web unit's port: the account model, a sender's user, a user, an organisation unit's people, and the words of a fixed line (`docs/boundary-api.md`, 「The web unit」). The web unit's `docs/boundary.md` states these
 //! routes in the common wire format, so every body here is camelCase.
 
 use futures_util::future::BoxFuture;
@@ -13,25 +12,6 @@ use crate::http::{Answer, Caller, Peer};
 pub struct User {
   pub user: String,
   pub administrator: bool,
-}
-
-/// A user's relation asked on an object.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ObjectCheck {
-  pub kind: String,
-  pub object: String,
-  pub relation: String,
-  pub user: String,
-}
-
-/// What a check answered: whether the relation is held, the grant asked for, and the user it was read for where
-/// it names one.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Checked {
-  pub allowed: bool,
-  pub grant: String,
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub user: Option<String>,
 }
 
 /// A fixed line asked in a language: its code and its fields beside it.
@@ -100,8 +80,6 @@ pub trait Web: Send + Sync {
 
   /// The senders linked to a user, in the order the model gives them.
   fn senders_of_user<'a>(&'a self, user: &'a str) -> BoxFuture<'a, Answer<Vec<i64>>>;
-
-  fn check_object<'a>(&'a self, check: &'a ObjectCheck) -> BoxFuture<'a, Answer<Checked>>;
 
   /// A fixed line's words in a language.
   fn render<'a>(&'a self, line: &'a Render) -> BoxFuture<'a, Answer<String>>;
@@ -241,10 +219,6 @@ impl Web for HttpWeb {
 
       Ok(linked.senders)
     })
-  }
-
-  fn check_object<'a>(&'a self, check: &'a ObjectCheck) -> BoxFuture<'a, Answer<Checked>> {
-    Box::pin(self.caller.post(&["checks", "object"], check))
   }
 
   fn render<'a>(&'a self, line: &'a Render) -> BoxFuture<'a, Answer<String>> {

@@ -37,7 +37,7 @@ use receiver_ports::http::{Answer, PortFailure, WireError};
 use receiver_ports::job::{Chosen, ItemRow, Job, Moved, OpenQuestion, RoomHolding, Talked};
 use receiver_ports::voice::{Briefing, NewBriefing, VoiceEngine};
 use receiver_ports::warmer::{Target, Used, Warmer};
-use receiver_ports::web::{Checked, ObjectCheck, OrganisationUnit, Render, User, UserNode, Web};
+use receiver_ports::web::{OrganisationUnit, Render, User, UserNode, Web};
 use sea_orm::DatabaseConnection;
 use serde_json::{Value, json};
 
@@ -1000,10 +1000,6 @@ impl StandInWeb {
   }
 }
 
-fn unasked<T>() -> BoxFuture<'static, Answer<T>> {
-  panic!("the stand-in web unit was asked what no test sets")
-}
-
 impl StandInWeb {
   /// A user's account bound to a machine, attached or not.
   pub fn binding(&self, user: &str, attached: bool) {
@@ -1078,10 +1074,6 @@ impl Web for StandInWeb {
       .collect::<Vec<i64>>();
 
     Box::pin(async move { Ok(linked) })
-  }
-
-  fn check_object<'a>(&'a self, _check: &'a ObjectCheck) -> BoxFuture<'a, Answer<Checked>> {
-    unasked()
   }
 
   fn render<'a>(&'a self, line: &'a Render) -> BoxFuture<'a, Answer<String>> {

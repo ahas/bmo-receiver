@@ -398,7 +398,7 @@ read again at every connection. Where no socket can be named, nothing is heard o
 ### The web unit
 
 Its `docs/boundary.md` and `docs/openapi.json`, in the common format: the account model, a sender's user, a user
-and its senders, a user's relation on an object, a fixed line's words, the machine a user's account is bound to,
+and its senders, a fixed line's words, the machine a user's account is bound to,
 whether it is attached and whether the account has left (`GET /users/{user}/node`, answering `agent`, `attached` and
 `left`), whether one user heads
 another's unit (`GET /users/{user}/unit`, then `POST /checks/unit`), the company a user stands in (`GET
