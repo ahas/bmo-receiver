@@ -1031,6 +1031,23 @@
         ],
         "type": "object"
       },
+      "GrantMemberRight": {
+        "description": "`PUT /rooms/{roomId}/accounts/{account}/grants`: the account writing and the one right to grant.",
+        "properties": {
+          "by": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "right": {
+            "$ref": "#/components/schemas/MemberRight"
+          }
+        },
+        "required": [
+          "by",
+          "right"
+        ],
+        "type": "object"
+      },
       "HandoffAsked": {
         "description": "A handoff the agency asks for ahead of a fresh session it opens for an agent that had one: why, and the room\nwhose session is asked where the agent keeps one in each room, and the room the line is told in; the cause that\nline names, a `HandoverCause` kind, `other` where none is named, and the account key of the person who asked,\nwhere one did. `clean` asks the session to consolidate and close with no handoff, so the fresh session opens on\nno note; `ask` false asks no session at all and tells the room's line alone.",
         "properties": {
@@ -1692,6 +1709,35 @@
           "queued"
         ],
         "type": "object"
+      },
+      "MemberGrants": {
+        "description": "A member's rights as they now stand, answered after a grant.",
+        "properties": {
+          "account": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "letIn": {
+            "type": "boolean"
+          },
+          "takeOut": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "account",
+          "letIn",
+          "takeOut"
+        ],
+        "type": "object"
+      },
+      "MemberRight": {
+        "description": "One of a room member's rights over the room's people, named as a grant route words it.",
+        "enum": [
+          "let-in",
+          "take-out"
+        ],
+        "type": "string"
       },
       "Message": {
         "properties": {
@@ -3329,6 +3375,31 @@
           "person",
           "name",
           "statusMessage"
+        ],
+        "type": "object"
+      },
+      "RoomMemberGrants": {
+        "description": "`GET /rooms/{roomId}/accounts/{account}/grants`: one member's rights in the room, and whether the asking account\nmay write them.",
+        "properties": {
+          "account": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "letIn": {
+            "type": "boolean"
+          },
+          "mayWrite": {
+            "type": "boolean"
+          },
+          "takeOut": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "account",
+          "letIn",
+          "takeOut",
+          "mayWrite"
         ],
         "type": "object"
       },
@@ -6981,6 +7052,211 @@
           "bad-request",
           "not-found",
           "private-room",
+          "upstream-failed",
+          "failed"
+        ]
+      }
+    },
+    "/rooms/{roomId}/accounts/{account}/grants": {
+      "delete": {
+        "operationId": "revokeMemberRight",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "account",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "by",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "right",
+            "required": true,
+            "schema": {
+              "enum": [
+                "let-in",
+                "take-out"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Done; no content."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, bad-request, not-found, private-room, not-room-leader, upstream-failed, failed"
+          }
+        },
+        "summary": "One of a member's rights taken back by a manager who governs the room.",
+        "tags": [
+          "Rooms"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "bad-request",
+          "not-found",
+          "private-room",
+          "not-room-leader",
+          "upstream-failed",
+          "failed"
+        ]
+      },
+      "get": {
+        "operationId": "roomMemberGrants",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "account",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "by",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoomMemberGrants"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, bad-request, not-found, upstream-failed, failed"
+          }
+        },
+        "summary": "One member's rights over the room's people, and whether the asking account may write them.",
+        "tags": [
+          "Rooms"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "bad-request",
+          "not-found",
+          "upstream-failed",
+          "failed"
+        ]
+      },
+      "put": {
+        "operationId": "grantMemberRight",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "account",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GrantMemberRight"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberGrants"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, bad-request, not-found, private-room, not-room-leader, upstream-failed, failed"
+          }
+        },
+        "summary": "One of a member's rights granted by a manager who governs the room, the rights as they now stand.",
+        "tags": [
+          "Rooms"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "bad-request",
+          "not-found",
+          "private-room",
+          "not-room-leader",
           "upstream-failed",
           "failed"
         ]

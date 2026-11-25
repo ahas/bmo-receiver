@@ -381,6 +381,14 @@ flowchart TD
   person who joins the unit later is not let in by it and one who leaves it stays a member. A member taken out is no longer listed and no longer reads the room through its
   membership. An agent room opened by an account (`POST /rooms`, `openedBy`) has that account as its first member,
   let in by itself and with no line.
+- **A member's rights over the room's people stand beside its membership** (`room_grants`, `docs/store.md`): whether
+  it may let a person in and take a member out, each a switch a manager sets. Being a member grants neither; a room
+  is let into and cleared of members by the rule the web unit's entry check applies, and these rights are the
+  manager's to extend beyond it. Who may write them is the same standing that locks a room: its administrator, its
+  leader or a head of a leader's unit (「An archived room」). The receiver judges no other right of an account here,
+  holding only that nothing in a private room is written by another account. The console offers the switches on its
+  members list and the entry check reads what the receiver keeps, so a right a manager grants takes effect for that
+  person.
 - **A BMO's private room is the record room written when the supervisor was added,** naming it alone: its own
   room under the supervisor's name on the record. It is one-to-one with the supervisor's owner account, the
   account its addition names as `ownerAccount` or, where that named none, the one the agency's registration names;

@@ -754,6 +754,42 @@ pub struct LetInUnitAccounts {
   pub let_in: Vec<i64>,
 }
 
+/// One of a room member's rights over the room's people, named as a grant route words it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum MemberRight {
+  LetIn,
+  TakeOut,
+}
+
+/// `GET /rooms/{roomId}/accounts/{account}/grants`: one member's rights in the room, and whether the asking account
+/// may write them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct RoomMemberGrants {
+  pub account: i64,
+  pub let_in: bool,
+  pub take_out: bool,
+  pub may_write: bool,
+}
+
+/// `PUT /rooms/{roomId}/accounts/{account}/grants`: the account writing and the one right to grant.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct GrantMemberRight {
+  pub by: i64,
+  pub right: MemberRight,
+}
+
+/// A member's rights as they now stand, answered after a grant.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct MemberGrants {
+  pub account: i64,
+  pub let_in: bool,
+  pub take_out: bool,
+}
+
 /// `PUT /accounts/{account}/identity`'s body: the name the account's record identity goes by from then, the same
 /// field an account's words carry; none names nothing.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

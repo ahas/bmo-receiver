@@ -12,6 +12,7 @@ mod console;
 mod events;
 mod figures;
 mod file_fills;
+mod grants;
 mod handoffs;
 mod handovers;
 mod hooks;
@@ -133,6 +134,29 @@ pub(super) async fn is_administrator(receiver: &Receiver, by: &str) -> bool {
   matches!(receiver.units().web.user(by).await, Ok(found) if found.administrator)
 }
 
+/// Whether the named account governs a room, which is who may lock it and who may write a member's rights in it:
+/// the administrator, the room's leader (the person who owns a supervisor it names), or a head of a leader's unit
+/// (`docs/receiver.md`, 「An archived room」 and 「Console rooms and accounts」). A room whose leaders the agency
+/// does not answer is a call that did not reach; the check says so rather than guessing no one governs it.
+async fn governs_room(receiver: &Receiver, by: &str, room: i64) -> Result<bool, Refusal> {
+  let named = crate::receiver::wake::agents::named_designated(receiver, room)
+    .await
+    .map_err(|why| refused(StatusCode::BAD_GATEWAY, "upstream-failed", &why.to_string()))?;
+  let leaders = crate::receiver::wake::agents::leaders_of(&named);
+
+  if by.parse::<i64>().is_ok_and(|account| leaders.contains(&account)) {
+    return Ok(true);
+  }
+
+  for leader in &leaders {
+    if receiver.units().web.heads_unit_of(by, &leader.to_string()).await.unwrap_or(false) {
+      return Ok(true);
+    }
+  }
+
+  Ok(is_administrator(receiver, by).await)
+}
+
 impl IntoResponse for Refusal {
   fn into_response(self) -> Response {
     let body = Json(json!({ "code": self.code, "error": self.error }));
@@ -251,6 +275,9 @@ fn table() -> Vec<(String, String, MethodRouter<Served>)> {
     ("POST", "/rooms/{roomId}/accounts", post(accounts::let_in_several)),
     ("POST", "/rooms/{roomId}/unit-accounts", post(accounts::let_in_unit)),
     ("DELETE", "/rooms/{roomId}/accounts/{account}", delete(accounts::take_out)),
+    ("GET", "/rooms/{roomId}/accounts/{account}/grants", get(grants::read_grants)),
+    ("PUT", "/rooms/{roomId}/accounts/{account}/grants", put(grants::grant_right)),
+    ("DELETE", "/rooms/{roomId}/accounts/{account}/grants", delete(grants::take_back)),
     ("PUT", "/accounts/{account}/identity", put(accounts::identity)),
     ("GET", "/accounts/{account}/rooms", get(accounts::rooms)),
     ("GET", "/accounts/{account}/removal", get(account_removal::counted)),

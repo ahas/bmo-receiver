@@ -763,6 +763,25 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/rooms/{roomId}/accounts/{account}/grants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One member's rights over the room's people, and whether the asking account may write them. */
+        get: operations["roomMemberGrants"];
+        /** One of a member's rights granted by a manager who governs the room, the rights as they now stand. */
+        put: operations["grantMemberRight"];
+        post?: never;
+        /** One of a member's rights taken back by a manager who governs the room. */
+        delete: operations["revokeMemberRight"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/rooms/{roomId}/answerers": {
         parameters: {
             query?: never;
@@ -2084,6 +2103,12 @@ export interface components {
             room: number;
             senderName: string;
         };
+        /** @description `PUT /rooms/{roomId}/accounts/{account}/grants`: the account writing and the one right to grant. */
+        GrantMemberRight: {
+            /** Format: int64 */
+            by: number;
+            right: components["schemas"]["MemberRight"];
+        };
         /**
          * @description A handoff the agency asks for ahead of a fresh session it opens for an agent that had one: why, and the room
          *     whose session is asked where the agent keeps one in each room, and the room the line is told in; the cause that
@@ -2344,6 +2369,18 @@ export interface components {
             queued: components["schemas"]["QueuedMessage"][];
             turns: unknown[];
         };
+        /** @description A member's rights as they now stand, answered after a grant. */
+        MemberGrants: {
+            /** Format: int64 */
+            account: number;
+            letIn: boolean;
+            takeOut: boolean;
+        };
+        /**
+         * @description One of a room member's rights over the room's people, named as a grant route words it.
+         * @enum {string}
+         */
+        MemberRight: "let-in" | "take-out";
         Message: {
             /**
              * @description The registration name of the agent whose words these are, set on a send the receiver archived itself and
@@ -2978,6 +3015,17 @@ export interface components {
             person: number | null;
             /** @description The person's status line, or null where the service gave none. */
             statusMessage: string | null;
+        };
+        /**
+         * @description `GET /rooms/{roomId}/accounts/{account}/grants`: one member's rights in the room, and whether the asking account
+         *     may write them.
+         */
+        RoomMemberGrants: {
+            /** Format: int64 */
+            account: number;
+            letIn: boolean;
+            mayWrite: boolean;
+            takeOut: boolean;
         };
         /** @description The people in a room, as the room's own chat service lists them, whole. */
         RoomMembers: {
@@ -5072,6 +5120,109 @@ export interface operations {
                 content?: never;
             };
             /** @description A refusal or failure: unauthorized, bad-request, not-found, private-room, upstream-failed, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    roomMemberGrants: {
+        parameters: {
+            query: {
+                by: string;
+            };
+            header?: never;
+            path: {
+                roomId: number;
+                account: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoomMemberGrants"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, bad-request, not-found, upstream-failed, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    grantMemberRight: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                roomId: number;
+                account: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GrantMemberRight"];
+            };
+        };
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberGrants"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, bad-request, not-found, private-room, not-room-leader, upstream-failed, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    revokeMemberRight: {
+        parameters: {
+            query: {
+                by: string;
+                right: "let-in" | "take-out";
+            };
+            header?: never;
+            path: {
+                roomId: number;
+                account: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Done; no content. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A refusal or failure: unauthorized, bad-request, not-found, private-room, not-room-leader, upstream-failed, failed */
             default: {
                 headers: {
                     [name: string]: unknown;

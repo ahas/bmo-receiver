@@ -85,6 +85,7 @@ takes it outright: the table holds no default agent.
 | `instruction_rounds` | one turn of a round's pipeline, or its end (`docs/instruction.md`, 「The round log」): the round, the room, the agent, its number, the name its row goes by, its kind, its answer's length, whether it changed, how it ended, a detail, the answer, how long it took and when, and on the end what the round read from the brain, the session its turn ran on and how many pieces that session's earlier rounds in the room read in full, and on a turn's row that spanned several turns of the agent's program each one's answer | its number |
 | `private_rooms` | a room kept as a private room: the account it is private to, or null while that account is not known yet and the room is sealed, and when the row was written. A room with no row is no private room. An account once written never changes or clears, whatever becomes of the supervisor or the account; the row goes only with the room's removal (`docs/receiver.md`, 「Console rooms and accounts」) | room |
 | `room_accounts` | an account that is a member of a room in the console: who let it in and when, and, once it went out or was taken out, who and when, both null while it is a member; let in again, the row stands as let in anew (`docs/receiver.md`, 「Console rooms and accounts」) | room and account |
+| `room_grants` | a room member's rights over its people, beside its membership: whether it may let a person in and take a member out, each a switch; a row stands while either is on, and a manager who governs the room writes them (`docs/receiver.md`, 「Console rooms and accounts」) | room and account |
 | `room_situations` | a room's situation note, the receiver's own (`docs/instruction.md`, 「The situation note」): its text, replaced when it changes, when it last did, and the row of the room's record it has read to | room |
 
 A message is one row a room and number, so a message handed over again writes the same row (`docs/messages.md`,
@@ -101,10 +102,11 @@ text is the version the round's record names.
 A room's line is read newest first or from a message the reader holds, by when each message was sent and then by
 its row, so `messages` is indexed by room, time and row, and a page reads only the messages it answers. The roads a
 room's messages came in on are read off an index of the messages that name one, by room and road.
-The rooms an account is a member of are read off an index of `room_accounts` by account. An account's removal
-takes every row keyed by the account or its record identity: its private rooms' whole records, its `room_accounts`
-rows, its `provider_users` row, and the `people_names`, `muted_members`, `avatar_sets` and `avatars` rows of its
-record identity (`docs/receiver.md`, 「An account's removal」).
+The rooms an account is a member of are read off an index of `room_accounts` by account, and an account's rights
+over the people of its rooms off an index of `room_grants` by account. An account's removal takes every row keyed by
+the account or its record identity: its private rooms' whole records, its `room_accounts` and `room_grants` rows, its
+`provider_users` row, and the `people_names`, `muted_members`, `avatar_sets` and `avatars` rows of its record
+identity (`docs/receiver.md`, 「An account's removal」).
 A round's end reads the end of its room and session written last before it, so the round log's end rows are indexed
 by room and session in the order they were written, and a room's rounds are listed off an index of the round log
 by room and row.

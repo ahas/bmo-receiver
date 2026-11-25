@@ -1059,6 +1059,65 @@ pub fn openapi() -> Value {
     vec![(204, empty_answer())],
     vec!["unauthorized", "bad-request", "not-found", "private-room", "upstream-failed", "failed"]
   );
+  add!(
+    "GET",
+    "/rooms/{roomId}/accounts/{account}/grants",
+    "roomMemberGrants",
+    "Rooms",
+    "One member's rights over the room's people, and whether the asking account may write them.",
+    vec![path_parameter("roomId"), path_parameter("account"), parameter("by", "string", true)],
+    None,
+    vec![(200, json_answer::<RoomMemberGrants>(&mut generator))],
+    vec!["unauthorized", "bad-request", "not-found", "upstream-failed", "failed"]
+  );
+  add!(
+    "PUT",
+    "/rooms/{roomId}/accounts/{account}/grants",
+    "grantMemberRight",
+    "Rooms",
+    "One of a member's rights granted by a manager who governs the room, the rights as they now stand.",
+    vec![path_parameter("roomId"), path_parameter("account")],
+    Some(generator.subschema_for::<GrantMemberRight>()),
+    vec![(200, json_answer::<MemberGrants>(&mut generator))],
+    vec![
+      "unauthorized",
+      "bad-request",
+      "not-found",
+      "private-room",
+      "not-room-leader",
+      "upstream-failed",
+      "failed"
+    ]
+  );
+  add!(
+    "DELETE",
+    "/rooms/{roomId}/accounts/{account}/grants",
+    "revokeMemberRight",
+    "Rooms",
+    "One of a member's rights taken back by a manager who governs the room.",
+    vec![
+      path_parameter("roomId"),
+      path_parameter("account"),
+      parameter("by", "string", true),
+      json!({
+        "name": "right",
+        "in": "query",
+        "required": true,
+        "schema": { "type": "string", "enum": ["let-in", "take-out"] }
+      })
+    ],
+    None,
+    vec![(204, empty_answer())],
+    vec![
+      "unauthorized",
+      "bad-request",
+      "not-found",
+      "private-room",
+      "not-room-leader",
+      "upstream-failed",
+      "failed"
+    ]
+  );
   add_optional_body!(
     "PUT",
     "/accounts/{account}/identity",

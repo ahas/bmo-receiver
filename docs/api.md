@@ -128,6 +128,9 @@ placeholder that never moves; the package is never taken from a registry, and no
 | `POST /rooms/{roomId}/accounts` | `accounts`, the keys of the accounts to let in, at least one; `by`, the account letting them in | `accounts`, each account asked as a member as it now stands, and `letIn`, the keys of those this call let in |
 | `POST /rooms/{roomId}/unit-accounts` | `unit`, an organisation unit's number in the web unit; `by`, the account letting its members in | `unit`, `unitName`, `accounts`, each of the unit's members as a member of the room as it now stands, and `letIn`, the keys of those this call let in |
 | `DELETE /rooms/{roomId}/accounts/{account}` | `by`, the account taking it out, the member itself where it leaves | 204 |
+| `GET /rooms/{roomId}/accounts/{account}/grants` | `by`, the account asking | `account`, its rights `letIn` and `takeOut` over the room's people (each false where none is granted), and `mayWrite`, whether `by` governs the room and so writes such rights; `not-found` (404) for a room the receiver does not hold, `bad-request` (400) for a key that is none |
+| `PUT /rooms/{roomId}/accounts/{account}/grants` | `by`, the account granting; `right`, `let-in` or `take-out` | the member's rights as they now stand, `letIn` and `takeOut`; the same rights where it holds the right already; `not-room-leader` (403) where `by` governs the room no way named, `not-found` (404), `bad-request` (400) for no `right` or another one |
+| `DELETE /rooms/{roomId}/accounts/{account}/grants` | `by`, the account taking back; `right`, `let-in` or `take-out` | 204; `not-room-leader` (403) where `by` governs the room no way named, `not-found` (404), `bad-request` (400) for no `right` or another one |
 | `PUT /accounts/{account}/identity` | `name?`, the name the identity goes by from then | `account` and `sender`, the account's record identity, made where it does not stand |
 | `GET /accounts/{account}/rooms` | | `rooms`, the numbers of the rooms the account is a member of in the console, its private rooms among them |
 | `GET /accounts/{account}/removal` | `Owner-Key` and `Owner-Role` (the administrator) | `counts`, what the account's removal would take now, by kind; nothing written |
@@ -295,6 +298,14 @@ placeholder that never moves; the package is never taken from a registry, and no
   (`GET /people`, `GET /rooms/{roomId}/people`, a forward that names none) answers the latest, so a name the console
   changes reaches the record with no words sent. A missing body, or one with no `name`, names nothing; a `name`
   that is blank is refused 400 `bad-request`.
+- **A room member's rights over its people** stand beside its membership, kept by the receiver and read by the web
+  unit's entry check. `GET /rooms/{roomId}/accounts/{account}/grants` answers the member's `letIn` and `takeOut` (each
+  false where none is granted) and `mayWrite`, whether the asking `by` governs the room; `PUT` grants and `DELETE`
+  takes back the one `right` named, `let-in` or `take-out`, the `PUT` answering the rights as they now stand and the
+  `DELETE` answering 204. Who may write is the same standing that locks a room: its administrator, its leader or a
+  head of a leader's unit (`docs/receiver.md`, 「Console rooms and accounts」 and 「An archived room」). Anyone else is
+  refused 403 `not-room-leader`; the room is no one's private room, the guard every write in a room meets among them.
+  These roads stand outside the published client, the console asking them on the receiver's address.
 - **A room's removal** asks the record what it would take, each declared holder and the agency, and refuses
   anyone but the administrator (`by` names who removes it, as the web unit knows him). The administrator removes any
   room, another account's private room and a sealed one among them; any other caller is refused 403

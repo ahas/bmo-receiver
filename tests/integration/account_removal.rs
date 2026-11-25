@@ -218,6 +218,10 @@ async fn an_accounts_removal_is_counted_then_taken_as_counted_and_nothing_of_any
       vec![SHARED.into(), leaving.into(), OWN_B.into()],
     ),
     (
+      r#"INSERT INTO "room_grants" ("chat_id", "account", "let_in", "take_out") VALUES ($1, $2, TRUE, FALSE)"#,
+      vec![SHARED.into(), LEAVING.into()],
+    ),
+    (
       r#"INSERT INTO "people_names" ("sender_id", "name", "named_at") VALUES ($1, 'seven', 1), ($2, 'nine', 1)"#,
       vec![leaving.into(), others.into()],
     ),
@@ -236,6 +240,7 @@ async fn an_accounts_removal_is_counted_then_taken_as_counted_and_nothing_of_any
   let expected = json!({
     "private-rooms": 2,
     "memberships": 1,
+    "grants": 1,
     "identities": 1,
     "names": 1,
     "mutes": 1,
@@ -263,6 +268,7 @@ async fn an_accounts_removal_is_counted_then_taken_as_counted_and_nothing_of_any
     (r#"SELECT count(*) FROM "private_rooms" WHERE "account" = $1"#, vec![LEAVING.into()], 0),
     (r#"SELECT count(*) FROM "room_accounts" WHERE "account" = $1"#, vec![LEAVING.into()], 0),
     (r#"SELECT count(*) FROM "room_accounts" WHERE "account" = $1"#, vec![MEMBER.into()], 1),
+    (r#"SELECT count(*) FROM "room_grants" WHERE "account" = $1"#, vec![LEAVING.into()], 0),
     (
       r#"SELECT count(*) FROM "provider_users" WHERE "sender_id" = $1"#,
       vec![leaving.into()],
@@ -299,6 +305,7 @@ async fn an_accounts_removal_is_counted_then_taken_as_counted_and_nothing_of_any
   let zeros = json!({
     "private-rooms": 0,
     "memberships": 0,
+    "grants": 0,
     "identities": 0,
     "names": 0,
     "mutes": 0,

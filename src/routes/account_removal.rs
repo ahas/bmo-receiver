@@ -79,6 +79,7 @@ fn kinds(private_rooms: i64, rows: AccountRows) -> Value {
   json!({
     "private-rooms": private_rooms,
     "memberships": rows.memberships,
+    "grants": rows.grants,
     "identities": rows.identities,
     "names": rows.names,
     "mutes": rows.mutes,

@@ -161,6 +161,110 @@ pub async fn take_out(db: &DatabaseConnection, chat_id: i64, account: i64, by: i
   Ok(taken > 0)
 }
 
+/// A room member's rights over its people, beside its membership: whether it may let a person in and take a member
+/// out. None of them is granted by being a member; a manager grants them (docs/receiver.md, 「Console rooms and
+/// accounts」).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Grants {
+  pub let_in: bool,
+  pub take_out: bool,
+}
+
+/// One of a member's rights a manager grants or takes back.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Right {
+  LetIn,
+  TakeOut,
+}
+
+impl Right {
+  /// The column the right stands in.
+  fn column(self) -> &'static str {
+    match self {
+      Self::LetIn => "let_in",
+      Self::TakeOut => "take_out",
+    }
+  }
+
+  /// The row a grant of this right alone, as it first stands.
+  fn first(self) -> (bool, bool) {
+    match self {
+      Self::LetIn => (true, false),
+      Self::TakeOut => (false, true),
+    }
+  }
+}
+
+/// A member's rights now, none where the room holds no row for it.
+pub async fn grants(db: &DatabaseConnection, chat_id: i64, account: i64) -> Result<Grants, Fault> {
+  let held = one(
+    db,
+    r#"SELECT "let_in", "take_out" FROM "room_grants" WHERE "chat_id" = $1 AND "account" = $2"#,
+    vec![chat_id.into(), account.into()],
+  )
+  .await?;
+
+  match held {
+    Some(row) => Ok(Grants {
+      let_in: row.try_get("", "let_in")?,
+      take_out: row.try_get("", "take_out")?,
+    }),
+    None => Ok(Grants::default()),
+  }
+}
+
+/// One of a member's rights granted, the row stood where it does not stand: the rights as they now stand. Granting a
+/// right the member holds already changes nothing.
+pub async fn grant(
+  db: &DatabaseConnection,
+  chat_id: i64,
+  account: i64,
+  right: Right,
+) -> Result<Grants, Fault> {
+  let (let_in, take_out) = right.first();
+  run(
+    db,
+    &format!(
+      r#"INSERT INTO "room_grants" ("chat_id", "account", "let_in", "take_out") VALUES ($1, $2, $3, $4)
+         ON CONFLICT ("chat_id", "account") DO UPDATE SET "{}" = TRUE"#,
+      right.column()
+    ),
+    vec![chat_id.into(), account.into(), let_in.into(), take_out.into()],
+  )
+  .await?;
+
+  grants(db, chat_id, account).await
+}
+
+/// One of a member's rights taken back; the row goes where neither right stands any more. Whether the right was
+/// held until now.
+pub async fn revoke(
+  db: &DatabaseConnection,
+  chat_id: i64,
+  account: i64,
+  right: Right,
+) -> Result<bool, Fault> {
+  let taken = run(
+    db,
+    &format!(
+      r#"UPDATE "room_grants" SET "{}" = FALSE
+         WHERE "chat_id" = $1 AND "account" = $2 AND "{}""#,
+      right.column(),
+      right.column()
+    ),
+    vec![chat_id.into(), account.into()],
+  )
+  .await?;
+  run(
+    db,
+    r#"DELETE FROM "room_grants" WHERE "chat_id" = $1 AND "account" = $2 AND NOT "let_in" AND NOT "take_out""#,
+    vec![chat_id.into(), account.into()],
+  )
+  .await?;
+
+  Ok(taken > 0)
+}
+
 /// The rooms an account is a member of now, by account, in room order.
 pub async fn rooms_of(db: &DatabaseConnection, account: i64) -> Result<Vec<i64>, Fault> {
   all(
@@ -399,6 +503,8 @@ pub async fn kept_private_rooms_of(db: &DatabaseConnection, account: i64) -> Res
 pub struct AccountRows {
   /// Its rows as a member of a room that is not its private room.
   pub memberships: i64,
+  /// Its rights over the people of a room that is not its private room.
+  pub grants: i64,
   /// Its record identity.
   pub identities: i64,
   /// The name its record identity goes by.
@@ -430,9 +536,17 @@ pub async fn account_rows(db: &DatabaseConnection, account: i64) -> Result<Accou
     vec![account.into()],
   )
   .await?;
+  let grants = counted(
+    db,
+    r#"SELECT count(*) AS "n" FROM "room_grants" WHERE "account" = $1
+       AND "chat_id" NOT IN (SELECT "chat_id" FROM "private_rooms" WHERE "account" = $1)"#,
+    vec![account.into()],
+  )
+  .await?;
   let Some(sender) = identity_of(db, account).await? else {
     return Ok(AccountRows {
       memberships,
+      grants,
       ..AccountRows::default()
     });
   };
@@ -459,6 +573,7 @@ pub async fn account_rows(db: &DatabaseConnection, account: i64) -> Result<Accou
 
   Ok(AccountRows {
     memberships,
+    grants,
     identities: 1,
     names,
     mutes,
@@ -477,6 +592,9 @@ pub async fn take_account_rows(
   let mut taken = AccountRows {
     memberships: wrote(
       run(&written, r#"DELETE FROM "room_accounts" WHERE "account" = $1"#, vec![account.into()]).await?,
+    ),
+    grants: wrote(
+      run(&written, r#"DELETE FROM "room_grants" WHERE "account" = $1"#, vec![account.into()]).await?,
     ),
     ..AccountRows::default()
   };

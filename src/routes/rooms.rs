@@ -931,21 +931,7 @@ pub async fn change_room_archive(
     return Err(refused(StatusCode::NOT_FOUND, "not-found", &format!("no chat {room} is held")));
   }
 
-  let named = crate::receiver::wake::agents::named_designated(&receiver, room)
-    .await
-    .map_err(|why| refused(StatusCode::BAD_GATEWAY, "upstream-failed", &why.to_string()))?;
-  let leaders = crate::receiver::wake::agents::leaders_of(&named);
-  let mut leads = by.parse::<i64>().is_ok_and(|account| leaders.contains(&account));
-
-  // A head of the unit the room belongs to, its leader's, leads it as well.
-  for leader in &leaders {
-    if leads {
-      break;
-    }
-    leads = receiver.units().web.heads_unit_of(&by, &leader.to_string()).await.unwrap_or(false);
-  }
-
-  if !leads && !super::is_administrator(&receiver, &by).await {
+  if !super::governs_room(&receiver, &by, room).await? {
     return Err(refused(
       StatusCode::FORBIDDEN,
       "not-room-leader",

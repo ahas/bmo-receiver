@@ -47,15 +47,15 @@ fn member_shape(member: &Member) -> Value {
   json!({ "account": member.account, "addedBy": member.added_by, "addedAt": member.added_at })
 }
 
-// An account's key as the path gives it, decimal text.
-fn account_key(account: &str) -> Result<i64, Refusal> {
+/// An account's key as the path gives it, decimal text.
+pub(super) fn account_key(account: &str) -> Result<i64, Refusal> {
   account.trim().parse::<i64>().map_err(|_| {
     refused(StatusCode::BAD_REQUEST, "bad-request", "an account is named by its key, a number")
   })
 }
 
-// A room the receiver holds, refused 404 where it holds none.
-async fn held(receiver: &Receiver, room: i64) -> Result<(), Refusal> {
+/// A room the receiver holds, refused 404 where it holds none.
+pub(super) async fn held(receiver: &Receiver, room: i64) -> Result<(), Refusal> {
   if known(receiver, room).await? {
     return Ok(());
   }
@@ -186,8 +186,8 @@ async fn told(receiver: &Receiver, room: i64, line: FixedLine) {
   }
 }
 
-// The account a write acts for, refused where the call names none.
-fn by_of(writable: &WritableRoom) -> Result<i64, Refusal> {
+/// The account a write acts for, refused where the call names none.
+pub(super) fn by_of(writable: &WritableRoom) -> Result<i64, Refusal> {
   writable
     .writer
     .account()

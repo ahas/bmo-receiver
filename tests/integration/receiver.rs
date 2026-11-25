@@ -30,6 +30,7 @@ mod record_alone_rooms;
 mod room_addition;
 mod room_archive;
 mod room_figures;
+mod room_grants;
 mod room_members;
 mod room_mode;
 mod room_pictures;
