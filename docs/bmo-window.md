@@ -352,10 +352,13 @@ which of the brain's material that is, is the gate's decision alone (the gate's 
     the turn's road records its gates.
 - **What the gate decides:** the entries the turn carries, all of the turn's agent's own and of rows marked for
   every agent, never another agent's. Nothing of a room attaches for standing there, and no gate picks: the gate
-  answers what attaches without a pick — the head of the standing sheet of each person who spoke, the room's due
-  memories, the errands whose event has come, at most three, and the rows the turn's events wake. The room's
-  rules, its other memories and the brain's references are no turn's to be handed; the agent reads them through
-  the index. A turn with no line at all still carries what attaches.
+  answers what attaches without a pick — the head of the standing sheet of each person who spoke, the org sheet of
+  the person the agent serves, the sheet of the rows the services of the deployment left standing in the agent's
+  brain (the brain's `docs/design.md`, 「What a holder leaves」), the room's due memories, the errands whose event
+  has come, at most three, and the rows the turn's events wake. The room's rules, its other memories and the
+  brain's references are no turn's to be handed, and neither is any sheet, the holders' among them: those come
+  only as the gate's answer, never from the room's block. The agent reads what else it needs through the index.
+  A turn with no line at all still carries what attaches.
 
 **A supervisor whose brain or reference is off asks the gate for no core.** Its turns carry no entry the gate
 would attach, and its room's block no index, hint or due line, nor the block's rules about the index; a person's own

@@ -221,7 +221,8 @@ record each turn of it leaves. A quiet instruction is a different thing — a ro
   closes what the receiver carries exactly as the brain switch off does, since the index, the core and the rules about them
   are the turn's reference: the room's block carries no index, no hint and no due line, and none of the block's rules about
   the index (`docs/bmo-window.md`, 「What every turn carries」); the turn's core is not asked of the gate's reference selection,
-  so no sheet, memory, errand or woken row is attached; a person's own thread, which is the room's record, still goes in.
+  so no sheet, memory, holder row, errand or woken row is attached; a person's own thread, which is the room's record,
+  still goes in.
 - **The tools that reach the brain are the agency's to leave out** of the supervisor's session record under the same switch
   (the agency's `docs/supervisors.md`). A stage that asks the brain (like the default `review`) still runs while the brain
   is off; the agent answers it with what it holds.
