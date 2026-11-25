@@ -21,16 +21,12 @@ use crate::integration::common::units::{AGENT, OWNER, deployment, unrun};
 
 const ROOM: i64 = 7;
 
-// A unit's deploy root with its record, and the release's version where one is given.
-fn deployed(roots: &Path, folder: &str, record: serde_json::Value, version: Option<&str>) {
+// A unit's deploy root with its record.
+fn deployed(roots: &Path, folder: &str, record: serde_json::Value) {
   let root = roots.join(folder);
 
-  std::fs::create_dir_all(root.join("deploy")).unwrap();
+  std::fs::create_dir_all(&root).unwrap();
   std::fs::write(root.join("deployed.json"), record.to_string()).unwrap();
-
-  if let Some(version) = version {
-    std::fs::write(root.join("deploy").join("VERSION"), format!("{version}\n")).unwrap();
-  }
 }
 
 // An RFC 3339 time, as the testbed writes a record's moment.
@@ -77,25 +73,22 @@ async fn a_round_is_told_of_the_deployments_since_the_owner_was_last_briefed() {
     roots.path(),
     "bmo-approval",
     json!({ "commit": "a".repeat(40), "subject": "subject a", "message": "message a", "version": "1.2.0", "at": written(now - 60_000) }),
-    Some("9.9.9"),
   );
   deployed(
     roots.path(),
     "bmo-attendance",
-    json!({ "commit": "0123456789abcdef", "subject": "subject b", "at": now - 30_000 }),
-    Some("0.3.0"),
+    json!({ "commit": "0123456789abcdef", "subject": "subject b", "version": "0.3.0", "at": now - 30_000 }),
   );
   deployed(
     roots.path(),
     "bmo-schedule",
     json!({ "commit": "c".repeat(40), "subject": "long gone", "at": written(now - 7_200_000) }),
-    None,
   );
-  deployed(roots.path(), "ms-teams", json!({ "subject": "no deploy root", "at": now }), None);
+  deployed(roots.path(), "ms-teams", json!({ "subject": "no deploy root", "at": now }));
   std::fs::create_dir_all(roots.path().join("bmo-kakaotalk")).unwrap();
 
   // The first round of a session never briefed names the deployments within the fresh while, oldest first, the
-  // record's own version and message before the release's and the subject.
+  // record's own version, and its message before its subject.
   let around = Around::new(receiver.clone()).reading_deploys(Some(roots.path().to_path_buf()));
 
   around.riders(AGENT, ROOM).await;
@@ -120,7 +113,7 @@ async fn a_round_is_told_of_the_deployments_since_the_owner_was_last_briefed() {
   assert_eq!(rows(&scratch, OWNER).await.len(), 1);
 
   // The agency deployed since the briefing is briefed like any unit, and never as a relaunch: only that deployment
-  // is named, with its commit standing in for a version the record and the release name none, and the row still
+  // is named, with its commit standing in for a version the record names none, and the row still
   // waiting is replaced.
   tokio::time::sleep(Duration::from_millis(20)).await;
   let agency_at = now_ms() - 5;
@@ -128,7 +121,6 @@ async fn a_round_is_told_of_the_deployments_since_the_owner_was_last_briefed() {
     roots.path(),
     "bmo-agency",
     json!({ "commit": "d".repeat(40), "subject": "agency subject", "at": agency_at }),
-    None,
   );
   tokio::time::sleep(Duration::from_millis(20)).await;
   around.riders(AGENT, ROOM).await;
@@ -158,7 +150,6 @@ async fn a_round_is_told_of_the_deployments_since_the_owner_was_last_briefed() {
     roots.path(),
     "bmo-attendance",
     json!({ "commit": "e".repeat(40), "subject": "subject b again", "version": "0.4.0", "at": unit_at }),
-    None,
   );
   tokio::time::sleep(Duration::from_millis(20)).await;
   around.riders(AGENT, ROOM).await;
@@ -186,13 +177,11 @@ fn a_record_missing_its_commit_or_message_is_named_by_what_it_holds() {
     roots.path(),
     "bmo-approval",
     json!({ "subject": "no commit", "version": "1.0.0", "at": 1_700_000_000_000i64 }),
-    None,
   );
   deployed(
     roots.path(),
     "bmo-attendance",
     json!({ "version": "2.0.0", "at": 1_700_000_001_000i64 }),
-    None,
   );
 
   let text = instruction(&deployments(roots.path(), None));
@@ -219,7 +208,6 @@ async fn the_briefing_goes_to_the_owners_private_room_where_a_notices_room_is_na
     roots.path(),
     "bmo-approval",
     json!({ "commit": "a".repeat(40), "subject": "subject a", "at": now_ms() - 60_000 }),
-    None,
   );
   Around::new(receiver.clone())
     .reading_deploys(Some(roots.path().to_path_buf()))
@@ -248,7 +236,6 @@ async fn the_briefing_goes_to_the_owners_private_room_where_one_is_named_and_no_
     roots.path(),
     "bmo-approval",
     json!({ "commit": "a".repeat(40), "subject": "subject a", "at": now_ms() - 60_000 }),
-    None,
   );
   Around::new(receiver.clone())
     .reading_deploys(Some(roots.path().to_path_buf()))
@@ -279,7 +266,6 @@ async fn only_an_agent_that_answers_the_owners_room_writes_his_briefing() {
     roots.path(),
     "bmo-approval",
     json!({ "commit": "a".repeat(40), "subject": "subject a", "at": now_ms() - 60_000 }),
-    None,
   );
 
   // A person's own supervisor, answering a room of theirs and not the owner's, writes nothing and keeps no moment.

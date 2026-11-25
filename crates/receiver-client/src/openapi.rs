@@ -1893,7 +1893,7 @@ pub fn openapi() -> Value {
     "openapi": "3.1.0",
     "info": {
       "title": "bmo-receiver",
-      "version": crate::VERSION,
+      "version": env!("CARGO_PKG_VERSION"),
       "description": DESCRIPTION,
     },
     "x-layer": "downstream",

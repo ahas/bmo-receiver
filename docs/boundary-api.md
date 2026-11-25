@@ -364,8 +364,8 @@ under the unit's deploy root (the testbed's `docs/deploy.md`, 「Deployment reco
 (`docs/wake.md`, 「Quiet instructions」). A unit is named by its deploy root's folder past `bmo-`. Of a record it
 reads `at`, the moment it went live, as an RFC 3339 time or epoch milliseconds; the deploy message, `message`
 where the record carries one, else `summary`, else `subject`; the commit, its first twelve characters; and the
-version, `version` where the record carries one, else the `VERSION` file of the release the deploy root's `deploy`
-link stands on, else that commit. A folder with no record, or a record with no time that reads, is no deployment.
+version, `version`, the set's version the deployment was built as, else that commit where a record names none.
+A folder with no record, or a record with no time that reads, is no deployment.
 
 ### The tool host
 
@@ -566,9 +566,9 @@ Statements the receiver makes that a sibling's document does not yet match, each
   does not list is named by the receiver's policy word for its `source`, and a piece's memory is read off the two
   path forms the gate builds for one memory, `memories/<id>` and `memories/<room>/memory-<id>`, so a knowledge
   piece or a rule filed under a path of its own names no memory (`docs/instruction.md`, 「The round log」).
-- **The testbed's deployment record** names its commit, subject, time and backup, and no version or deploy
-  message. The receiver reads `message` and `version` where a record carries them and stands in the subject and
-  the release's `VERSION` file where it does not (「The deployments」).
+- **The testbed's deployment record** names its commit, subject, time, backup and version, and no deploy
+  message. The receiver reads `message` where a record carries one and stands in the subject where it does not
+  (「The deployments」).
 - **The brain's tool** reports its `brain_fold` under the turn's `BMO_RUN_NAME`, a name new with every turn of a
   chat session, while the receiver reports a fold under the agency's id of the session (「The brain」 above): the
   fold the agent reports at a hand-off clears the marks of no key that outlives its own turn, until the brain's

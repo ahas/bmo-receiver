@@ -1,7 +1,5 @@
 # The receiver's fixed API
 
-**Fixed at 0.1.0-rev.1.**
-
 This document is the receiver's contract: every route it serves, in the one common wire format, grouped by the
 resource each acts on. `docs/openapi.json` is the same contract in machine form, generated from the types in
 `crates/receiver-client`, and the Rust crate and the TypeScript package beside it are written from that one
@@ -77,8 +75,8 @@ of `docs/codes.md`, each with its status and its fields.
 A downstream installs the package from a tarball: `bun pm pack` in `crates/receiver-client/ts` writes it, and
 the downstream keeps it under `vendor/` named by the commit it was packed from,
 `bmo-receiver-client-<commit>.tgz`, depending on it as
-`"@bmo/receiver-client": "file:vendor/bmo-receiver-client-<commit>.tgz"`. The package's version is the
-repository's, in `VERSION`; it is never taken from a registry, and no downstream pins it.
+`"@bmo/receiver-client": "file:vendor/bmo-receiver-client-<commit>.tgz"`. The package's version field is a
+placeholder that never moves; the package is never taken from a registry, and no downstream pins it.
 
 ## Health
 

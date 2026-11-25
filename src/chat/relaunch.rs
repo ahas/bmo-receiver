@@ -19,12 +19,10 @@ use crate::store::settings;
 // The folder a unit's deploy root is named by, before the unit's name.
 const ROOT_PREFIX: &str = "bmo-";
 
-// The deployment record under a deploy root, and the link to the release that went live beside it.
+// The deployment record under a deploy root.
 const RECORD: &str = "deployed.json";
-const RELEASE: &str = "deploy";
-const VERSION: &str = "VERSION";
 
-// How much of a commit stands for a version where the record and the release name none.
+// How much of a commit stands for a version where the record names none.
 const COMMIT_CHARS: usize = 12;
 
 /// One unit's deployment as its record tells it (docs/boundary-api.md, 「The deployments」).
@@ -67,22 +65,13 @@ pub fn deployment(root: &Path, unit: &str) -> Option<Deployed> {
   let text = std::fs::read_to_string(root.join(RECORD)).ok()?;
   let record: Value = serde_json::from_str(&text).ok()?;
   let at = moment(&record["at"])?;
-  let released = || {
-    let read = std::fs::read_to_string(root.join(RELEASE).join(VERSION)).ok()?;
-    let version = read.trim().to_owned();
-
-    (!version.is_empty()).then_some(version)
-  };
   let committed = || {
     let commit: String = record["commit"].as_str()?.chars().take(COMMIT_CHARS).collect();
 
     (!commit.is_empty()).then_some(commit)
   };
   let commit = committed();
-  let version = words(&record, &["version"])
-    .or_else(released)
-    .or_else(|| commit.clone())
-    .unwrap_or_default();
+  let version = words(&record, &["version"]).or_else(|| commit.clone()).unwrap_or_default();
 
   Some(Deployed {
     unit: unit.to_owned(),

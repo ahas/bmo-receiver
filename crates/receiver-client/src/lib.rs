@@ -15,6 +15,3 @@ pub use client::{ReceiverClient, wire_error};
 pub use openapi::{KeepMarks, PromiseAsk, ReadMarkCounts, RoomSince, openapi, openapi_json};
 pub use types::*;
 pub use wire::{Answer, ClientFailure, Page, WireError};
-
-/// The service's version, the workspace's.
-pub const VERSION: &str = env!("CARGO_PKG_VERSION");

@@ -22,8 +22,7 @@ library `bmo-chat-client`; every other unit over HTTP, as `docs/api.md` and `doc
 | `tests/` | the package's one test harness, `main.rs`: the checks that span the repository and the service's own tests a module per file, and the integration tests the module `tests/integration/`; the words a test asks in another unit's language, kept as data under `tests/fixtures/` |
 | `docs/` | the canonical statements of what the service does |
 
-At the root stand the Cargo workspace manifest, which is also the service's package, the version in
-`VERSION`, `testbed.toml` (the testbed's declaration of how this repository is tested, checked, built and
+At the root stand the Cargo workspace manifest, which is also the service's package, `testbed.toml` (the testbed's declaration of how this repository is tested, checked, built and
 deployed), `install.toml` (what installing it on a fresh machine needs, which `bmo install` reads), `rustfmt.toml`,
 `CLAUDE.md`, `settings.example.toml` (the checked-in example of the
 configuration, which the deployment's own file stands under the data root) and `korean-ledger.json` (the Korean
@@ -65,10 +64,12 @@ it, reporting the file, the line and the kind but never the value.
 
 ## Version
 
-- **One version for the whole repository,** the workspace's. `VERSION` holds it and the workspace's version
-  equals it.
-- **It moves only at a release the owner declares,** as bmo-chat's `docs/conventions.md` 「Versions」 states; a
-  commit, a deploy, a fix or a contract change moves none, and a deployment is told apart by its commit.
+- **The version is the set's,** read off the git tags when a build is made: the testbed hands it to the build
+  as `BMO_VERSION`, and the health and the event stream answer it. The manifests' version fields are
+  placeholders that never move.
+- **It moves only at a release the owner declares,** which tags the commit and makes none, as bmo-chat's
+  `docs/conventions.md` 「Versions」 states; a commit, a deploy, a fix or a contract change moves none, and a
+  deployment is told apart by its commit.
 
 ## Build and test
 

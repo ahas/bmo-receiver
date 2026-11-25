@@ -44,9 +44,12 @@ pub use room_calls::js;
 
 pub use store::{Fault, all, one, run};
 
-/// The service's version, the workspace's: a contract a consumer reads moves the major, an addition no
-/// existing consumer reads the minor, anything else the patch.
-pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+/// The version this build answers with: the set's, which the testbed hands the build as `BMO_VERSION`, else
+/// the manifest's placeholder (bmo-chat's `docs/conventions.md`, 「Versions」).
+pub const VERSION: &str = match option_env!("BMO_VERSION") {
+  Some(version) => version,
+  None => env!("CARGO_PKG_VERSION"),
+};
 
 /// The moment it is, in epoch milliseconds.
 pub fn now_ms() -> i64 {
