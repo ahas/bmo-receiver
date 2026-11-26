@@ -224,11 +224,68 @@ async fn a_room_came_to_by_hearing_takes_a_mode_with_its_record_left_as_it_stand
     "the room's record stands as the hearing made it"
   );
 
-  // A room standing in a mode is no longer added over it.
-  let (status, refused) =
+  // A mode set from the console is no addition: the room's providers were never set, so a list is chosen for it
+  // and its own road is asked again rather than the room being refused as one added.
+  let (status, listed) =
+    put(&front, "/rooms/-200/providers", json!({ "providers": ["road-a", "record"] })).await;
+
+  assert_eq!(
+    (status.as_u16(), listed["chosen"].as_bool()),
+    (200, Some(true)),
+    "a list set on a room never added is its providers being chosen: {listed}"
+  );
+
+  // The room is added whole over the mode it took: its record, its standing agent and the mode it stands in are
+  // left as they stand, and the addition's list of providers stands beside them.
+  let (status, room) =
     post(&front, "/rooms", json!({ "provider": "road-a", "roomId": -200, "mode": "record-only" })).await;
 
+  assert_eq!((status.as_u16(), room["mode"].as_str()), (201, Some("record-only")), "{room}");
+  assert_eq!(
+    scratch.count(r#"SELECT COUNT(*) FROM "messages" WHERE "chat_id" = -200"#, vec![]).await,
+    2,
+    "the addition wrote no line of its own"
+  );
+  let (_, after) = get(&front, &registration_path(-200)).await;
+
+  assert_eq!(after["providers"], json!(["road-a", "record"]));
+  assert_eq!(after["standingAgents"], json!([AGENT]), "the room still carries the agent's own lines");
+
+  // A room whose list an addition set is the one no second addition stands over, and no list is set on it again.
+  let (status, refused) =
+    post(&front, "/rooms", json!({ "provider": "road-a", "roomId": -200, "mode": "avatar" })).await;
+
   assert_eq!((status.as_u16(), refused["code"].as_str()), (409, Some("room-added")));
+  let (status, refused) = put(&front, "/rooms/-200/providers", json!({ "providers": ["record"] })).await;
+
+  assert_eq!((status.as_u16(), refused["code"].as_str()), (409, Some("providers-fixed")));
+}
+
+#[tokio::test]
+async fn a_room_that_took_a_mode_from_the_console_is_added_in_the_mode_the_addition_asks() {
+  let scratch = Scratch::new().await;
+  let front = front(&scratch, ChatModeStanding::Active, None).await;
+
+  scratch.message(-200, 1, 55).await;
+
+  assert_eq!(
+    put(&front, &registration_path(-200), json!({ "mode": "record-only" })).await.1["mode"],
+    "record-only"
+  );
+
+  // The addition asks for the mode it wants and the room takes it: the mode set from the console is not a
+  // registration that holds the room in the mode it was set to.
+  let (status, room) =
+    post(&front, "/rooms", json!({ "provider": "road-a", "roomId": -200, "mode": "avatar" })).await;
+
+  assert_eq!((status.as_u16(), room["mode"].as_str()), (201, Some("avatar")), "{room}");
+  assert_eq!(kept_mode(&scratch, -200).await.as_deref(), Some("avatar"));
+  assert_eq!(
+    scratch
+      .texts(r#"SELECT "provider" FROM "room_providers" WHERE "chat_id" = -200 ORDER BY "place""#)
+      .await,
+    vec!["road-a".to_owned(), "record".to_owned()],
+  );
 }
 
 #[tokio::test]

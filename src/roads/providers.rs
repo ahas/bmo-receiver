@@ -82,6 +82,19 @@ pub fn stands(roads: &Roads, key: &str) -> bool {
   key == Road::Record.key() || roads.chats().road(key).is_some()
 }
 
+/// Whether an addition set the room's list of providers, which fixes the chat service it was chosen on: the mark is
+/// the addition's own, and a list set on a room never added, or a mode set on it since, carries none.
+pub async fn was_added<C: ConnectionTrait>(db: &C, chat_id: i64) -> Result<bool, Fault> {
+  let marked = one(
+    db,
+    r#"SELECT 1 AS "marked" FROM "room_providers" WHERE "chat_id" = $1 AND "added" LIMIT 1"#,
+    vec![chat_id.into()],
+  )
+  .await?;
+
+  Ok(marked.is_some())
+}
+
 /// A room's providers in order, and whether the list was set rather than read off what the room holds.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Listed {
@@ -236,19 +249,44 @@ pub async fn choose(db: &DatabaseConnection, chat_id: i64, providers: &[String])
   transaction.commit().await.map_err(Fault::from)
 }
 
-/// A room's list of providers written whole, in the order given, on a connection the caller holds.
+/// A room's list of providers written whole, in the order given, on a connection the caller holds: the room's
+/// providers are set to these, and may be set to others again.
 pub async fn write_list<C: ConnectionTrait>(
   conn: &C,
   chat_id: i64,
   providers: &[String],
+) -> Result<(), Fault> {
+  write(conn, chat_id, providers, false).await
+}
+
+/// The list of providers an addition sets, written whole on a connection the caller holds and marked as its own:
+/// the chat service the room was added on, and the record, and no list to be set again.
+pub async fn write_addition<C: ConnectionTrait>(
+  conn: &C,
+  chat_id: i64,
+  providers: &[String],
+) -> Result<(), Fault> {
+  write(conn, chat_id, providers, true).await
+}
+
+async fn write<C: ConnectionTrait>(
+  conn: &C,
+  chat_id: i64,
+  providers: &[String],
+  added: bool,
 ) -> Result<(), Fault> {
   run(conn, r#"DELETE FROM "room_providers" WHERE "chat_id" = $1"#, vec![chat_id.into()]).await?;
 
   for (place, provider) in providers.iter().enumerate() {
     run(
       conn,
-      r#"INSERT INTO "room_providers" ("chat_id", "provider", "place") VALUES ($1, $2, $3)"#,
-      vec![chat_id.into(), provider.clone().into(), i64::try_from(place).unwrap_or(i64::MAX).into()],
+      r#"INSERT INTO "room_providers" ("chat_id", "provider", "place", "added") VALUES ($1, $2, $3, $4)"#,
+      vec![
+        chat_id.into(),
+        provider.clone().into(),
+        i64::try_from(place).unwrap_or(i64::MAX).into(),
+        added.into(),
+      ],
     )
     .await?;
   }

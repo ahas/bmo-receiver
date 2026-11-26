@@ -76,7 +76,7 @@ takes it outright: the table holds no default agent.
 | `message_number_marks` | the lowest number the room's own record has handed out, to a message no road numbered, so a number whose message left the record is never handed out again (`docs/unified-bmo.md`, 「The cases」) | room |
 | `room_modes` | the mode a room stands in, `avatar` or `record-only`, and when it first came to stand in one; a room no one has set a mode for has none (`docs/receiver.md`, 「Reading and changing a room's mode」) | room |
 | `room_tones` | the tone layer a room is set to, by its name, and when it was set; a room with no row is set to none (`docs/receiver.md`, 「A room's tone layer」) | room |
-| `room_providers` | a chat provider a room is on, by its key, and its place in the room's list; a room with none stands on its default (`docs/receiver.md`, 「A room's chat providers」) | room and provider |
+| `room_providers` | a chat provider a room is on, by its key, its place in the room's list, and whether an addition set it; a room with none stands on its default (`docs/receiver.md`, 「A room's chat providers」) | room and provider |
 | `room_deliveries` | a kept message carried to one of the room's providers, or standing on the road a send of the receiver's went out on: the provider, the number it gave its copy once it answers, and when it went; its number is the send's tag | its number |
 | `news_briefs` | a room's morning news edition: the time it is sent, how long before it the writing starts, how long its link lives, whether it is on and the day it last started | its number |
 | `holidays` | a day off, so no morning news edition goes out on it | its day |
@@ -101,9 +101,7 @@ text is the version the round's record names.
 
 A room's line is read newest first or from a message the reader holds, by when each message was sent and then by
 its row, so `messages` is indexed by room, time and row, and a page reads only the messages it answers. The roads a
-room's messages came in on are read off an index of the messages that name one, by room and road, and the agents
-whose own lines a room holds — who stands there (`docs/api.md`, 「Rooms」) — off an index of the messages that name
-one, by room and agent.
+room's messages came in on are read off an index of the messages that name one, by room and road.
 The rooms an account is a member of are read off an index of `room_accounts` by account, and an account's rights
 over the people of its rooms off an index of `room_grants` by account. An account's removal takes every row keyed by
 the account or its record identity: its private rooms' whole records, its `room_accounts` and `room_grants` rows, its

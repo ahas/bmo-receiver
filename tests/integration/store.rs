@@ -3,7 +3,7 @@
 //! same pooled connection (`docs/store.md`).
 
 use bmo_receiver::store::migration::{
-  BASELINE, BEFORE, Migrator, RECORD_TABLE, ROOM_AGENTS, ROOM_GRANTS, migrate,
+  BASELINE, BEFORE, Migrator, PROVIDER_ADDED, RECORD_TABLE, ROOM_GRANTS, migrate,
 };
 use bmo_receiver::store::{all, one, pool, settings};
 use sea_orm::{ConnectionTrait, DatabaseConnection, TransactionTrait};
@@ -82,7 +82,7 @@ async fn the_migrations_make_every_table_once_and_take_them_down_again() {
   assert_eq!(migrate(db).await.unwrap(), Migrator::migrations().len());
   assert_eq!(database.texts(SCHEMA_TABLES).await, MADE);
   assert_eq!(migrate(db).await.unwrap(), 0, "a migrated database has nothing left to run");
-  assert_eq!(database.texts(RECORDED).await, [BASELINE, ROOM_GRANTS, ROOM_AGENTS]);
+  assert_eq!(database.texts(RECORDED).await, [BASELINE, ROOM_GRANTS, PROVIDER_ADDED]);
 
   Migrator::down(db, None).await.unwrap();
   assert_eq!(database.texts(SCHEMA_TABLES).await, [RECORD_TABLE]);
@@ -138,13 +138,13 @@ async fn an_install_at_the_last_release_before_the_baseline_only_has_its_record_
 
   // Adoption rewrites the record to the baseline, then every migration after it runs on the standing schema.
   assert_eq!(migrate(db).await.unwrap(), Migrator::migrations().len() - 1);
-  assert_eq!(database.texts(RECORDED).await, [BASELINE, ROOM_GRANTS, ROOM_AGENTS]);
+  assert_eq!(database.texts(RECORDED).await, [BASELINE, ROOM_GRANTS, PROVIDER_ADDED]);
   assert_eq!(database.texts(SHAPE).await, full.texts(SHAPE).await);
   assert_eq!(database.texts(r#"SELECT "value" FROM "settings""#).await, ["on"]);
 
   // A second start finds every migration recorded and changes nothing.
   assert_eq!(migrate(db).await.unwrap(), 0);
-  assert_eq!(database.texts(RECORDED).await, [BASELINE, ROOM_GRANTS, ROOM_AGENTS]);
+  assert_eq!(database.texts(RECORDED).await, [BASELINE, ROOM_GRANTS, PROVIDER_ADDED]);
 }
 
 #[tokio::test]
@@ -164,7 +164,7 @@ async fn a_blank_schema_gets_the_baseline_as_it_is_laid_down_whole() {
   for sql in [
     include_str!("../../src/store/migration/baseline.sql"),
     include_str!("../../src/store/migration/room_grants.sql"),
-    include_str!("../../src/store/migration/room_agents.sql"),
+    include_str!("../../src/store/migration/provider_added.sql"),
   ] {
     laid.db().execute_unprepared(sql).await.unwrap();
   }
@@ -186,7 +186,6 @@ async fn the_tables_carry_their_indexes_and_an_instruction_names_its_agent() {
       "instructions_round",
       "instructions_run",
       "messages_line",
-      "messages_room_agent",
       "messages_round",
       "messages_sender",
       "messages_sender_latest",
@@ -248,7 +247,7 @@ const MESSAGE_INDEXES: &str = "SELECT indexname::text || ': ' || indexdef FROM p
   ORDER BY indexname";
 
 #[tokio::test]
-async fn a_rooms_lines_are_indexed_by_time_by_the_road_they_came_by_and_by_the_agent_they_name() {
+async fn a_rooms_line_is_indexed_by_time_and_its_roads_by_the_messages_that_name_one() {
   let database = Scratch::new().await;
   let stated = |indexes: Vec<String>| -> Vec<String> {
     indexes
@@ -266,7 +265,6 @@ async fn a_rooms_lines_are_indexed_by_time_by_the_road_they_came_by_and_by_the_a
     stated(database.texts(MESSAGE_INDEXES).await),
     [
       "messages_line (chat_id, sent_at, rowid)",
-      "messages_room_agent (chat_id, agent_name) WHERE (agent_name IS NOT NULL)",
       "messages_round (chat_id, round)",
       "messages_sender (sender_id, chat_id)",
       "messages_sender_latest (chat_id, sender_id, sent_at)",

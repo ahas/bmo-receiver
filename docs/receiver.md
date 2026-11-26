@@ -131,10 +131,12 @@ flowchart TD
   whose list was never set is on every provider that has handed it a message or kept one in it, in the order
   each first did, and on the chat service that says the room is its own, so a room stands where it stood until
   its list is set.
-- **An added room's chat service is fixed as it is added.** Adding sets its list to the chat service it was chosen
-  on and the record (「Adding a room」), and the list stays so while the room stands added: a `PUT` of an added
-  room's list is refused 409 `providers-fixed` and nothing is written. Which chat service carries a room is chosen
-  only by adding it.
+- **A room's chat service is fixed by the addition that set its list.** Adding sets the list to the chat service it
+  was chosen on and the record (「Adding a room」), and while that list stands the room's providers are not set
+  again: a `PUT` of its list is refused 409 `providers-fixed` and nothing is written. The addition marks the rows it
+  wrote as its own, and the mark is all that fixes a room's chat service — a list chosen on a room never added is
+  its providers being set and stays open to be set again, and a mode set on the room since writes neither. Which
+  chat service carries a room is chosen only by adding it.
 - **Every message kept in a room goes to each of the room's providers,** whoever said it and whichever road it
   came in on: a person's words a chat service handed over, the owner's words from the console, an agent's
   answer, a line the receiver says itself. The rule is the same in every room and turns on nothing but the list.
@@ -264,8 +266,9 @@ flowchart TD
 - **Adding keeps the room on the service and the record:** the room's mode, its title and its list of providers
   set to the service it was chosen on and the room's record (「A room's chat providers」 above), so whatever mode
   it is in, every message said in it stands in the archive. A room the service does not say is its own, a mode
-  the service does not offer or the room does not take, and a room already added are refused, and nothing is
-  written. A mode the service does not offer is refused before a conversation is started, so nothing is made on
+  the service does not offer or the room does not take, and a room whose list an addition set already are refused,
+  and nothing is written. A room that took a mode from the console before it was added is added whole: the
+  addition writes its list beside the mode it asks for, which becomes the room's. A mode the service does not offer is refused before a conversation is started, so nothing is made on
   the platform for an addition that cannot stand.
 - **The mode is what the room is to the agents:**
   - `record-only` is the user alone: the room's messages are kept and carried as any room's, and no agent is
@@ -302,8 +305,9 @@ flowchart TD
 - **The administrator changes the mode between `record-only` and `avatar`** through
   `PUT /rooms/{roomId}/registration`, and the room's record, its title, its list of providers and its messages
   stay as they stand. A room the receiver holds takes a mode whether or not it was ever added on a chat service:
-  where it holds no mode for it the change writes one, and the mode then stands as an addition's own would; only
-  a room the receiver does not hold at all is refused, `not-found`.
+  where it holds no mode for it the change writes one; only a room the receiver does not hold at all is refused,
+  `not-found`. A mode so set is the room's registration and is not an addition: it writes no list of providers,
+  so the room's providers stay unset and the room may still be added on a chat service.
 - **`avatar` is refused where it cannot be answered in.** Every chat service on the room's list must declare its
   `human-avatar` mode active, else `avatar-unoffered`; its answer for the room, where it states modes, must hold
   `human-avatar`, else `room-takes-no-avatar`; and a room on no chat service is refused `no-chat-service`, since

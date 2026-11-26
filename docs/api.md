@@ -254,7 +254,7 @@ placeholder that never moves; the package is never taken from a registry, and no
     `avatar-unsupported`, asked before any conversation is started; a start of a shape the service does not
     declare 409 `chats-unstarted`; a contact the service does not know 409 `contact-unknown`; a start the service
     refuses 409 `start-refused` with its sentence; a room the service does not say is its own 409 `room-unknown`;
-    and a room already standing in a registration 409 `room-added`. A service that does not answer is 502 `upstream-failed` on each
+    and a room already added 409 `room-added`. A service that does not answer is 502 `upstream-failed` on each
     route.
 - **A room's members are asked of the room's own road** (`docs/receiver.md`, 「A room's chat providers」), its first
   provider where its list was chosen, through bmo-chat's `GET /rooms/{roomId}/members`, and answered as that service

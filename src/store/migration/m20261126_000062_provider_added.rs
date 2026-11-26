@@ -1,9 +1,9 @@
-//! The index a room's standing agents are read off, so the room's registration answers who answers there by walking
-//! the agents' lines alone (`docs/api.md`, 「Rooms」).
+//! The mark of the addition that set a room's list of providers, stood beside the list itself
+//! (`docs/receiver.md`, 「A room's chat providers」).
 
 use sea_orm_migration::prelude::*;
 
-pub const NAME: &str = "m20261126_000062_room_agents";
+pub const NAME: &str = "m20261126_000062_provider_added";
 
 pub struct Migration;
 
@@ -16,14 +16,14 @@ impl MigrationName for Migration {
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
   async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-    manager.get_connection().execute_unprepared(include_str!("room_agents.sql")).await?;
+    manager.get_connection().execute_unprepared(include_str!("provider_added.sql")).await?;
     Ok(())
   }
 
   async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
     manager
       .get_connection()
-      .execute_unprepared(include_str!("room_agents.down.sql"))
+      .execute_unprepared(include_str!("provider_added.down.sql"))
       .await?;
     Ok(())
   }

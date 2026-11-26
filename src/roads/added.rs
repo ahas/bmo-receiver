@@ -159,8 +159,10 @@ pub async fn set_mode<C: ConnectionTrait>(db: &C, chat_id: i64, mode: RoomMode) 
 }
 
 /// A room added on the service under `key` in `mode`: its mode, its title where one is given, and its list of
-/// providers set to that service and the record, in one write. Whether it was added; a room added before is not,
-/// and nothing is written.
+/// providers set to that service and the record, in one write. Whether it was added; a room whose list of providers
+/// an addition already marked is not, and nothing is written. A room that only ever took a mode from `set_mode`, or
+/// had its providers chosen, is added whole here: the addition marks its own list and the mode it asks for stands.
+/// The mode a room took from the console is left where the addition asks for no other.
 pub async fn add(
   db: &DatabaseConnection,
   chat_id: i64,
@@ -169,24 +171,21 @@ pub async fn add(
   title: Option<&str>,
 ) -> Result<bool, Fault> {
   let transaction = db.begin().await.map_err(Fault::from)?;
-  let added = run(
-    &transaction,
-    r#"INSERT INTO "room_modes" ("chat_id", "mode", "added_at") VALUES ($1, $2, $3) ON CONFLICT DO NOTHING"#,
-    vec![chat_id.into(), mode.as_str().into(), now_ms().into()],
-  )
-  .await?;
 
-  if added == 0 {
+  if providers::was_added(&transaction, chat_id).await? {
     transaction.rollback().await.map_err(Fault::from)?;
 
     return Ok(false);
   }
 
+  set_mode(&transaction, chat_id, mode).await?;
+
   if let Some(title) = title {
     rows::set_chat_title(&transaction, chat_id, title).await?;
   }
 
-  providers::write_list(&transaction, chat_id, &[key.to_owned(), Road::Record.key().to_owned()]).await?;
+  providers::write_addition(&transaction, chat_id, &[key.to_owned(), Road::Record.key().to_owned()])
+    .await?;
   transaction.commit().await.map_err(Fault::from)?;
 
   Ok(true)
