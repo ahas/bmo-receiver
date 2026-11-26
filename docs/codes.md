@@ -120,7 +120,7 @@ family. No code carries a sentence in a room's language.
 | `rooms-unlisted` | 409 | `label` | the provider does not declare that it lists the rooms of its account |
 | `room-unknown` | 409 | `label`, `room` | the provider does not say the room is its own |
 | `avatar-unsupported` | 409 | `label` | the room is to be answered as the user where the provider's `human-avatar` mode does not stand active, or the room's `modes` leave it out |
-| `room-added` | 409 | `room` | the room was already added |
+| `room-added` | 409 | `room` | the room stands in a registration already, an addition's or a mode set on it since |
 | `contacts-unlisted` | 409 | `label` | the provider does not declare that it lists the contacts of its account |
 | `chats-unstarted` | 409 | `label` | the provider does not declare that it starts a conversation of the shape asked |
 | `contact-unknown` | 409 | `label` | the provider does not know a contact the start names |
@@ -145,7 +145,6 @@ family. No code carries a sentence in a room's language.
 
 | Code | Status | Fields | When |
 |---|---|---|---|
-| `room-not-added` | 409 | `room` | the room was never added, so it has no mode to change |
 | `no-chat-service` | 409 | | the room is on no chat service, so nothing there would answer as the person |
 | `avatar-unoffered` | 409 | `label` | a chat service on the room's list does not offer the avatar mode |
 | `room-takes-no-avatar` | 409 | `label`, `room` | a chat service says the room is never answered in, so it takes no avatar |

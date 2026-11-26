@@ -72,7 +72,7 @@ pub fn takes(room: &ProviderRoom, mode: RoomMode) -> bool {
   }
 }
 
-/// The mode a room was added in; none for a room never added.
+/// The mode a room stands in; none for a room no one has set a mode for.
 pub async fn mode_of<C: ConnectionTrait>(db: &C, chat_id: i64) -> Result<Option<RoomMode>, Fault> {
   let row =
     one(db, r#"SELECT "mode" FROM "room_modes" WHERE "chat_id" = $1"#, vec![chat_id.into()]).await?;
@@ -120,7 +120,8 @@ pub fn sole_voice(declared: &ChatDeclaration) -> Option<ChatVoice> {
 
 /// The voice the service under `key` answers a room by, the one a send the receiver makes there goes in where it
 /// names none of its own (docs/receiver.md, 「A room's chat providers」): the account of the person the service
-/// reads in a room added `avatar`, the one voice the service stands on in a room never added, and none otherwise,
+/// reads in a room whose mode is `avatar`, the one voice the service stands on in a room standing in no mode, and
+/// none otherwise,
 /// the service answering in its own. A room whose mode cannot be read is said in the journal and names none.
 pub async fn voice_in<C: ConnectionTrait>(
   db: &C,
@@ -140,13 +141,17 @@ pub async fn voice_in<C: ConnectionTrait>(
   }
 }
 
-/// A room's mode changed on its registration, leaving its title, its list of providers and its messages as they
-/// stand. Whether a registration stood to change.
+/// A room's mode set, leaving its title, its list of providers and its messages as they stand. Where the room
+/// holds no mode, one is written, so a room the receiver came to know by hearing takes a mode on the
+/// administrator's word alone; the moment the row keeps is when the room first came to stand in a mode. Whether a
+/// mode stood to change.
 pub async fn set_mode<C: ConnectionTrait>(db: &C, chat_id: i64, mode: RoomMode) -> Result<bool, Fault> {
   let changed = run(
     db,
-    r#"UPDATE "room_modes" SET "mode" = $1 WHERE "chat_id" = $2"#,
-    vec![mode.as_str().into(), chat_id.into()],
+    r#"INSERT INTO "room_modes" ("chat_id", "mode", "added_at") VALUES ($1, $2, $3)
+       ON CONFLICT ("chat_id") DO UPDATE SET "mode" = excluded."mode"
+       WHERE "room_modes"."mode" IS DISTINCT FROM excluded."mode""#,
+    vec![chat_id.into(), mode.as_str().into(), now_ms().into()],
   )
   .await?;
 

@@ -147,7 +147,7 @@ placeholder that never moves; the package is never taken from a registry, and no
 - **A `Room`** is `id`, `title` (or null), `messageCount`, `lastMessageAt` (or null), `pinned`, `senders`, the
   people that have stood as a sender, `supervisors`, the names of the supervisors the room names to answer it, in
   name order, empty where it names none, `ownerRoom`, `privateOf`, `registered`, `listened`, whether the receiver
-  listens to the room: it stands on the console's room list, being the owner's private room, a room added in a mode,
+  listens to the room: it stands on the console's room list, being the owner's private room, a room standing in a mode,
   a room naming supervisors, a pinned room, or a room on the listen list (`allowed_chats`, `docs/store.md`), one the
   owner allowed with his allow command and has not denied since. Every room's messages are kept whether it is
   listened to or not; a room that is not wakes no agent and starts no session (`docs/wake.md`, 「Who reaches the
@@ -159,7 +159,7 @@ placeholder that never moves; the package is never taken from a registry, and no
     the only agents its words can wake there (`docs/wake.md`, 「Who reaches the session」); every line the
     receiver sends there that names no voice of its own goes in the provider's `human-avatar` voice, the account
     of the person the provider reads.
-  - null for a room never added: it stands as the roads that handed it messages make it, and every line the
+  - null for a room standing in no mode: it stands as the roads that handed it messages make it, and every line the
     receiver sends there that names no voice of its own goes in the provider's `human-avatar` voice where
     that is the one mode the provider declares active, and names none otherwise (`docs/receiver.md`, 「A room's
     chat providers」).
@@ -187,11 +187,16 @@ placeholder that never moves; the package is never taken from a registry, and no
   private room refuses (below). The whole pinned order is a write in each room it pins or unpins. A write naming no account is a unit
   acting as itself and is refused nowhere.
 - **A room's registration is read and its mode changed by the administrator alone,** `by` naming him as the web
-  unit knows him. `GET /rooms/{roomId}/registration` answers `room`, `mode`, `providers`, `chosen`,
-  `answerers`, `readOnly`, whether every chat service on the list reads the room in the owner's account alone,
+  unit knows him. `GET /rooms/{roomId}/registration` answers `room`, `mode` — null where the room stands in no
+  mode — `providers`, `chosen`,
+  `answerers`, `standingAgents`, the agents whose own words the room's record holds, each by its registration
+  name, `readOnly`, whether every chat service on the list reads the room in the owner's account alone,
   and `readOnlyBy`, those services. `PUT /rooms/{roomId}/registration` sets `mode` between `record-only` and
   `avatar` and answers the registration as it now stands, leaving the room's record, title, providers and
-  messages as they stand. A room never added is refused 409 `room-not-added`; `avatar` for a room on no chat
+  messages as they stand. A room the receiver holds takes a mode whether or not it was ever added on a chat
+  service: where it holds no mode for it, the write sets one, and the mode then stands as an addition's own
+  would; a room that already stands in the mode asked is answered as it stands and nothing is written.
+  `avatar` for a room on no chat
   service 409 `no-chat-service`, for a chat service that does not offer it 409 `avatar-unoffered`, and for one
   whose answer for the room is never answered in 409 `room-takes-no-avatar`; a room the receiver does not hold
   404 `not-found`; and anyone but the administrator 403 `not-administrator`. A read-only room is never answered
@@ -228,8 +233,8 @@ placeholder that never moves; the package is never taken from a registry, and no
     for, so a screen tells two providers of one room apart by it.
   - An `AccountRoom` is the room as the service answers it, `id`, `title` (or null), `kind` (`owner` or
     `group`) and `privateTo` (or null), with `held`, whether the receiver already holds the room (its own, one it
-    keeps a title or a message of, or one added), and `mode`, the mode the receiver added it in, or null. A room
-    held and never added is `held` with a null `mode`. The page and its `more` are the service's; `after` and
+    keeps a title or a message of, or one added), and `mode`, the mode the receiver holds it in, or null. A room
+    held and standing in no mode is `held` with a null `mode`. The page and its `more` are the service's; `after` and
     `limit` are handed to it as they came.
   - An `AccountContact` is the contact as the service answers it, `id`, `name`, `kind` (`person` or `bot`) and
     `roomId`, the one-to-one the service's account already has with it (or null), with `held` and `mode` of that
@@ -249,7 +254,7 @@ placeholder that never moves; the package is never taken from a registry, and no
     `avatar-unsupported`, asked before any conversation is started; a start of a shape the service does not
     declare 409 `chats-unstarted`; a contact the service does not know 409 `contact-unknown`; a start the service
     refuses 409 `start-refused` with its sentence; a room the service does not say is its own 409 `room-unknown`;
-    and a room already added 409 `room-added`. A service that does not answer is 502 `upstream-failed` on each
+    and a room already standing in a registration 409 `room-added`. A service that does not answer is 502 `upstream-failed` on each
     route.
 - **A room's members are asked of the room's own road** (`docs/receiver.md`, 「A room's chat providers」), its first
   provider where its list was chosen, through bmo-chat's `GET /rooms/{roomId}/members`, and answered as that service
@@ -964,9 +969,12 @@ placeholder that never moves; the package is never taken from a registry, and no
   a room is added naming none, so the default answerer is also the supervisor a new room gets. `PUT
   /rooms/{roomId}/supervisors` writes the whole list, each name one the agency registers; an empty list hands
   the room back to the supervisor its user owns where one stands, and otherwise to the default answerer. In a
-  room added `avatar` the list is also the whole of who its words may wake there: the member's call of their own
+  room whose mode is `avatar` the list is also the whole of who its words may wake there: the member's call of their own
   supervisor reaches no supervisor outside the list, and an empty list is that setting left unset
-  (`docs/wake.md`, 「Who reaches the session」).
+  (`docs/wake.md`, 「Who reaches the session」). Every name the agency registers is taken, a supervisor whose own
+  words the room's record already holds among them: the receiver refuses no list for an agent already standing in
+  the room, and the screen that offers the room its choice of supervisors leaves those out itself, reading who
+  stands there off the room's registration (`standingAgents`, 「Rooms」).
 - **The default answerer is a setting of the receiver's,** naming one supervisor: the one that answers every room
   naming none that is no user's own private chat, and every such chat whose user owns no awake supervisor; it
   says the system's own lines there, takes the console's talks, the warmer's touch and a line typed into its
@@ -1021,7 +1029,7 @@ states it; it is repeated here only so one document holds every route the receiv
 |---|---|
 | `PUT /chat/rooms/{roomId}/messages/{messageId}` | hands over a message, live, edited or read back; one handed over with a `line` (bmo-chat's `docs/contract.md`, 「Lines」), live or read back, is kept as kind `fixed-line` with the line's `code` and `fields` as they came, beside its words (「Messages」) |
 | `PATCH /chat/rooms/{roomId}/messages/{messageId}` | hands over the files a gathering message promised |
-| `GET /chat/rooms/{roomId}` | asks the room as the receiver holds it; `read` is true for a room added on the asking provider and still on its list, whatever its mode, and false for every other room (`docs/receiver.md`, 「A read-only room」); `listened` is the room's own, as a `Room` answers it (「Rooms」); the answer is read off what the receiver holds, and no chat service is asked for it (`docs/receiver.md`, 「What is kept for a moment」) |
+| `GET /chat/rooms/{roomId}` | asks the room as the receiver holds it; `read` is true for a room standing in a mode that is still on the asking provider's list, whichever mode it stands in, and false for every other room (`docs/receiver.md`, 「A read-only room」); `listened` is the room's own, as a `Room` answers it (「Rooms」); the answer is read off what the receiver holds, and no chat service is asked for it (`docs/receiver.md`, 「What is kept for a moment」) |
 | `GET /chat/rooms` | asks the rooms whose past it may read back |
 | `POST /chat/avatar-changes` | tells of kept profile pictures that changed; the receiver takes each subject named from the provider's avatar routes before it answers (`docs/pictures.md`, 「Profile pictures」) |
 | `POST /chat/reaction-changes` | tells one message's reactions as the platform shows them now |

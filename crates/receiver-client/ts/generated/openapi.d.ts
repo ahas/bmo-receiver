@@ -1735,7 +1735,7 @@ export interface components {
     schemas: {
         /**
          * @description A contact of a provider's account, as the provider answers it, with whether the receiver holds the one-to-one
-         *     the account has with it and the mode that room was added in.
+         *     the account has with it and the mode that room stands in.
          */
         AccountContact: {
             held: boolean;
@@ -1783,7 +1783,7 @@ export interface components {
         };
         /**
          * @description A room a provider's account is in, as the provider answers it, with whether the receiver holds it and the mode
-         *     the receiver added it in.
+         *     the receiver holds it in.
          */
         AccountRoom: {
             /**
@@ -1795,7 +1795,7 @@ export interface components {
             id: number;
             /** @description `owner` or `group`. */
             kind: string;
-            /** @description The mode the room was added in; null for a room not added. */
+            /** @description The mode the room stands in; null for a room no one has set a mode for. */
             mode: components["schemas"]["RoomMode"] | null;
             /**
              * Format: int64
@@ -2801,7 +2801,7 @@ export interface components {
         };
         /**
          * @description A chat provider a room may be on: its key, what it is called, the verbs it performs, whether it lists the rooms
-         *     of its account, and the modes a room added on it may take, as it declares.
+         *     of its account, and the modes a room on it may take, as it declares.
          */
         Provider: {
             /**
@@ -2919,7 +2919,7 @@ export interface components {
             listened: boolean;
             /** Format: int64 */
             messageCount: number;
-            /** @description The mode the room was added in; null for a room never added. */
+            /** @description The mode the room stands in; null for a room no one has set a mode for. */
             mode: components["schemas"]["RoomMode"] | null;
             ownerRoom: boolean;
             pinned: boolean;
@@ -3031,7 +3031,7 @@ export interface components {
         RoomMembers: {
             members: components["schemas"]["RoomMember"][];
         };
-        /** @description What a room added is to the agents: answered as the user, or the user alone. */
+        /** @description What a room in a mode is to the agents: answered as the user, or the user alone. */
         RoomMode: "avatar" | "record-only";
         /**
          * @description The chat providers a room is on, by key in order, whether its list was set rather than read off what the room
@@ -3060,7 +3060,7 @@ export interface components {
             answerers: components["schemas"]["Answerers"];
             /** @description Whether the list was set rather than read off what the room holds. */
             chosen: boolean;
-            /** @description The mode the room was added in; null for a room never added. */
+            /** @description The mode the room stands in; null for a room no one has set a mode for. */
             mode: components["schemas"]["RoomMode"] | null;
             /** @description The chat providers the room is on, in order. */
             providers: string[];
@@ -3070,6 +3070,11 @@ export interface components {
             readOnlyBy: string[];
             /** Format: int64 */
             room: number;
+            /**
+             * @description The agents whose own words the room's record holds, each by its registration name: the room's own test of
+             *     which agents stand in it.
+             */
+            standingAgents: string[];
         };
         /** @description One room's moment to count from. */
         RoomSince: {

@@ -149,8 +149,8 @@ flowchart TD
     below says; any other goes in the voice the provider answers the room by.
   - The voice a provider answers a room by is the one every send the receiver makes there goes in where the
     send names none of its own, an agent's answer, a line, a typing indicator or a message carried, and the
-    one an act refused in the voice named is tried again in: `human-avatar` in a room added `avatar`
-    (「Adding a room」); in a room never added, `human-avatar` where the service's declaration holds exactly
+    one an act refused in the voice named is tried again in: `human-avatar` in a room whose mode is `avatar`
+    (「Adding a room」); in a room standing in no mode, `human-avatar` where the service's declaration holds exactly
     one mode active and that mode is `human-avatar`, the one voice the service stands on; and none otherwise,
     the send naming no voice and the service answering in its own. A room in `record-only`, and a room on a
     service that declares several modes active or none, keep naming none. A voice the send names, the
@@ -210,13 +210,14 @@ flowchart TD
   on the record alone is answered in the console as any room is.
 - **A read-only room is listed, read and kept like any other,** and its messages stand in the archive, where the
   agents read them as archived messages from their turns elsewhere.
-- **The people's words in a room of the owner's account are read only where the room was added.** A chat
+- **The people's words in a room of the owner's account are read only where the room stands in a mode.** A chat
   service reading a room through the owner's account asks the receiver for the room (`docs/api.md`, 「The chat
-  services」), and the answer's `read` is true for a room added on that service (「Adding a room」) that is still
-  on its list of providers, whatever its mode; for every other room it is false. So a room of the owner's account
-  that was never added hands over the owner's own words alone, and one added hands over everyone's: a room added
-  `avatar`, which is not read-only once its service answers there as the person, is read as a room added
-  `record-only` is, so the words its agents answer reach it. A service that reads a room through an account of its
+  services」), and the answer's `read` is true for a room standing in a mode (「Reading and changing a room's
+  mode」) that is still
+  on its list of providers, whichever mode it stands in; for every other room it is false. So a room of the owner's account
+  that stands in no mode hands over the owner's own words alone, and one standing in a mode hands over everyone's: a room
+  whose mode is `avatar`, which is not read-only once its service answers there as the person, is read as a room
+  whose mode is `record-only` is, so the words its agents answer reach it. A service that reads a room through an account of its
   own reads it whether asked or not, and a `read` there asks it nothing more.
 - **The agents never answer in it:** no message wakes an agent there, whether it calls one by name, replies to
   one's words, falls in an open window or carries a picture (`docs/wake.md`, 「Who reaches the session」); a quiet
@@ -285,19 +286,24 @@ flowchart TD
   name, each with whether the receiver holds it, so the owner picks; the addition is the receiver's own
   `POST /rooms` (`docs/api.md`, 「Rooms」) and its refusals are the receiver's own. Avatar mode and an existing
   room's mode are not this road's: the console's registration screen alone changes a mode.
-- **A room never added has no mode** and stands as the roads that handed it messages make it. A send there that
-  names no voice of its own goes in `human-avatar` where that is the one mode its service declares active
-  (「A room's chat providers」).
+- **A room no one has set a mode for stands in none,** and stands as the roads that handed it messages make it. A
+  send there that names no voice of its own goes in `human-avatar` where that is the one mode its service declares
+  active (「A room's chat providers」). An addition is not the only road to a mode: the administrator's change
+  (「Reading and changing a room's mode」) sets one on a room the receiver holds, added or not.
 
 ## Reading and changing a room's mode
 
 - **The administrator reads a room's registration** through `GET /rooms/{roomId}/registration`, `by` naming him
-  as the web unit knows him: its mode, its list of providers and whether that list was chosen, the agents
-  answering it, and whether it is read-only. It is read-only where every chat service on its list reads it in the
+  as the web unit knows him: its mode, which is none where no one has set one, its list of providers and whether
+  that list was chosen, the agents answering it, the agents whose own words its record holds (`standingAgents`,
+  each by its registration name — the room's own test of which agents stand in it), and whether it is read-only.
+  It is read-only where every chat service on its list reads it in the
   owner's account alone (「A read-only room」 above), and `readOnlyBy` names those services.
 - **The administrator changes the mode between `record-only` and `avatar`** through
   `PUT /rooms/{roomId}/registration`, and the room's record, its title, its list of providers and its messages
-  stay as they stand. A room never added has no mode and is refused `room-not-added`.
+  stay as they stand. A room the receiver holds takes a mode whether or not it was ever added on a chat service:
+  where it holds no mode for it the change writes one, and the mode then stands as an addition's own would; only
+  a room the receiver does not hold at all is refused, `not-found`.
 - **`avatar` is refused where it cannot be answered in.** Every chat service on the room's list must declare its
   `human-avatar` mode active, else `avatar-unoffered`; its answer for the room, where it states modes, must hold
   `human-avatar`, else `room-takes-no-avatar`; and a room on no chat service is refused `no-chat-service`, since

@@ -2,7 +2,7 @@
 //! decided for every one of them by one rule, and each woken agent's turn handed on to its conversations in the
 //! one runner, every agent the same way. Everything else stops here, before any queue, so no gate and no turn is
 //! spent on it. A conversation already running in the room is no ground: an instruction or a skipped round keeps
-//! one alive with no window, and a room is never listened to on that account. A room added `record-only` and a
+//! one alive with no window, and a room is never listened to on that account. A room whose mode is `record-only` and a
 //! read-only room wake no agent at all.
 
 pub mod agents;
@@ -281,7 +281,7 @@ async fn called_own(
     return Ok(None);
   }
 
-  // A room added `avatar` that names supervisors may call only those: membership opens no door past the list
+  // A room whose mode is `avatar` may call only the supervisors it names: membership opens no door past the list
   // there, and the call of an agent outside it wakes nobody (docs/receiver.md, 「Adding a room」).
   if added::mode_of(receiver.db(), inbound.chat_id).await? == Some(RoomMode::Avatar)
     && !figures::answerers(receiver.db(), inbound.chat_id).await?.is_empty()
@@ -378,7 +378,7 @@ async fn wakes_nobody(receiver: &Receiver, chat_id: i64) -> Result<Option<&'stat
   }
 
   if added::mode_of(receiver.db(), chat_id).await? == Some(RoomMode::RecordOnly) {
-    return Ok(Some("the room is added record-only"));
+    return Ok(Some("the room stands in record-only"));
   }
 
   // An archived room is locked: its record stands and nothing in it wakes an agent (docs/receiver.md, 「An archived

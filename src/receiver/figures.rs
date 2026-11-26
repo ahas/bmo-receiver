@@ -166,6 +166,21 @@ pub async fn answerers(db: &DatabaseConnection, chat_id: i64) -> Result<Vec<Stri
   .collect()
 }
 
+/// The agents whose own words a room's record holds, each by its registration name: the room's own test of which
+/// agents stand in it (`docs/api.md`, 「Rooms」).
+pub async fn standing(db: &DatabaseConnection, chat_id: i64) -> Result<Vec<String>, Fault> {
+  all(
+    db,
+    r#"SELECT DISTINCT "agent_name" FROM "messages"
+       WHERE "chat_id" = $1 AND "agent_name" IS NOT NULL ORDER BY "agent_name""#,
+    vec![chat_id.into()],
+  )
+  .await?
+  .iter()
+  .map(|row| Ok(row.try_get::<String>("", "agent_name")?))
+  .collect()
+}
+
 /// The sessions the record says have been given a room's context, newest first.
 pub async fn sessions_given(db: &DatabaseConnection, chat_id: i64) -> Result<Vec<String>, Fault> {
   all(

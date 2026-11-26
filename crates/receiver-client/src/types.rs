@@ -47,7 +47,7 @@ pub struct Room {
   pub listened: bool,
   /// The room where work filed from this one is told.
   pub work_room: i64,
-  /// The mode the room was added in; null for a room never added.
+  /// The mode the room stands in; null for a room no one has set a mode for.
   pub mode: Option<RoomMode>,
   /// The account whose private room this is: a BMO's own room on the record, or the owner's private room; null for
   /// every other room, a group room every other member has left among them.
@@ -57,7 +57,7 @@ pub struct Room {
   pub sealed: bool,
 }
 
-/// What a room added is to the agents: answered as the user, or the user alone.
+/// What a room in a mode is to the agents: answered as the user, or the user alone.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum RoomMode {
@@ -130,7 +130,7 @@ pub enum RoomAddition {
 }
 
 /// A room a provider's account is in, as the provider answers it, with whether the receiver holds it and the mode
-/// the receiver added it in.
+/// the receiver holds it in.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct AccountRoom {
@@ -143,12 +143,12 @@ pub struct AccountRoom {
   /// Whether the receiver holds the room: its own, one it keeps a title or a message of, or one added.
   #[serde(default)]
   pub held: bool,
-  /// The mode the room was added in; null for a room not added.
+  /// The mode the room stands in; null for a room no one has set a mode for.
   pub mode: Option<RoomMode>,
 }
 
 /// A contact of a provider's account, as the provider answers it, with whether the receiver holds the one-to-one
-/// the account has with it and the mode that room was added in.
+/// the account has with it and the mode that room stands in.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct AccountContact {
@@ -615,7 +615,7 @@ pub struct Window {
 }
 
 /// A chat provider a room may be on: its key, what it is called, the verbs it performs, whether it lists the rooms
-/// of its account, and the modes a room added on it may take, as it declares.
+/// of its account, and the modes a room on it may take, as it declares.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Provider {
@@ -876,7 +876,7 @@ pub struct ChooseProviders {
 #[serde(rename_all = "camelCase")]
 pub struct RoomRegistration {
   pub room: i64,
-  /// The mode the room was added in; null for a room never added.
+  /// The mode the room stands in; null for a room no one has set a mode for.
   pub mode: Option<RoomMode>,
   /// The chat providers the room is on, in order.
   pub providers: Vec<String>,
@@ -884,6 +884,9 @@ pub struct RoomRegistration {
   pub chosen: bool,
   /// The agents answering the room.
   pub answerers: Answerers,
+  /// The agents whose own words the room's record holds, each by its registration name: the room's own test of
+  /// which agents stand in it.
+  pub standing_agents: Vec<String>,
   /// Whether every chat service on the room's list reads it in the owner's account alone.
   pub read_only: bool,
   /// The chat services on the list that read the room in the owner's account alone, in list order.

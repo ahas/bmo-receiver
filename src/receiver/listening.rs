@@ -14,8 +14,8 @@ pub struct Standing {
   pub owner_room: bool,
   /// On the listen list: the owner allowed it with his allow command and has not denied it since.
   pub allowed: bool,
-  /// Added in a mode.
-  pub added: bool,
+  /// Standing in a mode, an addition's or one the administrator set on it since.
+  pub in_mode: bool,
   /// Naming the supervisors that answer it.
   pub supervised: bool,
   /// Pinned over the rest.
@@ -25,7 +25,7 @@ pub struct Standing {
 impl Standing {
   /// Whether the room stands on the console's room list, and so is listened to.
   pub fn listened(self) -> bool {
-    self.owner_room || self.allowed || self.added || self.supervised || self.pinned
+    self.owner_room || self.allowed || self.in_mode || self.supervised || self.pinned
   }
 
   /// What the record says of one room, `owner_room` being the deployment's private room.
@@ -45,7 +45,7 @@ impl Standing {
     Ok(Self {
       owner_room: chat_id == owner_room,
       allowed: held("allowed_chats").await?,
-      added: held("room_modes").await?,
+      in_mode: held("room_modes").await?,
       supervised: held("room_supervisors").await?,
       pinned: pinned::pinned(db).await?.contains(&chat_id),
     })

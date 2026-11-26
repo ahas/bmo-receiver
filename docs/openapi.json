@@ -2,7 +2,7 @@
   "components": {
     "schemas": {
       "AccountContact": {
-        "description": "A contact of a provider's account, as the provider answers it, with whether the receiver holds the one-to-one\nthe account has with it and the mode that room was added in.",
+        "description": "A contact of a provider's account, as the provider answers it, with whether the receiver holds the one-to-one\nthe account has with it and the mode that room stands in.",
         "properties": {
           "held": {
             "type": "boolean"
@@ -122,7 +122,7 @@
         "type": "object"
       },
       "AccountRoom": {
-        "description": "A room a provider's account is in, as the provider answers it, with whether the receiver holds it and the mode\nthe receiver added it in.",
+        "description": "A room a provider's account is in, as the provider answers it, with whether the receiver holds it and the mode\nthe receiver holds it in.",
         "properties": {
           "held": {
             "default": false,
@@ -146,7 +146,7 @@
                 "type": "null"
               }
             ],
-            "description": "The mode the room was added in; null for a room not added."
+            "description": "The mode the room stands in; null for a room no one has set a mode for."
           },
           "privateTo": {
             "description": "The one person of a one-to-one with the account.",
@@ -2856,7 +2856,7 @@
         "type": "object"
       },
       "Provider": {
-        "description": "A chat provider a room may be on: its key, what it is called, the verbs it performs, whether it lists the rooms\nof its account, and the modes a room added on it may take, as it declares.",
+        "description": "A chat provider a room may be on: its key, what it is called, the verbs it performs, whether it lists the rooms\nof its account, and the modes a room on it may take, as it declares.",
         "properties": {
           "can": {
             "default": [],
@@ -3110,7 +3110,7 @@
                 "type": "null"
               }
             ],
-            "description": "The mode the room was added in; null for a room never added."
+            "description": "The mode the room stands in; null for a room no one has set a mode for."
           },
           "ownerRoom": {
             "type": "boolean"
@@ -3419,7 +3419,7 @@
         "type": "object"
       },
       "RoomMode": {
-        "description": "What a room added is to the agents: answered as the user, or the user alone.",
+        "description": "What a room in a mode is to the agents: answered as the user, or the user alone.",
         "oneOf": [
           {
             "const": "avatar",
@@ -3503,7 +3503,7 @@
                 "type": "null"
               }
             ],
-            "description": "The mode the room was added in; null for a room never added."
+            "description": "The mode the room stands in; null for a room no one has set a mode for."
           },
           "providers": {
             "description": "The chat providers the room is on, in order.",
@@ -3526,6 +3526,13 @@
           "room": {
             "format": "int64",
             "type": "integer"
+          },
+          "standingAgents": {
+            "description": "The agents whose own words the room's record holds, each by its registration name: the room's own test of\nwhich agents stand in it.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           }
         },
         "required": [
@@ -3534,6 +3541,7 @@
           "providers",
           "chosen",
           "answerers",
+          "standingAgents",
           "readOnly",
           "readOnlyBy"
         ],

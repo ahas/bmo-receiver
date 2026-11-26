@@ -639,8 +639,8 @@ async fn held_registration(receiver: &Receiver, room: i64) -> Result<(), Refusal
   ))
 }
 
-// A room's registration as the read and the change answer it: its mode, its providers, its answerers, and
-// whether the chat services on its list read it in the owner's account alone.
+// A room's registration as the read and the change answer it: its mode, its providers, its answerers, the agents
+// whose own words its record holds, and whether the chat services on its list read it in the owner's account alone.
 async fn registration(receiver: &Receiver, room: i64) -> Result<Value, Refusal> {
   let db = receiver.db();
   let mode = added::mode_of(db, room).await.map_err(store)?;
@@ -667,6 +667,7 @@ async fn registration(receiver: &Receiver, room: i64) -> Result<Value, Refusal> 
     "providers": listed.providers,
     "chosen": listed.chosen,
     "answerers": answerers,
+    "standingAgents": crate::receiver::figures::standing(db, room).await.map_err(store)?,
     "readOnly": services > 0 && read_only_by.len() == services,
     "readOnlyBy": read_only_by,
   }))
@@ -740,8 +741,9 @@ async fn offer_avatar(receiver: &Receiver, room: i64) -> Result<(), Refusal> {
 }
 
 /// A room's mode changed between `record-only` and `avatar`, its record, title, providers and messages untouched;
-/// answered with the registration as it now stands. A mode the services on its list do not offer, or a room they
-/// never answer in, is refused and nothing is written.
+/// answered with the registration as it now stands. A room the receiver holds takes a mode whether or not it was
+/// ever added. A mode the services on its list do not offer, or a room they never answer in, is refused and
+/// nothing is written.
 pub async fn change_room_mode(
   State(served): State<Served>,
   raw: RawQuery,
@@ -756,11 +758,9 @@ pub async fn change_room_mode(
   held_registration(&receiver, room).await?;
 
   let db = receiver.db();
-  let Some(current) = added::mode_of(db, room).await.map_err(store)? else {
-    return Err(code(&RoomModeRefusal::RoomNotAdded { room }));
-  };
+  let standing = added::mode_of(db, room).await.map_err(store)?;
 
-  if changing.mode != current {
+  if standing != Some(changing.mode) {
     if changing.mode == RoomMode::Avatar {
       offer_avatar(&receiver, room).await?;
     }

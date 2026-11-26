@@ -450,11 +450,11 @@ ends. The
 receiver holds no per-provider code: what differs between providers is read from what each declares, the largest
 file it takes among it (its dialect's `limits.fileBytes`, which sets the largest file a room takes, `docs/api.md`,
 「Sends」). The
-declaration is asked once and kept, except where a room is added: there it is asked afresh, since a mode's
-standing moves while the service runs. A room's facts are read off `GET /rooms/{roomId}`, its answer kept by road
+declaration is asked once and kept, except where a room is added or its mode set: there it is asked afresh,
+since a mode's standing moves while the service runs. A room's facts are read off `GET /rooms/{roomId}`, its answer kept by road
 and room for a short span (`docs/receiver.md`, 「What is kept for a moment」), except a room the record holds
-alone, of which no service is asked (`docs/receiver.md`, 「A room's chat providers」); a room added reads its
-title there afresh, and an answer asked afresh carries the room's title onto the record (`docs/receiver.md`,
+alone, of which no service is asked (`docs/receiver.md`, 「A room's chat providers」); a room a chat service
+carries reads its title there afresh, and an answer asked afresh carries the room's title onto the record (`docs/receiver.md`,
 「A room's title」). Whether a service reads a room in the owner's account alone is read off that answer's `modes`, and where
 the answer states none, off the service's declared modes and the answer's `identity` (`docs/receiver.md`,
 「A read-only room」).

@@ -167,7 +167,7 @@ pub async fn rooms(State(served): State<Served>) -> Answered {
     let standing = Standing {
       owner_room: owner_room || room.chat_id == receiver.owner_room(),
       allowed: listen_list.contains(&room.chat_id),
-      added: modes.contains_key(&room.chat_id),
+      in_mode: modes.contains_key(&room.chat_id),
       supervised: !supervisors.is_empty(),
       pinned: pinned.contains(&room.chat_id),
     };

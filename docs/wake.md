@@ -27,9 +27,9 @@ its rounds.
   people, or an account the room holds among its console members (`docs/receiver.md`, 「Console rooms and
   accounts」); no grant is asked of either, and nobody who is neither calls it. Without membership, or without the
   name, the person's own supervisor only reads the room.
-- **In a room added `avatar` the supervisors the room names are the whole of who its words may wake.** The
+- **In a room whose mode is `avatar` the supervisors the room names are the whole of who its words may wake.** The
   member's call of their own supervisor reaches no supervisor outside that list; membership opens no door past
-  it. A room added `avatar` naming none is the setting left unset and wakes by the fallbacks above. Every other
+  it. A room whose mode is `avatar` naming none is the setting left unset and wakes by the fallbacks above. Every other
   room keeps membership as the call right.
 - **One rule for every designated agent.** The receiver decides for every designated agent of a room by one
   rule, every supervisor alike, over every word filed in the room, a person's or an agent's, and never wakes an
@@ -61,7 +61,7 @@ its rounds.
   again. A web unit that cannot be asked leaves the supervisor standing, since that says nothing of the machine.
 - **A supervisor of an account that left is woken nowhere again,** as the same answer of the web unit says
   (`left`): words that would wake it are kept and wake nothing, and a quiet instruction for it is let go.
-- **A room added `record-only` wakes no agent at all** (`docs/receiver.md`, 「Adding a room」): its messages are
+- **A room whose mode is `record-only` wakes no agent at all** (`docs/receiver.md`, 「Adding a room」): its messages are
   kept and carried to its providers, and nothing past that is decided for them. The owner's answer to a job's
   open question is still handed to bmo-job there, since that wakes no agent.
 - **A read-only room wakes no agent at all** (`docs/receiver.md`, 「A read-only room」): its messages are kept
@@ -69,7 +69,7 @@ its rounds.
   an open window and a picture alike. The owner's answer to a job's open question is still handed to bmo-job,
   since that wakes no agent.
 - **Only a room the receiver listens to wakes an agent.** It listens to the rooms the console's room list
-  holds: the owner's private room, which needs nothing more, a room added in a mode, a room naming
+  holds: the owner's private room, which needs nothing more, a room standing in a mode, a room naming
   supervisors, a pinned room, and a room on the listen list (`docs/store.md`, `allowed_chats`). Every other
   room's messages are kept and stand in the archive, and nothing past that is decided for them: no ground below
   is weighed, no session starts, and the start-up backlog passes the room by. The owner's answer to a job's
@@ -96,7 +96,7 @@ its rounds.
 - **A conversation already running in the room is no ground:** it admits nothing the window would not.
 - **A person's message the room keeps and no agent takes says why in the journal, once for that message.** The
   line names the room and the message and the one stop that held it before every agent: words that are nothing
-  but the secret marker, a room not listened to, added `record-only`, archived or read-only, a message at or
+  but the secret marker, a room not listened to, standing in `record-only`, archived or read-only, a message at or
   before the room's read position, a muted sender. Where the room was weighed agent by agent, it names each
   designated agent with what kept it out: no call, no reply to its words and its window closed, its road closed
   by the rest, its account's machine gone or left, no conversations standing. A message an agent filed, or one

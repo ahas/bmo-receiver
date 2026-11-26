@@ -6,9 +6,6 @@ use strum::{IntoStaticStr, VariantNames};
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error, IntoStaticStr, VariantNames)]
 #[strum(serialize_all = "kebab-case")]
 pub enum RoomModeRefusal {
-  /// The room was never added, so it has no registration and no mode to change.
-  #[error("room {room} was never added, so it has no mode to change")]
-  RoomNotAdded { room: i64 },
   /// The room's list names no chat service, so no account stands there to answer as the person.
   #[error("the room is on no chat service, so nothing there would answer as the person")]
   NoChatService,
@@ -23,10 +20,9 @@ pub enum RoomModeRefusal {
 impl RoomModeRefusal {
   fn answers(&self) -> StatusCode {
     match self {
-      Self::RoomNotAdded { .. }
-      | Self::NoChatService
-      | Self::AvatarUnoffered { .. }
-      | Self::RoomTakesNoAvatar { .. } => StatusCode::CONFLICT,
+      Self::NoChatService | Self::AvatarUnoffered { .. } | Self::RoomTakesNoAvatar { .. } => {
+        StatusCode::CONFLICT
+      }
     }
   }
 }

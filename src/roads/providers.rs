@@ -213,8 +213,8 @@ pub async fn read_only(db: &DatabaseConnection, roads: &Roads, chat_id: i64) -> 
 }
 
 /// Whether the receiver asks the chat service under `key` to read the people's words of a room
-/// (docs/receiver.md, 「A read-only room」): the room was added, in whatever mode, and it is still on that
-/// service's list of providers.
+/// (docs/receiver.md, 「A read-only room」): the room stands in a mode, whichever mode it stands in, and it is
+/// still on that service's list of providers.
 pub async fn read_asked(
   db: &DatabaseConnection,
   roads: &Roads,
