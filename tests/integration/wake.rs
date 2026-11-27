@@ -1272,3 +1272,53 @@ async fn a_supervisor_turned_off_in_a_room_answers_nothing_there_until_it_is_on_
 
   assert_eq!(answerers.iter().map(|one| one.name.as_str()).collect::<Vec<_>>(), ["agent-b"]);
 }
+
+// "In a one-to-one, a supervisor's own account is the room's alone": a person's private chat with a supervisor's
+// own bot is that supervisor's to answer alone, while the default answerer's account, the service's own, calls
+// nobody into a one-to-one.
+#[tokio::test]
+async fn a_supervisors_own_account_answers_its_one_to_one_alone_and_the_default_answerers_calls_nobody_in()
+{
+  let scratch = Scratch::new().await;
+  let data = tempfile::tempdir().unwrap();
+  let (own, services) = (-8_100_000_000_000, 4_343);
+  let member = |person: i64| bmo_chat_client::ChatMember {
+    person: Some(person),
+    name: String::new(),
+    status_message: None,
+  };
+  let chat = Arc::new(
+    StandInChat::new("road-a")
+      .holding(&[own, services])
+      .canning(&[bmo_chat_client::ChatCapability::MemberList])
+      .privating(own, 4_343)
+      .privating(services, 4_343)
+      .membering(own, vec![member(4_343), member(7_070)])
+      .membering(services, vec![member(4_343), member(6_060)]),
+  );
+  let standing = woken(standing(scratch.db(), DataRoot::new(data.path()), vec![chat]));
+  let mut default = registration(AGENT, "Agent A", vec![ADDRESS], None);
+  let mut other = registration("agent-b", "Agent B", vec!["agent-b"], None);
+
+  default.row.insert(
+    "accounts".to_owned(),
+    serde_json::json!([{ "service": "road-a", "number": "6060", "secret": "a" }]),
+  );
+  other.row.insert(
+    "accounts".to_owned(),
+    serde_json::json!([{ "service": "road-a", "number": "7070", "secret": "b" }]),
+  );
+  standing.agency.registering(vec![default, other]);
+
+  let facts = standing.receiver.roads().room_facts(own).await;
+  let (answerers, alone) = agents::room_designated(&standing.receiver, own, facts).await.unwrap();
+
+  assert_eq!(answerers.iter().map(|one| one.name.as_str()).collect::<Vec<_>>(), ["agent-b"]);
+  assert!(alone, "a supervisor's own one-to-one is its alone");
+
+  let facts = standing.receiver.roads().room_facts(services).await;
+  let (answerers, _) = agents::room_designated(&standing.receiver, services, facts).await.unwrap();
+
+  assert!(answerers.iter().all(|one| one.name != "agent-b"), "{answerers:?}");
+  assert_eq!(answerers.len(), 1, "the default answerer answers the service's own one-to-one as ever");
+}

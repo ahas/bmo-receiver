@@ -503,8 +503,16 @@ pub async fn accounted_in(receiver: &Receiver, chat_id: i64, awake: &[Designated
   let Some((service, members)) = room_members(receiver, chat_id).await else {
     return Vec::new();
   };
+  // In a one-to-one the default answerer's account is the service's own, which every person's private chat with
+  // it holds, so it calls nobody in there: the person's own supervisor or the default answerer answers it as ever.
+  let one_to_one = receiver.roads().room_facts(chat_id).await.one_to_one();
 
-  awake.iter().filter(|agent| agent.stands_among(&service, &members)).cloned().collect()
+  awake
+    .iter()
+    .filter(|agent| !(one_to_one && agent.default_answerer))
+    .filter(|agent| agent.stands_among(&service, &members))
+    .cloned()
+    .collect()
 }
 
 /// Who answers in a room, and whether one of them answers it alone: the awake agents the room records as its
@@ -528,12 +536,13 @@ pub async fn room_designated(
       );
     }
 
-    // A room answers alone where it names one supervisor and nobody else answers it; a supervisor its account
-    // called in is called by name as the default answerer of a group room is, so it never makes a room its own.
+    // A room answers alone where it names one supervisor and nobody else answers it, and a one-to-one answers
+    // its one answerer alone, as a one-to-one with a supervisor's own account does; a supervisor its account called into a
+    // group is called by name as the default answerer of a group room is, so it never makes a group its own.
     let off = turned_off(receiver.db(), chat_id).await?;
     let named = named_among(receiver.db(), chat_id, &awake(receiver).await?).await?;
-    let alone =
-      answerers.len() == 1 && named.iter().filter(|agent| !off.contains(&agent.name)).count() == 1;
+    let alone = answerers.len() == 1
+      && (room.one_to_one() || named.iter().filter(|agent| !off.contains(&agent.name)).count() == 1);
 
     return Ok((answerers, alone));
   }
