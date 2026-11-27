@@ -1421,24 +1421,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/rooms/{roomId}/tone": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** The tone layer a room is set to, and the layers the deployment offers. */
-        get: operations["roomTone"];
-        /** A room set to a tone layer the deployment offers, or to none, by the administrator; its block carries the layer from its next turn. */
-        put: operations["changeRoomTone"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/rooms/{roomId}/typing": {
         parameters: {
             query?: never;
@@ -1945,10 +1927,6 @@ export interface components {
         /** @description `PUT /rooms/{roomId}/title`: the name a room on the record alone is to stand under. */
         ChangeRoomTitle: {
             title: string;
-        };
-        /** @description `PUT /rooms/{roomId}/tone`: the tone layer a room is to stand in, one the deployment offers, or null for none. */
-        ChangeRoomTone: {
-            tone: string | null;
         };
         /**
          * @description `PUT /rooms/{roomId}/messages/{messageId}/speaker`: the agent a kept line standing under its own number in the
@@ -3097,15 +3075,6 @@ export interface components {
         /** @description A room's name alone. */
         RoomTitle: {
             title: string | null;
-        };
-        /** @description `GET /rooms/{roomId}/tone`: the tone layer a room is set to, and the layers the deployment offers. */
-        RoomTone: {
-            /** Format: int64 */
-            room: number;
-            /** @description The layer's name; null where the room is set to none. */
-            tone: string | null;
-            /** @description The layers a room may be set to, as the deployment's configuration names them. */
-            tones: string[];
         };
         /** @description What a round settled, without the instructions' text. */
         RoundOpening: {
@@ -6842,75 +6811,6 @@ export interface operations {
                 };
             };
             /** @description A refusal or failure: unauthorized, bad-request, not-found, private-room, titled-by-service, failed */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WireError"];
-                };
-            };
-        };
-    };
-    roomTone: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                roomId: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Answered. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RoomTone"];
-                };
-            };
-            /** @description A refusal or failure: unauthorized, failed */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WireError"];
-                };
-            };
-        };
-    };
-    changeRoomTone: {
-        parameters: {
-            query: {
-                by: string;
-                account?: number;
-            };
-            header?: never;
-            path: {
-                roomId: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ChangeRoomTone"];
-            };
-        };
-        responses: {
-            /** @description Answered. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RoomTone"];
-                };
-            };
-            /** @description A refusal or failure: unauthorized, bad-request, unknown-tone, not-administrator, not-found, private-room, failed */
             default: {
                 headers: {
                     [name: string]: unknown;

@@ -75,7 +75,6 @@ takes it outright: the table holds no default agent.
 | `provider_owner_users` | a user id of a chat service that is the owner in a room | chat service, room and user id |
 | `message_number_marks` | the lowest number the room's own record has handed out, to a message no road numbered, so a number whose message left the record is never handed out again (`docs/unified-bmo.md`, 「The cases」) | room |
 | `room_modes` | the mode a room was added in, `avatar` or `record-only`, and when it was added; a room never added has none (`docs/receiver.md`, 「Adding a room」) | room |
-| `room_tones` | the tone layer a room is set to, by its name, and when it was set; a room with no row is set to none (`docs/receiver.md`, 「A room's tone layer」) | room |
 | `room_providers` | a chat provider a room is on, by its key, and its place in the room's list; a room with none stands on its default (`docs/receiver.md`, 「A room's chat providers」) | room and provider |
 | `room_deliveries` | a kept message carried to one of the room's providers, or standing on the road a send of the receiver's went out on: the provider, the number it gave its copy once it answers, and when it went; its number is the send's tag | its number |
 | `news_briefs` | a room's morning news edition: the time it is sent, how long before it the writing starts, how long its link lives, whether it is on and the day it last started | its number |

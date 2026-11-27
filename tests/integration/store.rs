@@ -2,7 +2,9 @@
 //! as it stands, the settings rows, and a statement prepared before a migration moved its table run again on the
 //! same pooled connection (`docs/store.md`).
 
-use bmo_receiver::store::migration::{BASELINE, BEFORE, Migrator, RECORD_TABLE, ROOM_GRANTS, migrate};
+use bmo_receiver::store::migration::{
+  BASELINE, BEFORE, Migrator, NO_ROOM_TONES, RECORD_TABLE, ROOM_GRANTS, migrate,
+};
 use bmo_receiver::store::{all, one, pool, settings};
 use sea_orm::{ConnectionTrait, DatabaseConnection, TransactionTrait};
 use sea_orm_migration::MigratorTrait;
@@ -19,7 +21,7 @@ const INDEXES: &str = "SELECT indexname::text FROM pg_indexes
   ORDER BY indexname";
 
 // Every table of the schema, the migrator's own record among them.
-const MADE: [&str; 50] = [
+const MADE: [&str; 49] = [
   "agent_avatar_sets",
   "allowed_chats",
   "avatar_sets",
@@ -64,7 +66,6 @@ const MADE: [&str; 50] = [
   "room_providers",
   "room_situations",
   "room_supervisors",
-  "room_tones",
   "room_windows",
   "run_records",
   "say_relays",
@@ -80,7 +81,7 @@ async fn the_migrations_make_every_table_once_and_take_them_down_again() {
   assert_eq!(migrate(db).await.unwrap(), Migrator::migrations().len());
   assert_eq!(database.texts(SCHEMA_TABLES).await, MADE);
   assert_eq!(migrate(db).await.unwrap(), 0, "a migrated database has nothing left to run");
-  assert_eq!(database.texts(RECORDED).await, [BASELINE, ROOM_GRANTS]);
+  assert_eq!(database.texts(RECORDED).await, [BASELINE, ROOM_GRANTS, NO_ROOM_TONES]);
 
   Migrator::down(db, None).await.unwrap();
   assert_eq!(database.texts(SCHEMA_TABLES).await, [RECORD_TABLE]);
@@ -134,15 +135,15 @@ async fn an_install_at_the_last_release_before_the_baseline_only_has_its_record_
   let full = Scratch::blank().await;
   migrate(full.db()).await.unwrap();
 
-  // Adoption rewrites the record to the baseline, then the one migration after it runs on the standing schema.
-  assert_eq!(migrate(db).await.unwrap(), 1);
-  assert_eq!(database.texts(RECORDED).await, [BASELINE, ROOM_GRANTS]);
+  // Adoption rewrites the record to the baseline, then the migrations after it run on the standing schema.
+  assert_eq!(migrate(db).await.unwrap(), 2);
+  assert_eq!(database.texts(RECORDED).await, [BASELINE, ROOM_GRANTS, NO_ROOM_TONES]);
   assert_eq!(database.texts(SHAPE).await, full.texts(SHAPE).await);
   assert_eq!(database.texts(r#"SELECT "value" FROM "settings""#).await, ["on"]);
 
   // A second start finds every migration recorded and changes nothing.
   assert_eq!(migrate(db).await.unwrap(), 0);
-  assert_eq!(database.texts(RECORDED).await, [BASELINE, ROOM_GRANTS]);
+  assert_eq!(database.texts(RECORDED).await, [BASELINE, ROOM_GRANTS, NO_ROOM_TONES]);
 }
 
 #[tokio::test]
@@ -162,6 +163,7 @@ async fn a_blank_schema_gets_the_baseline_as_it_is_laid_down_whole() {
   for sql in [
     include_str!("../../src/store/migration/baseline.sql"),
     include_str!("../../src/store/migration/room_grants.sql"),
+    include_str!("../../src/store/migration/no_room_tones.sql"),
   ] {
     laid.db().execute_unprepared(sql).await.unwrap();
   }

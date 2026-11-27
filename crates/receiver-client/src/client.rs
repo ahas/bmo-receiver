@@ -202,28 +202,6 @@ impl ReceiverClient {
     .await
   }
 
-  /// `GET /rooms/{roomId}/tone`.
-  pub async fn room_tone(&self, room_id: i64) -> Answer<RoomTone> {
-    Self::answered(self.request(Method::GET, &["rooms", &room_id.to_string(), "tone"])).await
-  }
-
-  /// `PUT /rooms/{roomId}/tone`, as the administrator the console names.
-  pub async fn change_room_tone(&self, room_id: i64, by: &str, tone: Option<&str>) -> Answer<RoomTone> {
-    #[derive(Serialize)]
-    struct Asked<'a> {
-      by: &'a str,
-    }
-
-    let room = room_id.to_string();
-
-    Self::answered(self.request(Method::PUT, &["rooms", &room, "tone"]).query(&Asked { by }).json(
-      &ChangeRoomTone {
-        tone: tone.map(str::to_owned),
-      },
-    ))
-    .await
-  }
-
   /// `GET /rooms/{roomId}/answerers`.
   pub async fn answerers(&self, room_id: i64) -> Answer<Answerers> {
     Self::answered(self.request(Method::GET, &["rooms", &room_id.to_string(), "answerers"])).await

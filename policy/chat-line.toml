@@ -2,10 +2,6 @@
 # switch」): every fixed line of it, what the turn is told of what its road can send, and the notice of a
 # downgrade. The chat line's system prompt and tools are the agency's, which keeps them.
 
-# The header the room's tone layer stands under in its block, where the room is set to one.
-[tone]
-header = "TONE LAYER — how you treat people you are not close to in this room. It sits on top of the persona above and never overrides the ABSOLUTE RULES."
-
 # The room's block: {chat} is the room, {kind} its kind, {title} its name as a JSON string.
 [room]
 head = "ROOM CONTEXT — chat {chat} ({kind})"

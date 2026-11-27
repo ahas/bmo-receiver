@@ -32,7 +32,6 @@ mod speakers;
 mod stages;
 mod supervisors;
 mod talks;
-mod tones;
 mod writable;
 
 use std::sync::Arc;
@@ -215,8 +214,6 @@ fn table() -> Vec<(String, String, MethodRouter<Served>)> {
     ("PUT", "/rooms/{roomId}/archive", put(rooms::change_room_archive)),
     ("GET", "/rooms/{roomId}/title", get(console::title)),
     ("PUT", "/rooms/{roomId}/title", put(rooms::change_room_title)),
-    ("GET", "/rooms/{roomId}/tone", get(tones::room_tone)),
-    ("PUT", "/rooms/{roomId}/tone", put(tones::change_room_tone)),
     ("GET", "/answerers", get(brain::all_answerers)),
     ("GET", "/rooms/{roomId}/answerers", get(rooms::answerers)),
     ("GET", "/rooms/{roomId}/messages", get(console::messages)),

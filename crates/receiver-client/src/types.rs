@@ -916,24 +916,6 @@ pub struct ChangeRoomArchive {
   pub archived: bool,
 }
 
-/// `GET /rooms/{roomId}/tone`: the tone layer a room is set to, and the layers the deployment offers.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct RoomTone {
-  pub room: i64,
-  /// The layer's name; null where the room is set to none.
-  pub tone: Option<String>,
-  /// The layers a room may be set to, as the deployment's configuration names them.
-  pub tones: Vec<String>,
-}
-
-/// `PUT /rooms/{roomId}/tone`: the tone layer a room is to stand in, one the deployment offers, or null for none.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct ChangeRoomTone {
-  pub tone: Option<String>,
-}
-
 /// `PUT /rooms/{roomId}/title`: the name a room on the record alone is to stand under.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]

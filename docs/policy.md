@@ -43,7 +43,7 @@ it acts on itself, each named here.
 | File | Keys | What the receiver does with them |
 |---|---|---|
 | `chat-health.toml` | `outage_lifted`, `rest_lifted` (each a notice's `fact`, `intent`, `follow_up`, `kind`), `order` (`what`, `another`, `check_seconds`), `touch` (`label`, `rank`, `idle_ms`, `lifetime_ms`, `margin_ms`, `ping_bound_ms`, `warm_by_default`, `failure_touches`, `honours_idle_override`) | the lifting of an outage and a rest, the failure order and its minute, and the chat touch target as the receiver declares it |
-| `chat-line.toml` | `tone` (`header`, the line a room's tone layer stands under), `room` (the block's lines, the round's fixed rules, `process`, the line that a voice note arrives as text, `voice`, the rule of answering each person in their own language among them, its `mark`, the `roster` of the owner's private chat and its `kinds`, `supervisor` over the other supervisors and `role` over the agency's roles), `capabilities`, `downgrade`, `fallback`, `rules` | the room's block, its capability lines, the downgrade and fallback facts, the owner's room rules in force |
+| `chat-line.toml` | `room` (the block's lines, the round's fixed rules, `process`, the line that a voice note arrives as text, `voice`, the rule of answering each person in their own language among them, its `mark`, the `roster` of the owner's private chat and its `kinds`, `supervisor` over the other supervisors and `role` over the agency's roles), `capabilities`, `downgrade`, `fallback`, `rules` | the room's block, its capability lines, the downgrade and fallback facts, the owner's room rules in force |
 | `rest.toml` | `lift_check_seconds` | how often a rest past its end is looked for and lifted; when a login rests, and until when, is the agency's alone |
 | `resident-turn.toml` | `round_lead`, `fold_ratio` | the lead a round's turn opens with, and the fold share that stands in where a session's state names no `foldRatio` |
 | `run-lines.toml` | each line's `keeps_session`, and the chat line's `composes_typed_lines` | whether a line's turns go on one session, whose typed lines are composed |
@@ -56,7 +56,7 @@ it acts on itself, each named here.
 
 A value that names a room, an agent or a file of the deployment is the deployment's, read from the receiver's
 configuration (`docs/boundary-api.md`, 「Configuration」), never written here: the rooms the deployment seeds for its
-agents (which a removal refuses), the tone layers a room may be set to, the sticker
+agents (which a removal refuses), the sticker
 set the agents send from and the infrastructure room's seed.
 
 ## Names in the lines

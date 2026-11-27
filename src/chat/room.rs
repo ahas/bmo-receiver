@@ -1,7 +1,7 @@
 //! The room's block a turn of BMO's chat carries ahead of its prompt (docs/unified-bmo.md, 「The system prompt
 //! and the room switch」): which room this is and what it is called, the chat's document for its kind with the
-//! roster in the owner's own chat, what the road the turn answers on does with marks, shows and sends, the
-//! room's tone layer and what is in force in it — and the one line that restates it to a session holding this
+//! roster in the owner's own chat, what the road the turn answers on does with marks, shows and sends, and
+//! what is in force in it — and the one line that restates it to a session holding this
 //! version from earlier. Variable room instructions belong to a turn, never to the cached prefix, so the
 //! prefix every room shares stays one.
 
@@ -425,10 +425,6 @@ pub async fn room_context(
   );
   parts.push(capability_context(&trees, &road, elsewhere)?);
   parts.push(fill_marks(&said.road, &[("key", &road.key)]));
-  parts.push(super::tone::layer(
-    &trees,
-    super::tone::tone_of(receiver.db(), chat_id).await?.as_deref(),
-  ));
   parts.push(room_rules(receiver, agent, chat_id).await?);
   parts.push(said.end.clone());
 

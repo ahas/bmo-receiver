@@ -9,6 +9,7 @@ use sea_orm_migration::sea_orm::{
 
 pub mod m20261124_000060_baseline;
 pub mod m20261125_000061_room_grants;
+pub mod m20261127_000062_no_room_tones;
 
 /// The table the migrator keeps its record in, which is no part of the receiver's shape.
 pub const RECORD_TABLE: &str = "seaql_migrations";
@@ -18,6 +19,8 @@ pub const BASELINE: &str = m20261124_000060_baseline::NAME;
 
 /// The migration that stands the room grants: a room member's rights over its people, beside its membership.
 pub const ROOM_GRANTS: &str = m20261125_000061_room_grants::NAME;
+/// The migration that drops the room tone layer's table.
+pub const NO_ROOM_TONES: &str = m20261127_000062_no_room_tones::NAME;
 
 /// The record an install from before 1.0.0 holds once every migration of its last release ran. Its schema
 /// is the baseline's.
@@ -91,6 +94,7 @@ impl MigratorTrait for Migrator {
     vec![
       Box::new(m20261124_000060_baseline::Migration),
       Box::new(m20261125_000061_room_grants::Migration),
+      Box::new(m20261127_000062_no_room_tones::Migration),
     ]
   }
 }

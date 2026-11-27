@@ -1224,9 +1224,6 @@ impl Wake for WakeStandIn {
   }
 }
 
-/// The tone layers the deployment of the tests offers a room.
-pub const TONES: [&str; 2] = ["tone-a", "tone-b"];
-
 /// The deployment every receiver of the tests answers for.
 pub fn deployment() -> Deployment {
   Deployment {
@@ -1238,7 +1235,6 @@ pub fn deployment() -> Deployment {
     owner_room: None,
     notices_room: None,
     language: "en".to_owned(),
-    tones: TONES.iter().map(|tone| (*tone).to_owned()).collect(),
   }
 }
 

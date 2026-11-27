@@ -1,8 +1,7 @@
 //! The room block's own readings: the names one agent answers to, the order they are compared in, the
-//! capability sections a road is given, and the tone layer a room is set to.
+//! capability sections a road is given.
 
 use bmo_receiver::chat::room::{Trees, capability_context, name_order, names_of};
-use bmo_receiver::chat::tone;
 use bmo_receiver::roads::declared::Facts;
 
 #[test]
@@ -95,19 +94,4 @@ fn a_road_that_sends_is_not_told_it_can_send_none() {
   assert!(!block.contains("SENDING TOOLS ON THIS ROAD"), "{block}");
   assert!(!block.contains("— none"), "{block}");
   assert!(block.contains("the reply rule") && block.contains("the fold rule"), "{block}");
-}
-
-#[test]
-fn a_tone_layer_whose_file_is_missing_or_blank_adds_nothing() {
-  let data = tempfile::tempdir().unwrap();
-  let trees = Trees {
-    data: data.path().to_path_buf(),
-  };
-  let persona = data.path().join("prompts").join("persona");
-
-  std::fs::create_dir_all(&persona).unwrap();
-  std::fs::write(persona.join("blank.md"), " \n").unwrap();
-
-  assert_eq!(tone::layer(&trees, Some("missing")), "");
-  assert_eq!(tone::layer(&trees, Some("blank")), "");
 }

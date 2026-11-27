@@ -37,7 +37,6 @@ mod room_pictures;
 mod room_providers;
 mod room_rules;
 mod room_titles;
-mod room_tones;
 mod secrets;
 mod send_kinds;
 mod sender_matching;
