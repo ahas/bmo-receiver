@@ -194,21 +194,6 @@ pub fn capability_context(trees: &Trees, road: &Facts, home: Option<&Facts>) -> 
 /// one JSON row each (docs/unified-bmo.md, 「Delegations」). The block is complete, so an agent or a deployment
 /// keeping no brain carries it empty, and a brain that does not answer carries the line saying nothing is
 /// delegated until it does.
-pub async fn room_rules(receiver: &Receiver, agent: &str, chat_id: i64) -> Result<String, Fault> {
-  let said = &CHAT_LINE.rules;
-  let read = match receiver.units().brain.as_ref() {
-    Some(brain) => brain.room_rules(agent, chat_id).await,
-    None => Ok(None),
-  };
-  let Ok(rules) = read else {
-    return Ok(said.rules_down.clone());
-  };
-  let rows =
-    serde_json::to_string(&rules.unwrap_or_default()).map_err(|why| Fault::new(why.to_string()))?;
-
-  Ok(fill_marks(&said.room_rules, &[("rows", &rows)]))
-}
-
 // Every name one agent answers to, the owner's own word for it first.
 pub fn names_of(name: &str, label: Option<&str>, aliases: Option<&str>) -> String {
   let aliases: Vec<&str> = aliases
@@ -425,7 +410,6 @@ pub async fn room_context(
   );
   parts.push(capability_context(&trees, &road, elsewhere)?);
   parts.push(fill_marks(&said.road, &[("key", &road.key)]));
-  parts.push(room_rules(receiver, agent, chat_id).await?);
   parts.push(said.end.clone());
 
   Ok(RoomContext {

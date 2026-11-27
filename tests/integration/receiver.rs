@@ -35,7 +35,6 @@ mod room_members;
 mod room_mode;
 mod room_pictures;
 mod room_providers;
-mod room_rules;
 mod room_titles;
 mod secrets;
 mod send_kinds;

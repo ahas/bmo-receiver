@@ -28,7 +28,7 @@ use receiver_ports::agency::{
   OpenRun, Passed, Removal, Repository, ResetPoint, Rest, RestKind, Role, Run, RunLine, RunningJob, Said,
   Scope, Session, SessionState, Switches, Turn, TurnRead,
 };
-use receiver_ports::brain::{BrainUnit, Known, RoomRule};
+use receiver_ports::brain::{BrainUnit, Known};
 use receiver_ports::chat::{Chat, ChatAnswer, ChatServices};
 use receiver_ports::gate::{Audience, Entry, Envelope, Gate, IndexGroup, Judgement};
 use receiver_ports::hearing::{Heard as HearingHeard, Hearing};
@@ -2188,15 +2188,12 @@ pub const BRAIN: i64 = 9;
 
 /// The brain as a test sets it: every agent's brain is `BRAIN`, whether a consolidation is due is what the test
 /// says, and every fold reported is kept, by the brain and the session key. It keeps people only once a test says
-/// what it holds of them: what it holds of each person by key, and whom each memory is about. A room's rules are
-/// those a test gives it, and its reads of them fail once a test says it is down.
+/// what it holds of them: what it holds of each person by key, and whom each memory is about.
 pub struct StandInBrain {
   pub due: Mutex<bool>,
   pub folds: Mutex<Vec<(i64, String)>>,
   pub people: Mutex<Option<HashMap<String, Known>>>,
   pub about: Mutex<HashMap<i64, Vec<String>>>,
-  pub rules: Mutex<HashMap<i64, Vec<RoomRule>>>,
-  pub rules_down: Mutex<bool>,
 }
 
 impl StandInBrain {
@@ -2206,14 +2203,7 @@ impl StandInBrain {
       folds: Mutex::default(),
       people: Mutex::default(),
       about: Mutex::default(),
-      rules: Mutex::default(),
-      rules_down: Mutex::new(false),
     }
-  }
-
-  /// A rule the room holds from now on.
-  pub fn ruling(&self, chat: i64, rule: RoomRule) {
-    self.rules.lock().unwrap().entry(chat).or_default().push(rule);
   }
 
   /// From now on it keeps people, holding what `known` names of each and nothing of anyone else.
@@ -2262,22 +2252,6 @@ impl BrainUnit for StandInBrain {
     let people = memories.iter().flat_map(|id| about.get(id).cloned().unwrap_or_default()).collect();
 
     Box::pin(async move { Ok(Some(people)) })
-  }
-
-  fn room_rules<'a>(&'a self, _agent: &'a str, chat: i64) -> BoxFuture<'a, Answer<Option<Vec<RoomRule>>>> {
-    let down = *self.rules_down.lock().unwrap();
-    let rules = self.rules.lock().unwrap().get(&chat).cloned().unwrap_or_default();
-
-    Box::pin(async move {
-      if down {
-        return Err(PortFailure::Unreachable {
-          url: "http://brain".to_owned(),
-          why: "down".to_owned(),
-        });
-      }
-
-      Ok(Some(rules))
-    })
   }
 }
 

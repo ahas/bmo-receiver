@@ -1,8 +1,8 @@
 # Room switches
 
 The per-room switches the owner throws from inside a chat (muting, the notices, pictures), the reply budget, and
-the infrastructure room. Default access, owner-only work and room rules are `docs/unified-bmo.md` (「Default
-access and per-room delegation」). The words each command is matched by are data, in `policy/commands.toml`; each
+the infrastructure room. Default access and owner-only work are `docs/unified-bmo.md` (「Default
+access」). The words each command is matched by are data, in `policy/commands.toml`; each
 command also has a plain form that is the same in every language, given below.
 
 ## A room's number
@@ -35,11 +35,6 @@ command also has a plain form that is the same in every language, given below.
   restart notices are the owner's.
 - **A person speaking in the room is another matter:** the agent answers there as it answers anywhere.
 
-## Delegations
-
-- **What the owner delegates in a room is his room rules,** the `rule` memories of the agent's brain about the room
-  (`docs/unified-bmo.md`, 「Delegations」): the agent writes one on the owner's own message there and closes one the
-  same way, and the room's block carries every one standing.
 
 ## Mute
 

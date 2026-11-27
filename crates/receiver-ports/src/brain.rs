@@ -49,13 +49,9 @@ struct Subjects {
   items: Vec<Subject>,
 }
 
-/// A memory as the brain lists it, of which the receiver reads its id, its words and the subjects it is about.
+/// A memory as the brain lists it, of which the receiver reads the subjects it is about.
 #[derive(Deserialize)]
 struct Memory {
-  #[serde(default)]
-  id: i64,
-  #[serde(default)]
-  text: String,
   #[serde(default)]
   subjects: Vec<Subject>,
 }
@@ -78,24 +74,6 @@ pub const PERSON: &str = "person";
 
 /// The most memories one read of their subjects names.
 pub const SUBJECTS_READ_MOST: usize = 200;
-
-/// The subject type a room stands under in the brain, keyed by its chat number.
-pub const ROOM: &str = "room";
-
-/// The memory type an owner's room rule is.
-pub const RULE: &str = "rule";
-
-/// The most room rules one room's read takes, the brain's largest page.
-pub const ROOM_RULES_MOST: usize = 500;
-
-/// One of the owner's room rules: a live `rule` memory about the room, its id, the keys of the people it is about
-/// (their sender numbers) and its words.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
-pub struct RoomRule {
-  pub id: i64,
-  pub persons: Vec<String>,
-  pub text: String,
-}
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -131,12 +109,6 @@ pub trait BrainUnit: Send + Sync {
     _agent: &'a str,
     _memories: &'a [i64],
   ) -> BoxFuture<'a, Answer<Option<Vec<String>>>> {
-    Box::pin(async { Ok(None) })
-  }
-
-  /// The owner's room rules for the room `chat`, each live `rule` memory about it, lowest id first; none where the
-  /// agent has no brain. The read records no use and moves nothing, so a rule stands however often it is read.
-  fn room_rules<'a>(&'a self, _agent: &'a str, _chat: i64) -> BoxFuture<'a, Answer<Option<Vec<RoomRule>>>> {
     Box::pin(async { Ok(None) })
   }
 }
@@ -286,52 +258,6 @@ impl BrainUnit for HttpBrain {
       }
 
       Ok(Some(people))
-    })
-  }
-
-  fn room_rules<'a>(&'a self, agent: &'a str, chat: i64) -> BoxFuture<'a, Answer<Option<Vec<RoomRule>>>> {
-    Box::pin(async move {
-      let Some(brain) = self.brain_of(agent).await? else {
-        return Ok(None);
-      };
-      let brain = brain.to_string();
-      let query = [("type", ROOM.to_owned()), ("key", chat.to_string()), ("limit", "1".to_owned())];
-      let found: Answer<Subjects> = self.caller.get(&["brains", &brain, "subjects"], &query).await;
-      let Some(found) = self.settled(agent, found)? else {
-        return Ok(None);
-      };
-      let Some(room) = found.items.into_iter().find(|subject| subject.kind == ROOM) else {
-        return Ok(Some(vec![]));
-      };
-      let query = [
-        ("type", RULE.to_owned()),
-        ("status", "active".to_owned()),
-        ("subjectId", room.id.to_string()),
-        ("record", "false".to_owned()),
-        ("limit", ROOM_RULES_MOST.to_string()),
-      ];
-      let read: Answer<Memories> = self.caller.get(&["brains", &brain, "memories"], &query).await;
-      let Some(read) = self.settled(agent, read)? else {
-        return Ok(None);
-      };
-      let mut rules: Vec<RoomRule> = read
-        .items
-        .into_iter()
-        .map(|memory| RoomRule {
-          id: memory.id,
-          persons: memory
-            .subjects
-            .into_iter()
-            .filter(|subject| subject.kind == PERSON)
-            .map(|subject| subject.key)
-            .collect(),
-          text: memory.text,
-        })
-        .collect();
-
-      rules.sort_by_key(|rule| rule.id);
-
-      Ok(Some(rules))
     })
   }
 }

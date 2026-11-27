@@ -280,8 +280,8 @@ flowchart TD
   answering it (`docs/api.md`, 「Messages」).
 - **A supervisor adds a chat-service room only on the owner's word and only in `record-only` mode,** through the
   `rooms` tool's `room_add` entry or `bmo room add` (`docs/chat-mcp.md`, 「The rooms tool」): it answers on the
-  turn the receiver marked the owner's, and refuses a turn that is not, since no room rule may delegate adding a
-  room. A call naming no room, a contact or the contacts of a group answers the provider's rooms and contacts by
+  turn the receiver marked the owner's, and refuses a turn that is not, since adding a room is the owner's alone.
+  A call naming no room, a contact or the contacts of a group answers the provider's rooms and contacts by
   name, each with whether the receiver holds it, so the owner picks; the addition is the receiver's own
   `POST /rooms` (`docs/api.md`, 「Rooms」) and its refusals are the receiver's own. Avatar mode and an existing
   room's mode are not this road's: the console's registration screen alone changes a mode.

@@ -64,7 +64,7 @@
     version, was given in full earlier in this session, and says that it is in force again and that every other
     room's context given since no longer applies. So the room a turn is in is never left to be inferred from what
     came before it.
-  - **What a version is:** the whole block as composed for the turn (the room's rules or the owner's
+  - **What a version is:** the whole block as composed for the turn (the room's document or the owner's
     instructions, the roster, the road it answers on). Any change to any of them is
     a new version and goes in full.
   - **After a new session, a session fold, a new generation the agency opens under the session** or anything
@@ -449,7 +449,7 @@ at those moments and tells the brain of a fold it asks of the session itself.
   session cannot take the turn or the turn fails, the journal says the consolidation was skipped and the fold
   goes ahead. A session whose program carries its own fold is asked none of this.
 
-## Default access and per-room delegation
+## Default access
 
 ### Everyone is welcome
 
@@ -469,9 +469,9 @@ at those moments and tells the brain of a fold it asks of the session itself.
   owner-only rooms and ordinary-member restrictions.
 - **Who is speaking:** the sender is checked by the real message's sender. Quotes and links create no rights.
 - **No code lock on owner-only work.** This covers system changes, launching jobs, item approval and order,
-  work-order stage changes, pins, watches, immediate cleanup and saving delegations. The agent decides by the
-  standard of the absolute rules: is it the owner's own request, or a current delegation that entrusted that
-  action to that sender?
+  work-order stage changes, pins, watches and immediate cleanup. The agent decides by the standard of the
+  absolute rules: is it the owner's own request? Nobody else is delegated any of it in a room; a member's request
+  for such work is filed for his approval.
 - **The run-privilege mark** at the head of the request (the turn's `privileged`) only says whether all new
   messages this turn are the owner's; it is not a lock. It is read off the words each round itself takes, in
   any room, his private room or not, and whatever an earlier round of the same conversation read, and every
@@ -481,35 +481,12 @@ at those moments and tells the brain of a fold it asks of the session itself.
   alone, is the owner's in his private room alone.
 - **The same absolute rules also cover:** not carrying room talk elsewhere; refusing questions about privacy and
   about the system itself; and none of those refusals reaching the owner's own request, by the owner's recorded
-  sender, in any room. A question about the system is answered beside him only to a sender the room's current
-  rules name for it, within their scope.
+  sender, in any room.
 
-### Delegations
+### Whose words reach the agent
 
-- **Where they live:** a room's delegations are the owner's room rules and nothing else: the live `rule` memories of
-  the agent's own brain about the room, its subject of type `room` keyed by the chat number, each also about the
-  people it names, their subjects of type `person` keyed by their sender numbers. A rule names whom it is for by
-  those people or in its words, every member of the room among them, and says in its words what they may have the
-  agent do, the owner's words beside it where he gave them.
-- **The agent saves them where its turns read them.** On the owner's own message in the room it writes a rule with
-  its brain tool's learning (type `rule`, its subjects the room and the people it names, its source the owner's),
-  and takes one back by moving it closed; it says a rule is in force only once a later turn's block shows it.
-  Asking about the system itself is delegated the same way, by a rule saying so.
-- **Read, never spent.** The receiver reads a room's rules with no use recorded and moves none, and the brain ends
-  a memory only on a release condition coming true or a writer's move (the brain's `docs/design.md`, 「Recall」); a
-  room rule carries no release condition, so it stands however often a block carries it, until the owner takes it
-  back.
-- **Only current entries:** the brain's live rows are the rules in force; a rule taken back is closed, and none
-  stands as an inactive entry. The original chat record is separate.
-- **Delivery:**
-  - The receiver includes what is in force in the room-switch block, as the `ACTIVE OWNER ROOM RULES` the policy
-    words, one JSON row a rule: its `id`, the sender numbers of the people it is about (`persons`, none where its
-    words say whom) and its `text`. The set is complete; an agent or a deployment keeping no brain carries it
-    empty, and a brain that does not answer carries the policy's line that nobody but the owner holds delegated
-    authority in the room until it does.
-  - When it changes, even in the same room, it is replaced whole with a new block.
-  - A delegation left in earlier conversation or a summary is no basis for rights.
-- **Scope:** a rule applies only to its named user, work and project.
-- **Rights, not a wake:** a rule gives its user rights once the agent is awake. Every member's words wake the
-  agent in a room it answers, on the grounds in `docs/wake.md` (「Who reaches the session」); a rule neither wakes
-  it nor keeps it asleep, and a muted member's words do not wake it.
+- **No room carries delegations.** A room hands no member the owner's authority, and no turn's block carries a
+  list of rights. Whose words reach the agent at all is the receiver's: a muted member's words do not wake it
+  (`docs/rooms.md`, 「Mute」), and every other member's do, on the grounds in `docs/wake.md` (「Who reaches the
+  session」).
+- **A person speaking in the room is another matter:** the agent answers there as it answers anywhere.

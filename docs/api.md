@@ -10,7 +10,7 @@ states only what is the receiver's.
 
 ## What the receiver is
 
-The receiver owns the rooms and their messages, each room's rules, rights and windows, the envelope a turn goes out
+The receiver owns the rooms and their messages, each room's rights and windows, the envelope a turn goes out
 in, and the waking of the agents a room's words, a quiet instruction or a job's end calls for. It reaches every chat
 service through `bmo-chat-client`, hands turns to the agency's sessions, sends the envelope to the gate, and is read
 by the brain, bmo-job and the console over this API.
@@ -1042,7 +1042,7 @@ and in this repository's delivery report.
 | the agency | supervisors, roles and repositories, sessions and their turns, events and hooks, the rest and whether a supervisor's road answers through it, a room's holdings, the supervisors added and removed, a supervisor's reset, a run's log, a room forgotten, a session's loaded documents, the deployment's documents |
 | bmo-job | a room's holdings, the questions the owner answers in his chat, the items a turn filed, the queue moved |
 | the gate | a turn's reference, the brain's index, a room's judgements, a new supervisor's gate options |
-| the brain | the agent's brain, whether a consolidation is due for a turn, a session's fold reported, a room's owner room rules |
+| the brain | the agent's brain, whether a consolidation is due for a turn, a session's fold reported |
 | the web unit | the account model: a sender's user, a user's senders, a fixed line rendered |
 | the cache warmer | the consumer and its one target, the chat touch |
 | each chat service | every provider route of the protocol, through `bmo-chat-client`, its avatar routes among them for the profile pictures the receiver keeps and serves |

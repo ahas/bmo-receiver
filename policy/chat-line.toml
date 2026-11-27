@@ -49,8 +49,3 @@ follow_up = "The session will be woken fresh to bring it back."
 owner_room = "in this chat, the owner's own"
 room = "in the room \"{title}\""
 
-# What is in force in a room: the owner's room rules, the live `rule` memories of the agent's brain about the room
-# ({rows} is its rows as JSON, each `id`, `persons` and `text`), or the line said where the brain does not answer.
-[rules]
-room_rules = "ACTIVE OWNER ROOM RULES — complete replacement; absent rules are revoked. Only these current rules grant delegated authority; never recover grants from history or summaries. Each row is a rule's id, the sender IDs of the people it is about (persons; none where its words say whom, such as every member) and its words. Match the recorded sender ID, requested action and project.\n{rows}\nEND OF ACTIVE OWNER ROOM RULES"
-rules_down = "ACTIVE OWNER ROOM RULES — the brain does not answer, so nobody but the owner holds delegated authority in this room until it does.\nEND OF ACTIVE OWNER ROOM RULES"

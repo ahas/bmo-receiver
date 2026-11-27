@@ -6,7 +6,7 @@ the commands its binary answers, every call it makes on another unit, and the st
 not yet match.
 
 Rooms are the receiver's: the chats it receives through the chat services, their owner, the messages said in them,
-the agents that answer in them, each room's rules, rights and windows, the instructions it hands an agent's session
+the agents that answer in them, each room's rights and windows, the instructions it hands an agent's session
 there, and the envelope a turn goes out in. What a turn is told, whom an agent answers and whether an answer may go
 into the room are decided here; the agency carries the turn, the gate chooses its reference and reads it on the way
 in and out, and the brain keeps what the agents remember.
@@ -154,7 +154,7 @@ the operations machine's:
   prints the line the receiver answered with, naming the agent it was handed to, and ends 0. The address and token
   come from the process's environment, else from the data root's `env/receiver.env` (「Its tools」).
 - **`room add` is the owner's own, wherever it runs.** It answers only where the turn is the owner's, and refuses a
-  job, a worker or any turn not the owner's in one sentence, since no room rule may delegate adding a room. A call
+  job, a worker or any turn not the owner's in one sentence, since adding a room is the owner's alone. A call
   naming no room, contact or contacts prints the provider's rooms and contacts instead, each by name, and writes
   nothing.
 - **A spoken `talk` is handed as its words.** The voice, the written words and the spoken words go to the room's
@@ -282,8 +282,7 @@ over them by path.
 Its `docs/boundary-api.md`, in camelCase and behind its token, at the `brain` the configuration names or the
 address its `env/brain.env` gives. The receiver reaches it for the two moments the brain's consolidation answers
 to (the brain's `docs/design.md`, 「Consolidation」), for what it holds of the people a round's audit names
-(`docs/instruction.md`, 「The audit before the stages」), for the owner's room rules a room's block carries
-(`docs/unified-bmo.md`, 「Delegations」), and for nothing else the agent reads or writes: what the agent remembers
+(`docs/instruction.md`, 「The audit before the stages」), and for nothing else the agent reads or writes: what the agent remembers
 it writes with its own brain tool, and the rest a turn is handed of the brain is the gate's choice (「The gate」
 below).
 
@@ -295,8 +294,6 @@ below).
 | a person's subject | `GET /brains/{brainId}/subjects?type=person&key=&limit=1` | the person's sender number | `items`, of which the receiver reads `id` and `name`: none where the brain holds nothing of them, and a name where one of their records is a `name` memory |
 | whether the brain holds records of a person | `GET /brains/{brainId}/memories?subjectId=&status=active&limit=1` | the person's subject | `items`: none where no live record is about them |
 | whom memories are about | `GET /brains/{brainId}/memories?ids=&limit=` | the memories a session loaded, at most 200 | `items`, of which the receiver reads each one's `subjects`, `type` and `key`: the people of type `person` |
-| a room's subject | `GET /brains/{brainId}/subjects?type=room&key=&limit=1` | the room's chat number | `items`, of which the receiver reads `id`: none where the brain holds nothing of the room, which then has no rules |
-| a room's owner room rules | `GET /brains/{brainId}/memories?type=rule&status=active&subjectId=&record=false&limit=500` | the room's subject | `items`, of which the receiver reads each one's `id`, `text` and the keys of its `subjects` of type `person`; `record=false`, so the read records no use, and nothing the receiver asks moves a rule |
 
 - **The agent's brain is kept for the process,** by the agent's name, once a lookup has found it: the next
   call for the agent uses the kept id and asks no lookup. A call on a kept id that the brain answers 404 lets
@@ -315,11 +312,8 @@ below).
   the turn's tools as `BMO_RUN_NAME`, which the brain's tool reports its own `brain_fold` under. No run's name
   outlives its turn, so none names the session a fold ends; the session's id is the one key that stays the same
   across its turns.
-- **The room rules:** each time the room's block is composed the receiver reads the room's rules whole for the
-  turn's agent (`docs/unified-bmo.md`, 「Delegations」). A read that fails puts the line saying nothing is delegated
-  in their place and holds nothing up.
 - **Offered once.** A call on the brain is never offered again, a refused connection included: neither the due
-  line, a fold's report nor a room's rules is worth holding a turn or a fold for.
+  line nor a fold's report is worth holding a turn or a fold for.
 
 What the brain reads of the receiver it reads over this service's own routes (`docs/api.md`), and its documents
 stand under the brain root a document reload reads.
