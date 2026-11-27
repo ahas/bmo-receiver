@@ -935,7 +935,7 @@ pub async fn change_room_archive(
     return Err(refused(
       StatusCode::FORBIDDEN,
       "not-room-leader",
-      "a room is archived by the administrator, by the person whose supervisor it names or by a head of their unit",
+      "a room is archived by the administrator, by the person whose supervisor it names or by a head of their unit; ask one of them",
     ));
   }
 
@@ -972,7 +972,9 @@ pub async fn change_room_title(State(served): State<Served>, writable: WritableR
     return Err(refused(
       StatusCode::CONFLICT,
       "titled-by-service",
-      &format!("chat {room} is carried by a chat service, whose title it stands under"),
+      &format!(
+        "chat {room} is carried by a chat service, whose title it stands under; rename it in that chat service"
+      ),
     ));
   }
 

@@ -53,7 +53,7 @@ async fn governed(receiver: &Receiver, by: i64, room: i64) -> Result<(), Refusal
   Err(refused(
     StatusCode::FORBIDDEN,
     "not-room-leader",
-    "a member's rights are written by the administrator, by the room's leader or by a head of their unit",
+    "a member's rights are written by the administrator, by the room's leader or by a head of their unit; ask one of them",
   ))
 }
 
