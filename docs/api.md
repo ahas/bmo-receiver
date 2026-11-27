@@ -947,7 +947,7 @@ placeholder that never moves; the package is never taken from a registry, and no
 
 | Route | Body or query | Answers |
 |---|---|---|
-| `POST /supervisors` | `name`, `label`, `repository` (optional), `room`, and the road: `provider`, `model`, and `effort`, `thinking` and `answerTokens` (each optional), and `ownerAccount` (optional), the account it belongs to | 201, `supervisor`, the agency's read of it, `brain`, what became of its brain, and `room` (`id`, `takenBack`, `said`) |
+| `POST /supervisors` | `name`, `label`, `repository` (optional), `room`, and the road: `provider`, `model`, and `effort`, `thinking` and `answerTokens` (each optional), and `ownerAccount` (optional), the account it belongs to, or `ownerUnit` (optional), the organisation unit it is filed under | 201, `supervisor`, the agency's read of it, `brain`, what became of its brain, and `room` (`id`, `takenBack`, `said`) |
 | `DELETE /supervisors/{supervisorName}` | `by`, `forgetBrain`, `force` | 204; `unknown-supervisor` (404), `seeded` (409), `default-answerer` (409), `running` (409), `action` (400) |
 | `POST /supervisors/{supervisorName}/resets` | `conversation`, `person`, `dryRun`, `by` | the agency's answer to the reset as it came; `unknown-supervisor` (404) |
 | `GET /supervisors/{supervisorName}/rooms` | | a page of `SupervisorRoom` (`id`, `title`, `named`, `alone`): the rooms it answers |
@@ -980,7 +980,10 @@ placeholder that never moves; the package is never taken from a registry, and no
   `label`, `provider`, `model`, `repository`; a name the agency holds already as `name-taken`; any other as
   `upstream-failed`). A name the agency registers already is refused `name-taken` before anything is written, and
   so is a name whose room the record keeps as another account's private room, which stays that account's. With
-  `ownerAccount` the room is kept on its record as that account's private room from the start.
+  `ownerAccount` the room is kept on its record as that account's private room from the start. With `ownerUnit` the
+  agency files the supervisor under that unit, and its room is no one's private room; whether the caller may file
+  under the unit is judged by the console before it calls, the unit's heads alone, so the receiver passes the unit on
+  as the console sends it.
 - **Its road is added with it, in one ask.** A supervisor stands on one road: `provider` and `model`, with
   `effort` (a level of the reasoning policy), `thinking` (`on` or `off`) and `answerTokens` (the answer ceiling,
   on the registry's provider) where the console names them, each left to the provider's own where it does not.

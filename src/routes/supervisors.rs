@@ -73,6 +73,9 @@ pub struct Added {
   /// The account the supervisor belongs to, whose private room its own room is.
   #[serde(default)]
   owner_account: Option<i64>,
+  /// The organisation unit the supervisor is filed under, as the console judged the caller may file it.
+  #[serde(default)]
+  owner_unit: Option<i64>,
 }
 
 #[derive(Deserialize, Default)]
@@ -275,6 +278,7 @@ pub async fn add(State(served): State<Served>, headers: HeaderMap, body: Bytes) 
     thinking: asked.thinking.clone(),
     answer_tokens: asked.answer_tokens,
     owner_account: asked.owner_account,
+    owner_unit: asked.owner_unit,
   };
   let added = receiver.units().agency.add_supervisor(&row).await;
 

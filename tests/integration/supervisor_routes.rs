@@ -357,6 +357,38 @@ async fn a_supervisor_added_for_an_account_has_its_room_kept_as_that_accounts_pr
   );
 }
 
+// A supervisor filed under an organisation unit, as the console judged the caller heads it: the agency is told the unit,
+// and its room is no one's private room.
+#[tokio::test]
+async fn a_supervisor_added_under_a_unit_is_filed_under_it_and_its_room_is_no_ones() {
+  let scratch = Scratch::new().await;
+  let front = bench(&scratch).await;
+  let (status, answer) = post(
+    &front,
+    "/supervisors",
+    json!({ "name": ADDED, "label": "Agent D", "room": "A room of the unit's", "ownerUnit": 12 }),
+  )
+  .await;
+
+  assert_eq!(status, StatusCode::CREATED, "{answer}");
+
+  let room = answer["room"]["id"].as_i64().unwrap();
+  let rows = front.standing.agency.added_rows.lock().unwrap().clone();
+
+  assert_eq!(
+    (rows[0].owner_unit, rows[0].owner_account),
+    (Some(12), None),
+    "the agency is told the unit"
+  );
+  assert!(
+    scratch
+      .texts(&format!(r#"SELECT "account"::text FROM "private_rooms" WHERE "chat_id" = {room}"#))
+      .await
+      .is_empty(),
+    "its room is no one's private room"
+  );
+}
+
 #[tokio::test]
 async fn a_reset_is_handed_the_rooms_that_name_the_supervisor_alone_and_beside_another() {
   let scratch = Scratch::new().await;

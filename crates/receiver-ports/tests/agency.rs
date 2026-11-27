@@ -276,6 +276,7 @@ async fn a_supervisor_is_added_removed_and_reset_on_the_routes_the_agency_serves
     thinking: Some("on".to_owned()),
     answer_tokens: Some(8000),
     owner_account: None,
+    owner_unit: Some(12),
   };
   let removal = Removal {
     rooms: vec![-5, 7],
@@ -332,6 +333,7 @@ async fn a_supervisor_is_added_removed_and_reset_on_the_routes_the_agency_serves
     "effort": "high",
     "thinking": "on",
     "answerTokens": 8000,
+    "ownerUnit": 12,
   });
   let removed = "rooms=-5%2C7&forgetBrain=true&force=false";
 
