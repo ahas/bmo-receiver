@@ -3857,6 +3857,7 @@ async fn designated(receiver: &Receiver, agent: &str) -> wake::agents::Designate
     Ok(Some(designated)) => designated,
     _ => wake::agents::Designated {
       name_tag: wake::agents::default_name_tag(agent),
+      accounts: Vec::new(),
       name: agent.to_owned(),
       call_names: Vec::new(),
       window_seconds: None,

@@ -200,9 +200,21 @@ async fn carry(
   // any other voice leaves it off.
   request.prefix = Some(crate::receiver::wake::agents::prefix_of(receiver, &agent).await);
 
+  // An agent holding accounts speaks through the one standing in the room, and in the owner's own account where none
+  // does (docs/wake.md, 「Who reaches the session」).
+  if let Road::Service(_) = &road {
+    match crate::receiver::wake::agents::account_in_room(receiver, &agent, chat_id).await {
+      Some(true) => request.speaker = Some(agent.clone()),
+      Some(false) => request.mode = Some(bmo_chat_client::ChatVoice::HumanAvatar),
+      None => {}
+    }
+  }
+
   // An agent other than the default answerer speaks as itself where the service takes a speaker, so a service
   // holding a voice of that agent's own speaks through it (docs/receiver.md, 「A room's chat providers」).
   if let Road::Service(key) = &road
+    && request.speaker.is_none()
+    && request.mode != Some(bmo_chat_client::ChatVoice::HumanAvatar)
     && agent != receiver.default_answerer()
     && receiver.roads().declaration(key).await.is_some_and(|declared| declared.speakers)
   {

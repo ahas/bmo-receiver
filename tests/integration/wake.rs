@@ -521,6 +521,7 @@ async fn a_group_room_is_answered_by_the_supervisor_its_leader_names() {
 fn a_send_goes_out_in_the_account_of_the_leader_it_speaks_as_or_of_the_one_leader() {
   let named = |name: &str, account: Option<i64>| agents::Designated {
     name_tag: agents::default_name_tag(name),
+    accounts: vec![],
     name: name.to_owned(),
     call_names: vec![],
     window_seconds: None,
@@ -1138,4 +1139,25 @@ async fn a_supervisor_of_an_account_whose_machine_is_gone_is_woken_nowhere() {
     .await
     .unwrap();
   assert_eq!(standing.taken.handed().len(), 1);
+}
+
+#[test]
+fn a_supervisor_stands_in_a_room_where_one_of_its_accounts_on_that_service_is_a_member() {
+  let agent = agents::Designated {
+    name: "agent-b".to_owned(),
+    call_names: vec![],
+    window_seconds: None,
+    owner_account: Some(77),
+    default_answerer: false,
+    name_tag: agents::default_name_tag("agent-b"),
+    accounts: vec![("telegram".to_owned(), "1234567".to_owned()), ("discord".to_owned(), "99".to_owned())],
+  };
+
+  assert!(agent.stands_among("telegram", &[5, 1_234_567]));
+  assert!(
+    !agent.stands_among("telegram", &[5, 99]),
+    "an account of another service is no member here"
+  );
+  assert!(agent.stands_among("discord", &[99]));
+  assert!(!agent.stands_among("kakao", &[1_234_567]));
 }

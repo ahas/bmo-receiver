@@ -10,8 +10,16 @@ its rounds.
   `ownerAccount`, the user the account model links the person's sender to, where the room's road says it is a
   one-to-one with a person; the first by name answers where more than one supervisor names that user. Every
   other room naming none, the owner's private chat among them, is answered by the default answerer, the
-  supervisor the receiver's setting names. A room naming none is answered alone in the owner's private chat
+  supervisor the receiver's setting names, beside any supervisor whose account stands in it (below). A room naming none is answered alone in the owner's private chat
   and in a user's own private chat.
+- **A supervisor whose account stands in a chat service's room answers it, named or not.** A room whose
+  member list on its chat service holds one of a supervisor's accounts there (the agency's `docs/supervisors.md`,
+  「Its accounts on chat services」), matched by the service's key and the member's number, has that supervisor
+  among its designated agents beside the ones it names: inviting the account is calling the supervisor in. Such a
+  supervisor's words go out through its account; a named supervisor whose account stands nowhere in the room
+  answers in the owner's own account, behind its name tag (`docs/receiver.md`, 「A room's chat providers」). The member list is asked of the service as
+  a room's words are weighed and kept for a moment, as long as `kept.toml` keeps a service's facts of a room; a service that cannot list
+  its members adds no supervisor.
 - **A user's own private chat whose person owns no awake supervisor falls back to the default answerer,** and
   the journal says once for the room that the fallback was taken.
 - **A group room is answered by its leader's BMO where it names one.** The console makes a group room naming the

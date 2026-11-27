@@ -37,6 +37,9 @@ pub struct Designated {
   /// What its words carry before them in the owner's own account: its own name tag, else the policy's default
   /// made of its label (docs/receiver.md, 「A room's chat providers」).
   pub name_tag: String,
+  /// Its accounts on chat services, each a service's key and the account's number there (the agency's
+  /// `docs/supervisors.md`, 「Its accounts on chat services」).
+  pub accounts: Vec<(String, String)>,
 }
 
 /// The name tag of an agent whose registration names none: the policy's default made of its shown name.
@@ -73,7 +76,28 @@ impl Designated {
         .map(trim)
         .filter(|tag| !tag.is_empty())
         .unwrap_or_else(|| default_name_tag(agent.label.as_deref().unwrap_or(&agent.name))),
+      accounts: agent
+        .row
+        .get("accounts")
+        .and_then(serde_json::Value::as_array)
+        .map(|accounts| {
+          accounts
+            .iter()
+            .filter_map(|one| {
+              Some((one.get("service")?.as_str()?.to_owned(), one.get("number")?.as_str()?.to_owned()))
+            })
+            .collect()
+        })
+        .unwrap_or_default(),
     }
+  }
+
+  /// Whether one of its accounts is a member a room's chat service lists, by the service's key and the member's
+  /// number.
+  pub fn stands_among(&self, service: &str, members: &[i64]) -> bool {
+    self.accounts.iter().any(|(key, number)| {
+      key == service && number.parse::<i64>().is_ok_and(|number| members.contains(&number))
+    })
   }
 
   /// Whether the words call it: its label or one of its call names stands in them as a word, in either case
@@ -210,6 +234,7 @@ pub async fn default_designated(receiver: &Receiver) -> Result<Designated, NotRe
       .find(|agent| agent.default_answerer)
       .cloned()
       .unwrap_or_else(|| Designated {
+        accounts: Vec::new(),
         name_tag: default_name_tag(&receiver.default_answerer()),
         name: receiver.default_answerer(),
         call_names: Vec::new(),
@@ -341,8 +366,16 @@ impl SendingAccount for Leaders {
 /// The awake agents a room records as its answerers; none where it names nobody.
 pub async fn named_designated(receiver: &Receiver, chat_id: i64) -> Result<Vec<Designated>, NotReceived> {
   let awake = awake(receiver).await?;
+  let mut answerers = named_among(receiver.db(), chat_id, &awake).await?;
 
-  named_among(receiver.db(), chat_id, &awake).await
+  // A supervisor whose account stands in the room answers it beside the ones it names.
+  for agent in accounted_in(receiver, chat_id, &awake).await {
+    if !answerers.iter().any(|one| one.name == agent.name) {
+      answerers.push(agent);
+    }
+  }
+
+  Ok(answerers)
 }
 
 /// Of the awake agents given, those a room records as its answerers; none where it names nobody. A read that
@@ -364,6 +397,69 @@ pub async fn named_among(
     .collect::<Result<_, _>>()?;
 
   Ok(awake.iter().filter(|agent| named.contains(&agent.name)).cloned().collect())
+}
+
+// A room's members as its chat service lists them, by number, kept as long as a service's facts of a room are.
+// One room's members as last listed: when, on which service, and their numbers.
+type ListedMembers = (std::time::Instant, String, Vec<i64>);
+
+static MEMBERS: std::sync::LazyLock<std::sync::Mutex<std::collections::HashMap<i64, ListedMembers>>> =
+  std::sync::LazyLock::new(Default::default);
+
+/// The room's chat service and the numbers of the members it lists, none where the room stands on no service or
+/// its service cannot list them (docs/wake.md, 「Who reaches the session」).
+pub async fn room_members(receiver: &Receiver, chat_id: i64) -> Option<(String, Vec<i64>)> {
+  let fresh = std::time::Duration::from_secs(receiver_policy::kept::KEPT.room_seconds);
+
+  if let Some((at, key, members)) =
+    MEMBERS.lock().unwrap_or_else(std::sync::PoisonError::into_inner).get(&chat_id)
+    && at.elapsed() < fresh
+  {
+    return Some((key.clone(), members.clone()));
+  }
+
+  let Some(crate::roads::Road::Service(key)) = receiver.roads().own(chat_id).await else {
+    return None;
+  };
+  let service = receiver.roads().chats().road(&key)?;
+  let listed = service.members(chat_id).await.ok()?;
+  let members: Vec<i64> = listed.members.iter().filter_map(|member| member.person).collect();
+
+  MEMBERS
+    .lock()
+    .unwrap_or_else(std::sync::PoisonError::into_inner)
+    .insert(chat_id, (std::time::Instant::now(), key.clone(), members.clone()));
+
+  Some((key, members))
+}
+
+/// Whether an agent's own account stands in a room: none where the agent holds no account at all, so its words go
+/// as they always have; else whether one of its accounts is among the room's members (docs/wake.md, 「Who reaches
+/// the session」).
+pub async fn account_in_room(receiver: &Receiver, agent: &str, chat_id: i64) -> Option<bool> {
+  let designated = registered(receiver, agent).await.ok().flatten()?;
+
+  if designated.accounts.is_empty() {
+    return None;
+  }
+
+  let (service, members) = room_members(receiver, chat_id).await?;
+
+  Some(designated.stands_among(&service, &members))
+}
+
+/// Of the awake agents given, those with an account standing among a room's members on its chat service: inviting
+/// the account called the supervisor in (docs/wake.md, 「Who reaches the session」).
+pub async fn accounted_in(receiver: &Receiver, chat_id: i64, awake: &[Designated]) -> Vec<Designated> {
+  if !awake.iter().any(|agent| !agent.accounts.is_empty()) {
+    return Vec::new();
+  }
+
+  let Some((service, members)) = room_members(receiver, chat_id).await else {
+    return Vec::new();
+  };
+
+  awake.iter().filter(|agent| agent.stands_among(&service, &members)).cloned().collect()
 }
 
 /// Who answers in a room, and whether one of them answers it alone: the awake agents the room records as its
