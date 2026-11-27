@@ -176,6 +176,14 @@ pub struct Answerer {
   pub agent_name: String,
   /// Whether it is the supervisor the receiver's default answerer setting names.
   pub default_answerer: bool,
+  /// Whether the room names it.
+  pub named: bool,
+  /// Whether one of its accounts is a member of the room.
+  pub by_account: bool,
+  /// Whether it answers there, or the room turned it off.
+  pub on: bool,
+  /// The account its words go out in there: `own-account` or `owner-account`.
+  pub voice: String,
 }
 
 /// `GET /rooms/{roomId}/answerers`: the room's default answerer, its voice, and every agent answering it.
@@ -1415,6 +1423,21 @@ pub struct DefaultAnswerer {
 #[serde(rename_all = "camelCase")]
 pub struct RoomSupervisors {
   pub supervisors: Vec<String>,
+}
+
+/// Whether a supervisor standing in a room answers there.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct Answering {
+  pub on: bool,
+}
+
+/// A supervisor turned off or on in a room, as it now stands.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct AnsweringSet {
+  pub agent_name: String,
+  pub on: bool,
 }
 
 /// The pinned order as it now stands.

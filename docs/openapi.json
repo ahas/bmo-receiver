@@ -399,14 +399,34 @@
           "agentName": {
             "type": "string"
           },
+          "byAccount": {
+            "description": "Whether one of its accounts is a member of the room.",
+            "type": "boolean"
+          },
           "defaultAnswerer": {
             "description": "Whether it is the supervisor the receiver's default answerer setting names.",
             "type": "boolean"
+          },
+          "named": {
+            "description": "Whether the room names it.",
+            "type": "boolean"
+          },
+          "on": {
+            "description": "Whether it answers there, or the room turned it off.",
+            "type": "boolean"
+          },
+          "voice": {
+            "description": "The account its words go out in there: `own-account` or `owner-account`.",
+            "type": "string"
           }
         },
         "required": [
           "agentName",
-          "defaultAnswerer"
+          "defaultAnswerer",
+          "named",
+          "byAccount",
+          "on",
+          "voice"
         ],
         "type": "object"
       },
@@ -434,6 +454,34 @@
           "voice",
           "items",
           "more"
+        ],
+        "type": "object"
+      },
+      "Answering": {
+        "description": "Whether a supervisor standing in a room answers there.",
+        "properties": {
+          "on": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "on"
+        ],
+        "type": "object"
+      },
+      "AnsweringSet": {
+        "description": "A supervisor turned off or on in a room, as it now stands.",
+        "properties": {
+          "agentName": {
+            "type": "string"
+          },
+          "on": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "agentName",
+          "on"
         ],
         "type": "object"
       },
@@ -10067,6 +10115,83 @@
           }
         },
         "summary": "A room's whole list of supervisors; an empty list hands the room to the default answerer.",
+        "tags": [
+          "Rooms"
+        ],
+        "x-codes": [
+          "unauthorized",
+          "bad-request",
+          "not-found",
+          "private-room",
+          "upstream-failed",
+          "failed"
+        ]
+      }
+    },
+    "/rooms/{roomId}/supervisors/{supervisorName}/answering": {
+      "put": {
+        "operationId": "setRoomSupervisorAnswering",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "supervisorName",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "account",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Answering"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnsweringSet"
+                }
+              }
+            },
+            "description": "Answered."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WireError"
+                }
+              }
+            },
+            "description": "A refusal or failure: unauthorized, bad-request, not-found, private-room, upstream-failed, failed"
+          }
+        },
+        "summary": "A supervisor standing in a room turned off there, so it answers nothing in the room, or on again.",
         "tags": [
           "Rooms"
         ],

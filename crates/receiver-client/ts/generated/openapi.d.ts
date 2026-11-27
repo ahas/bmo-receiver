@@ -1403,6 +1403,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/rooms/{roomId}/supervisors/{supervisorName}/answering": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** A supervisor standing in a room turned off there, so it answers nothing in the room, or on again. */
+        put: operations["setRoomSupervisorAnswering"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/rooms/{roomId}/title": {
         parameters: {
             query?: never;
@@ -1859,8 +1876,16 @@ export interface components {
         /** @description One agent answering a room. */
         Answerer: {
             agentName: string;
+            /** @description Whether one of its accounts is a member of the room. */
+            byAccount: boolean;
             /** @description Whether it is the supervisor the receiver's default answerer setting names. */
             defaultAnswerer: boolean;
+            /** @description Whether the room names it. */
+            named: boolean;
+            /** @description Whether it answers there, or the room turned it off. */
+            on: boolean;
+            /** @description The account its words go out in there: `own-account` or `owner-account`. */
+            voice: string;
         };
         /** @description `GET /rooms/{roomId}/answerers`: the room's default answerer, its voice, and every agent answering it. */
         Answerers: {
@@ -1868,6 +1893,15 @@ export interface components {
             items: components["schemas"]["Answerer"][];
             more: boolean;
             voice: string;
+        };
+        /** @description Whether a supervisor standing in a room answers there. */
+        Answering: {
+            on: boolean;
+        };
+        /** @description A supervisor turned off or on in a room, as it now stands. */
+        AnsweringSet: {
+            agentName: string;
+            on: boolean;
         };
         /** @description Who asks a send. */
         Asker: {
@@ -6742,6 +6776,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RoomSupervisors"];
+                };
+            };
+            /** @description A refusal or failure: unauthorized, bad-request, not-found, private-room, upstream-failed, failed */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WireError"];
+                };
+            };
+        };
+    };
+    setRoomSupervisorAnswering: {
+        parameters: {
+            query?: {
+                account?: number;
+            };
+            header?: never;
+            path: {
+                roomId: number;
+                supervisorName: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Answering"];
+            };
+        };
+        responses: {
+            /** @description Answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnsweringSet"];
                 };
             };
             /** @description A refusal or failure: unauthorized, bad-request, not-found, private-room, upstream-failed, failed */

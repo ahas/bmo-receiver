@@ -1854,6 +1854,21 @@ pub fn openapi() -> Value {
     vec!["unauthorized", "bad-request", "not-found", "private-room", "upstream-failed", "failed"]
   );
   add!(
+    "PUT",
+    "/rooms/{roomId}/supervisors/{supervisorName}/answering",
+    "setRoomSupervisorAnswering",
+    "Rooms",
+    "A supervisor standing in a room turned off there, so it answers nothing in the room, or on again.",
+    vec![
+      path_parameter("roomId"),
+      path_parameter("supervisorName"),
+      parameter("account", "integer", false)
+    ],
+    Some(generator.subschema_for::<Answering>()),
+    vec![(200, json_answer::<AnsweringSet>(&mut generator))],
+    vec!["unauthorized", "bad-request", "not-found", "private-room", "upstream-failed", "failed"]
+  );
+  add!(
     "DELETE",
     "/supervisors/{supervisorName}",
     "removeSupervisor",
