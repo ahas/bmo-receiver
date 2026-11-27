@@ -48,8 +48,8 @@ async fn the_thread_carries_only_what_the_person_and_the_chat_agent_said_in_room
   stood.web.linking(OWNER, "tester".into());
   scratch
     .run(
-      r#"INSERT INTO "room_supervisors" ("chat_id", "supervisor") VALUES ($1, 'agent-b'), ($2, 'agent-b'), ($2, $3)"#,
-      vec![OTHERS.into(), MIXED.into(), AGENT.into()],
+      r#"INSERT INTO "room_supervisors" ("chat_id", "supervisor") VALUES ($1, 'agent-b'), ($2, 'agent-b'), ($2, $3), ($4, $3)"#,
+      vec![OTHERS.into(), MIXED.into(), AGENT.into(), SHARED.into()],
     )
     .await;
   scratch

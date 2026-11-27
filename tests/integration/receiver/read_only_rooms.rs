@@ -116,6 +116,14 @@ async fn a_call_by_name_in_a_read_only_room_starts_no_turn_and_is_kept_while_the
  {
   let (scratch, _data, standing, road) = stood().await;
 
+  // Both rooms name the agent, since a chat service's group room naming nobody is answered by nobody.
+  scratch
+    .run(
+      r#"INSERT INTO "room_supervisors" ("chat_id", "supervisor") VALUES ($1, $3), ($2, $3)"#,
+      vec![READER_ROOM.into(), BOT_ROOM.into(), AGENT.into()],
+    )
+    .await;
+
   assert!(
     providers::read_only(scratch.db(), standing.receiver.roads(), READER_ROOM)
       .await

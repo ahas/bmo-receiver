@@ -1109,6 +1109,13 @@ async fn a_round_of_the_owners_own_words_is_privileged_in_any_room_after_a_quiet
   let standing = woken(unrun(scratch.db(), DataRoot::new(data.path()), vec![chat.clone()], deployment()));
   // The rooms stand on the console's room list, so the receiver listens to them (docs/wake.md).
   bmo_receiver::receiver::rows::allow_chat(scratch.db(), LAB).await.unwrap();
+  // The room names the agent, since a chat service's group room naming nobody is answered by nobody.
+  scratch
+    .run(
+      r#"INSERT INTO "room_supervisors" ("chat_id", "supervisor") VALUES ($1, $2) ON CONFLICT DO NOTHING"#,
+      vec![LAB.into(), AGENT.into()],
+    )
+    .await;
   let session = Arc::new(StandInSession::new(SESSION, ANSWER));
   let receiver = standing.receiver.clone();
   let runner = Runner::new(receiver.clone(), Arc::new(Around::new(receiver.clone())), timings(), AGENT);
@@ -1172,6 +1179,13 @@ async fn an_agents_line_beside_the_owners_words_in_one_round_leaves_the_round_hi
   let standing = woken(unrun(scratch.db(), DataRoot::new(data.path()), vec![chat.clone()], deployment()));
   // The rooms stand on the console's room list, so the receiver listens to them (docs/wake.md).
   bmo_receiver::receiver::rows::allow_chat(scratch.db(), LAB).await.unwrap();
+  // The room names the agent, since a chat service's group room naming nobody is answered by nobody.
+  scratch
+    .run(
+      r#"INSERT INTO "room_supervisors" ("chat_id", "supervisor") VALUES ($1, $2) ON CONFLICT DO NOTHING"#,
+      vec![LAB.into(), AGENT.into()],
+    )
+    .await;
   let session = Arc::new(StandInSession::new(SESSION, ANSWER));
   let receiver = standing.receiver.clone();
   // The queue gathers long enough for the agent's line and the owner's words to go in one round, as they did live.

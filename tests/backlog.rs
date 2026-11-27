@@ -102,6 +102,20 @@ async fn a_restart_serves_each_room_from_the_line_that_wakes_its_agent_once_and_
   let cold = now - (CHAT_ROUND.backlog.within_minutes + 1) * 60_000;
 
   round.standing.web.watching(&[ROOM_B, ROOM]);
+  // Both rooms name the agent and another beside it, since a chat service's group room naming nobody is answered
+  // by nobody, and two answerers wait for their calls as a group room's do.
+  round.standing.agency.registering(vec![
+    registration(AGENT, "Agent A", vec![ADDRESS], None),
+    registration("agent-b", "Agent B", vec!["agent-b"], None),
+  ]);
+  round
+    .scratch
+    .run(
+      r#"INSERT INTO "room_supervisors" ("chat_id", "supervisor")
+         VALUES ($1, 'agent-a'), ($2, 'agent-a'), ($1, 'agent-b'), ($2, 'agent-b')"#,
+      vec![ROOM.into(), ROOM_B.into()],
+    )
+    .await;
   round
     .scratch
     .run(

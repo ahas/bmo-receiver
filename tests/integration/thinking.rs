@@ -138,6 +138,13 @@ impl Round {
     let standing = woken(unrun(scratch.db(), DataRoot::new(data.path()), vec![chat.clone()], deployment()));
     // The rooms stand on the console's room list, so the receiver listens to them (docs/wake.md).
     bmo_receiver::receiver::rows::allow_chat(scratch.db(), OTHER).await.unwrap();
+    // The room names the agent, since a chat service's group room naming nobody is answered by nobody.
+    scratch
+      .run(
+        r#"INSERT INTO "room_supervisors" ("chat_id", "supervisor") VALUES ($1, $2) ON CONFLICT DO NOTHING"#,
+        vec![OTHER.into(), AGENT.into()],
+      )
+      .await;
 
     *standing.gate.entries.lock().unwrap() = vec![Entry {
       path: "knowledge/plans".to_owned(),

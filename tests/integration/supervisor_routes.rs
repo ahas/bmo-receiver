@@ -80,7 +80,7 @@ async fn a_members_supervisor_reads_a_group_rooms_messages_without_answering_it(
   assert_eq!(status, StatusCode::OK, "{answer}");
   assert_eq!(answer["items"].as_array().unwrap().len(), 2);
 
-  // Reading adds no answerer: the room is still the default answerer's.
+  // Reading adds no answerer: the room names nobody and holds no supervisor's account, so nobody answers it.
   let (answerers, _) = agents::room_designated(
     &front.receiver(),
     room,
@@ -94,8 +94,7 @@ async fn a_members_supervisor_reads_a_group_rooms_messages_without_answering_it(
   .await
   .unwrap();
 
-  assert_eq!(answerers.len(), 1);
-  assert_eq!(answerers[0].name, AGENT);
+  assert!(answerers.is_empty(), "{answerers:?}");
 }
 
 #[tokio::test]

@@ -84,6 +84,34 @@ async fn stood(rooms: &[i64]) -> (Scratch, tempfile::TempDir, Standing) {
   (scratch, data, stood)
 }
 
+// The rooms given name the agent: a chat service's group room naming nobody is answered by nobody (docs/wake.md,
+// 「Who reaches the session」).
+async fn named(scratch: &Scratch, rooms: &[i64]) {
+  for room in rooms {
+    scratch
+      .run(
+        r#"INSERT INTO "room_supervisors" ("chat_id", "supervisor") VALUES ($1, $2) ON CONFLICT DO NOTHING"#,
+        vec![(*room).into(), AGENT.into()],
+      )
+      .await;
+  }
+}
+
+// The rooms given name the agent and another beside it, so none answers alone and each waits for its call, as a
+// group room's answerers do.
+async fn shared(scratch: &Scratch, rooms: &[i64]) {
+  named(scratch, rooms).await;
+
+  for room in rooms {
+    scratch
+      .run(
+        r#"INSERT INTO "room_supervisors" ("chat_id", "supervisor") VALUES ($1, 'agent-b') ON CONFLICT DO NOTHING"#,
+        vec![(*room).into()],
+      )
+      .await;
+  }
+}
+
 async fn everyone_heard(scratch: &Scratch) {
   scratch
     .run(
@@ -569,22 +597,25 @@ fn a_call_name_calls_its_supervisor_only_where_it_stands_as_a_word() {
 }
 
 #[tokio::test]
-async fn a_group_room_naming_no_supervisor_stays_with_the_default_answerer() {
+async fn a_chat_service_group_room_naming_no_supervisor_is_answered_by_nobody() {
   let (_scratch, _data, standing) = stood(&[-152]).await;
 
   standing.agency.registering(vec![registration(AGENT, "Agent A", vec![ADDRESS], None)]);
 
   let (answerers, alone) = agents::room_designated(&standing.receiver, -152, room()).await.unwrap();
 
-  assert_eq!(answerers.len(), 1);
-  assert_eq!(answerers[0].name, AGENT);
-  assert!(answerers[0].default_answerer);
-  assert!(!alone, "a group room naming nobody is not answered alone");
+  assert!(
+    answerers.is_empty(),
+    "a chat service's group room naming nobody and holding no account is answered by nobody"
+  );
+  assert!(!alone);
 }
 
 #[tokio::test]
 async fn the_chat_agents_own_words_filed_in_a_room_wake_nobody_and_a_later_word_in_its_open_window_does() {
   let (scratch, _data, standing) = stood(&[-134]).await;
+
+  named(&scratch, &[-134]).await;
 
   standing
     .agency
@@ -618,6 +649,8 @@ async fn the_chat_agents_own_words_filed_in_a_room_wake_nobody_and_a_later_word_
 #[tokio::test]
 async fn a_persons_file_rides_the_request_that_follows_it_and_a_muted_person_wakes_nobody() {
   let (scratch, _data, standing) = stood(&[-122]).await;
+
+  named(&scratch, &[-122]).await;
 
   standing
     .agency
@@ -663,11 +696,14 @@ async fn a_persons_file_rides_the_request_that_follows_it_and_a_muted_person_wak
 
 #[tokio::test]
 async fn a_rule_subjects_file_wakes_only_on_the_grounds_words_do_and_rides_the_call_after_it() {
-  let (_scratch, _data, standing) = stood(&[-140]).await;
+  let (scratch, _data, standing) = stood(&[-140]).await;
 
-  standing
-    .agency
-    .registering([registration(AGENT, "Agent A", vec![ADDRESS], None)].to_vec());
+  shared(&scratch, &[-140]).await;
+
+  standing.agency.registering(vec![
+    registration(AGENT, "Agent A", vec![ADDRESS], None),
+    registration("agent-b", "Agent B", vec!["agent-b"], None),
+  ]);
 
   // The rule names the sender, which is heard in owner-only mode but is no ground: with no caption and the
   // window closed, neither the picture nor the document wakes anybody.
@@ -697,9 +733,12 @@ async fn a_rule_subjects_file_wakes_only_on_the_grounds_words_do_and_rides_the_c
 async fn a_picture_wakes_the_agent_inside_the_rooms_open_window_and_in_the_owners_own_chat() {
   let (scratch, _data, standing) = stood(&[-141, OWNER]).await;
 
-  standing
-    .agency
-    .registering([registration(AGENT, "Agent A", vec![ADDRESS], None)].to_vec());
+  shared(&scratch, &[-141]).await;
+
+  standing.agency.registering(vec![
+    registration(AGENT, "Agent A", vec![ADDRESS], None),
+    registration("agent-b", "Agent B", vec!["agent-b"], None),
+  ]);
   everyone_heard(&scratch).await;
 
   // A member's picture with no caption, the window closed, wakes nobody; inside the open window it does.
@@ -770,7 +809,9 @@ async fn words_that_are_nothing_but_the_secret_marker_wake_nobody_and_no_name_is
 
 #[tokio::test]
 async fn a_room_the_rest_closes_hands_its_turn_over_marked_so_and_the_owners_chat_waits_alike() {
-  let (_scratch, _data, standing) = stood(&[-125, OWNER]).await;
+  let (scratch, _data, standing) = stood(&[-125, OWNER]).await;
+
+  named(&scratch, &[-125]).await;
 
   standing
     .agency
@@ -833,6 +874,8 @@ async fn the_rest_silences_a_room_only_for_an_agent_whose_own_road_it_closes() {
 #[tokio::test]
 async fn a_room_added_for_the_user_alone_wakes_no_agent_even_where_one_is_called() {
   let (scratch, _data, standing) = stood(&[-131, -132]).await;
+
+  named(&scratch, &[-131, -132]).await;
 
   standing
     .agency
@@ -1160,4 +1203,40 @@ fn a_supervisor_stands_in_a_room_where_one_of_its_accounts_on_that_service_is_a_
   );
   assert!(agent.stands_among("discord", &[99]));
   assert!(!agent.stands_among("kakao", &[1_234_567]));
+}
+
+// "A supervisor whose account stands in a chat service's room answers it, named or not": inviting its account calls
+// it in, and as a group room's default answerer did, it waits for its name rather than taking the room as its own.
+#[tokio::test]
+async fn a_supervisor_whose_account_stands_in_a_group_room_answers_it_when_called_and_never_alone() {
+  let scratch = Scratch::new().await;
+  let data = tempfile::tempdir().unwrap();
+  let room_id = -160;
+  let chat = Arc::new(
+    StandInChat::new("road-a")
+      .holding(&[room_id])
+      .canning(&[bmo_chat_client::ChatCapability::MemberList])
+      .membering(
+        room_id,
+        vec![bmo_chat_client::ChatMember {
+          person: Some(4_242),
+          name: "Agent A's bot".to_owned(),
+          status_message: None,
+        }],
+      ),
+  );
+  let standing = woken(standing(scratch.db(), DataRoot::new(data.path()), vec![chat]));
+  let mut agent = registration(AGENT, "Agent A", vec![ADDRESS], None);
+
+  agent.row.insert(
+    "accounts".to_owned(),
+    serde_json::json!([{ "service": "road-a", "number": "4242", "secret": "a-bot" }]),
+  );
+  standing.agency.registering(vec![agent]);
+  rows::allow_chat(scratch.db(), room_id).await.unwrap();
+
+  let (answerers, alone) = agents::room_designated(&standing.receiver, room_id, room()).await.unwrap();
+
+  assert_eq!(answerers.iter().map(|one| one.name.as_str()).collect::<Vec<_>>(), [AGENT]);
+  assert!(!alone, "a supervisor its account called in waits for its name");
 }

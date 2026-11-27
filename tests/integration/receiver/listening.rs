@@ -57,8 +57,8 @@ async fn a_room_the_console_lists_wakes_and_is_answered_as_listened() {
   added::add(db, ADDED, "road-a", RoomMode::Avatar, None).await.unwrap();
   scratch
     .run(
-      r#"INSERT INTO "room_supervisors" ("chat_id", "supervisor") VALUES ($1, $2)"#,
-      vec![SUPERVISED.into(), AGENT.into()],
+      r#"INSERT INTO "room_supervisors" ("chat_id", "supervisor") VALUES ($1, $2), ($3, $2), ($4, $2), ($5, $2)"#,
+      vec![SUPERVISED.into(), AGENT.into(), ALLOWED.into(), ADDED.into(), PINNED.into()],
     )
     .await;
   pinned::add(db, PINNED).await.unwrap();

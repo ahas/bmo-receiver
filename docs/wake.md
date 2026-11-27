@@ -8,9 +8,11 @@ its rounds.
 - **A room's designated agents are the supervisors it names,** its `supervisors` (`docs/api.md`,
   「Supervisors」). A room that names none is answered by the supervisor whose registration names, as its
   `ownerAccount`, the user the account model links the person's sender to, where the room's road says it is a
-  one-to-one with a person; the first by name answers where more than one supervisor names that user. Every
-  other room naming none, the owner's private chat among them, is answered by the default answerer, the
-  supervisor the receiver's setting names, beside any supervisor whose account stands in it (below). A room naming none is answered alone in the owner's private chat
+  one-to-one with a person; the first by name answers where more than one supervisor names that user. The
+  owner's private chat and every room on the record alone naming none are answered by the default answerer, the
+  supervisor the receiver's setting names. A chat service's group room naming none is answered by the supervisors
+  whose accounts stand in it (below), and by nobody where none does: the default answerer would answer it in the
+  owner's own account, and a room is kept from that by naming nobody. A room naming none is answered alone in the owner's private chat
   and in a user's own private chat.
 - **A supervisor whose account stands in a chat service's room answers it, named or not.** A room whose
   member list on its chat service holds one of a supervisor's accounts there (the agency's `docs/supervisors.md`,

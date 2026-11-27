@@ -476,10 +476,17 @@ pub async fn room_designated(
 
   if !answerers.is_empty() {
     if group_room(room) {
-      said_group_answerer(chat_id, &answerers, "the supervisors the room names");
+      said_group_answerer(
+        chat_id,
+        &answerers,
+        "the supervisors the room names or whose accounts stand in it",
+      );
     }
 
-    let alone = answerers.len() == 1;
+    // A room answers alone where it names one supervisor and nobody else answers it; a supervisor its account
+    // called in is called by name as the default answerer of a group room is, so it never makes a room its own.
+    let named = named_among(receiver.db(), chat_id, &awake(receiver).await?).await?;
+    let alone = answerers.len() == 1 && named.len() == 1;
 
     return Ok((answerers, alone));
   }
@@ -495,6 +502,16 @@ pub async fn room_designated(
   }
 
   let alone = room.owner_room || private.is_some();
+
+  // A chat service's group room that names nobody and holds no supervisor's account is answered by nobody: the
+  // default answerer would answer it in the owner's own account, which a room is kept from by naming nobody
+  // (docs/wake.md, 「Who reaches the session」).
+  if group_room(room) && on_chat_service(receiver, chat_id).await {
+    said_group_answerer(chat_id, &[], "nobody: it names no supervisor and holds no supervisor's account");
+
+    return Ok((Vec::new(), false));
+  }
+
   let default = default_designated(receiver).await?;
 
   if group_room(room) {
@@ -502,6 +519,11 @@ pub async fn room_designated(
   }
 
   Ok((vec![default], alone))
+}
+
+/// Whether a room stands on a chat service, its own road being one rather than the record alone.
+pub async fn on_chat_service(receiver: &Receiver, chat_id: i64) -> bool {
+  matches!(receiver.roads().own(chat_id).await, Some(crate::roads::Road::Service(_)))
 }
 
 /// Whether a room is a group room: neither the owner's private chat nor a one-to-one with a person.
@@ -591,10 +613,21 @@ pub async fn answers(receiver: &Receiver, agent: &str, chat_id: i64) -> Result<b
       return Ok(owner.name == agent);
     }
 
+    if unanswered_group(receiver, chat_id).await? {
+      return Ok(false);
+    }
+
     return Ok(default_designated(receiver).await?.name == agent);
   }
 
   Ok(named.iter().any(|one| one.name == agent))
+}
+
+// Whether a room naming nobody is a chat service's group room, which nobody answers then.
+async fn unanswered_group(receiver: &Receiver, chat_id: i64) -> Result<bool, NotReceived> {
+  let room = receiver.roads().room_facts(chat_id).await;
+
+  Ok(group_room(room) && on_chat_service(receiver, chat_id).await)
 }
 
 /// The first agent a room records as its answerer, where it records one; none where it records nobody. The
