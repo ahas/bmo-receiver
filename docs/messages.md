@@ -136,7 +136,9 @@ and when a room sees it typing.
   the player. A voice note still being gathered is heard when its file comes.
 - **A signed-in person acts on a message from the console** as the agents do on the record: reacts, pins, edits
   and deletes their own, and sends a sticker of the record's set (`docs/api.md`, 「Messages」); a room's pinned
-  messages are listed newest pin first.
+  messages are listed newest pin first. An edit or a delete of an agent's message goes to each chat service through
+  the account that sent it, which alone may change it: the agent's own account where it holds one there, the
+  service's own otherwise, whoever asked from the console.
 - **An account forwards a message from the console** into another room: a copy kept there as the forwarding
   account's, the owner's where the call names no account, marked as forwarded with where it came from and who said
   it, carried out on that room's own road and waking nobody

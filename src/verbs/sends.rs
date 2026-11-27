@@ -335,9 +335,16 @@ impl Sends {
         .news()
         .publish(&crate::events::message_changed(request.room_id, message_id));
       // What each provider took the act is said in the log there; the send itself went, since the record kept it.
-      let _ =
-        providers::carry_act(db, self.receiver.roads(), request.room_id, message_id, &request.send, None)
-          .await;
+      let _ = providers::carry_act(
+        db,
+        self.receiver.roads(),
+        request.room_id,
+        message_id,
+        &request.send,
+        None,
+        &self.receiver.default_answerer(),
+      )
+      .await;
 
       return Ok(Sent {
         message_id: Some(message_id),
@@ -426,11 +433,11 @@ impl Sends {
       ));
     }
 
-    let request = ChatSendRequest {
+    let mut request = ChatSendRequest {
       room_id: asked.room_id,
       send: asked.send.clone(),
       mode,
-      speaker: going.speaker.as_ref().map(|speaker| speaker.agent.clone()),
+      speaker: None,
       tag: asked.tag.clone(),
       prefix: match &asked.prefix {
         Some(prefix) => Some(prefix.clone()),
@@ -447,6 +454,19 @@ impl Sends {
       reply_to_message_id: asked.reply_to_message_id,
       account_id: asked.account_id,
     };
+    // An agent's send goes in the voice its answers go in there: its own account where one stands in the room, else
+    // the owner's or the service's as its answers do (docs/wake.md, 「Who reaches the session」).
+    if let Some(speaker) = &going.speaker {
+      crate::chat::reply::voice_of(
+        &self.receiver,
+        &going.road,
+        &speaker.agent,
+        asked.room_id,
+        &mut request,
+      )
+      .await;
+    }
+
     let service = self.receiver.roads().chats().road(key).ok_or_else(|| NotSent::Failed(unlisted(key)))?;
     let result = self.receiver.roads().send(service.as_ref(), &request).await;
 

@@ -77,7 +77,7 @@ impl Timings {
 /// shown typing.
 pub trait Hooks: Send + Sync + 'static {
   fn riders(&self, agent: &str, chat_id: i64) -> BoxFuture<'_, ()>;
-  fn typing(&self, chat_id: i64, on: bool) -> BoxFuture<'_, ()>;
+  fn typing(&self, agent: &str, chat_id: i64, on: bool) -> BoxFuture<'_, ()>;
 }
 
 /// Why a round's turn did not answer: it was stopped, the road closed it for a limit or an outage, it failed
@@ -870,7 +870,7 @@ impl Conversations {
     let speaker = self.state().speakers.get(&chat_id).cloned();
 
     crate::presence::taken::answerer(&self.0.receiver, chat_id, self.agent(), speaker, on);
-    self.0.hooks.typing(chat_id, on).await;
+    self.0.hooks.typing(self.agent(), chat_id, on).await;
   }
 
   // The speaker the agent's turns in a room are shown as, read again as each turn begins.

@@ -128,11 +128,19 @@ async fn acted(
   let mut held_back: Vec<Value> = vec![];
 
   if let Some(voice) = by.voice() {
-    held_back = providers::carry_act(receiver.db(), receiver.roads(), room, message, &send, Some(voice))
-      .await
-      .into_iter()
-      .filter_map(not_carried)
-      .collect();
+    held_back = providers::carry_act(
+      receiver.db(),
+      receiver.roads(),
+      room,
+      message,
+      &send,
+      Some(voice),
+      &receiver.default_answerer(),
+    )
+    .await
+    .into_iter()
+    .filter_map(not_carried)
+    .collect();
   }
 
   let shaped = message_shape(receiver, room, message).await.map_err(store)?;

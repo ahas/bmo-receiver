@@ -20,8 +20,9 @@ use crate::receiver::Receiver;
 /// The conversations' surroundings in the running process.
 pub struct Around {
   receiver: Receiver,
-  // Each room shown typing now, by the task that renews it.
-  typing: Mutex<HashMap<i64, JoinHandle<()>>>,
+  // Each agent's typing shown in a room now, by the agent and the room, with the task that renews it: two agents
+  // answering one room each show their own.
+  typing: Mutex<HashMap<(String, i64), JoinHandle<()>>>,
   // Where the deploy roots stand, which writes no deployment briefing until they are named.
   briefings: Briefings,
 }
@@ -45,8 +46,9 @@ impl Around {
   }
 }
 
-// The room shown typing once, on its own road; a road that shows no typing shows nothing.
-async fn type_once(receiver: &Receiver, chat_id: i64) {
+// The room shown typing once, on its own road, in the voice the agent's words would go in there; a road that shows no
+// typing shows nothing.
+async fn type_once(receiver: &Receiver, agent: &str, chat_id: i64) {
   let Some(road) = receiver.roads().answering(chat_id, None).await else {
     eprintln!("chat {chat_id}: no road to show typing on");
 
@@ -58,11 +60,11 @@ async fn type_once(receiver: &Receiver, chat_id: i64) {
     return;
   }
 
-  if let Err(why) = receiver
-    .speech()
-    .act(road.key(), &ChatSendRequest::new(chat_id, ChatSend::Typing { on: true }))
-    .await
-  {
+  let mut request = ChatSendRequest::new(chat_id, ChatSend::Typing { on: true });
+
+  crate::chat::reply::voice_of(receiver, &road, agent, chat_id, &mut request).await;
+
+  if let Err(why) = receiver.speech().act(road.key(), &request).await {
     eprintln!("chat {chat_id}: typing: {why}");
   }
 }
@@ -80,29 +82,30 @@ impl Hooks for Around {
     })
   }
 
-  fn typing(&self, chat_id: i64, on: bool) -> BoxFuture<'_, ()> {
+  fn typing(&self, agent: &str, chat_id: i64, on: bool) -> BoxFuture<'_, ()> {
     let mut typing = self.typing.lock().unwrap_or_else(PoisonError::into_inner);
 
     if !on {
-      if let Some(renewing) = typing.remove(&chat_id) {
+      if let Some(renewing) = typing.remove(&(agent.to_owned(), chat_id)) {
         renewing.abort();
       }
 
       return Box::pin(async {});
     }
 
-    if typing.get(&chat_id).is_some_and(|renewing| !renewing.is_finished()) {
+    if typing.get(&(agent.to_owned(), chat_id)).is_some_and(|renewing| !renewing.is_finished()) {
       return Box::pin(async {});
     }
 
     let receiver = self.receiver.clone();
+    let agent = agent.to_owned();
     let every = Duration::from_millis(CHAT_ROUND.typing.every_ms);
 
     typing.insert(
-      chat_id,
+      (agent.clone(), chat_id),
       tokio::spawn(async move {
         loop {
-          type_once(&receiver, chat_id).await;
+          type_once(&receiver, &agent, chat_id).await;
           tokio::time::sleep(every).await;
         }
       }),

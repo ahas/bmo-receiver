@@ -585,6 +585,19 @@ pub struct ActCarriage {
 /// it again in the voice it answers the room by, where that is another voice and the provider does not read the
 /// room in the owner's account alone. Every provider the act was taken to, and every one that did not take it, is
 /// answered, each provider that did not take it said in the log as not carried.
+// The agent whose words a kept message is, none for a person's or a message the record does not hold.
+async fn message_agent(db: &DatabaseConnection, chat_id: i64, message_id: i64) -> Option<String> {
+  let rows = crate::all(
+    db,
+    r#"SELECT "agent_name" FROM "messages" WHERE "chat_id" = $1 AND "message_id" = $2 AND "agent_name" IS NOT NULL"#,
+    vec![chat_id.into(), message_id.into()],
+  )
+  .await
+  .ok()?;
+
+  rows.first()?.try_get::<String>("", "agent_name").ok()
+}
+
 pub async fn carry_act(
   db: &DatabaseConnection,
   roads: &Roads,
@@ -592,6 +605,7 @@ pub async fn carry_act(
   message_id: i64,
   act: &ChatSend,
   voice: Option<ChatVoice>,
+  default_answerer: &str,
 ) -> Vec<ActCarriage> {
   let Ok(listed) = listed(db, roads, chat_id).await else {
     eprintln!(
@@ -601,6 +615,9 @@ pub async fn carry_act(
 
     return vec![];
   };
+  // The agent whose words the message is, none for a person's; and the default answerer, whose words go in the
+  // service's own voice.
+  let sender_agent = message_agent(db, chat_id, message_id).await;
   let mut taken: Vec<ActCarriage> = vec![];
   let mut name = |provider: &str, carriage: Carriage| {
     if let Some(why) = carriage.why_not_carried() {
@@ -649,6 +666,15 @@ pub async fn carry_act(
     let mut request = ChatSendRequest::new(chat_id, send);
 
     request.mode = voice;
+
+    // A message an agent sent is changed or taken down by the account that sent it, which alone may: the agent's own
+    // account where it holds one, else the service's (docs/receiver.md, 「Acts on a message」).
+    if let Some(agent) = &sender_agent
+      && matches!(request.send, ChatSend::Edit { .. } | ChatSend::Delete { .. })
+    {
+      request.mode = None;
+      request.speaker = (agent != default_answerer).then(|| agent.clone());
+    }
 
     let refused = match roads.send(service.as_ref(), &request).await {
       Ok(_) => {
