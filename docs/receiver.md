@@ -168,6 +168,11 @@ flowchart TD
     room, names that agent as its `speaker` where the chat service declares `speakers`, so a service holding an
     account of that agent's own to send through speaks through it; the default answerer's sends, and
     every send to a service declaring none, name no speaker.
+  - Every send an agent makes, an answer of its round or a line its tools put in the room, hands the chat service
+    the agent's name tag as its `prefix`, a space after it: the tag its registration names, else the policy's
+    default made of its label (`roads.toml`, `[name_tag]`), `🤖 <label>`. A service puts it before the words only
+    where they go out in the owner's own account (bmo-chat's `docs/contract.md`, 「Sends」), so a reader of the room
+    tells the agent's words from his; a tool send naming its own prefix keeps it.
   - Each send carries a `tag`, and the number the provider gave it is kept beside the message. A message a
     provider hands over that is the echo of such a send, by its tag or by that number, is the message already
     kept: it is answered as held, kept no second time and wakes nobody.

@@ -3856,6 +3856,7 @@ async fn designated(receiver: &Receiver, agent: &str) -> wake::agents::Designate
   match wake::agents::registered(receiver, agent).await {
     Ok(Some(designated)) => designated,
     _ => wake::agents::Designated {
+      name_tag: wake::agents::default_name_tag(agent),
       name: agent.to_owned(),
       call_names: Vec::new(),
       window_seconds: None,

@@ -34,6 +34,26 @@ pub struct Designated {
   pub window_seconds: Option<i64>,
   pub owner_account: Option<i64>,
   pub default_answerer: bool,
+  /// What its words carry before them in the owner's own account: its own name tag, else the policy's default
+  /// made of its label (docs/receiver.md, 「A room's chat providers」).
+  pub name_tag: String,
+}
+
+/// The name tag of an agent whose registration names none: the policy's default made of its shown name.
+pub fn default_name_tag(name: &str) -> String {
+  receiver_policy::fill_marks(&receiver_policy::roads::ROADS.name_tag.default, &[("name", name)])
+}
+
+/// What an agent's words carry before them in the owner's own account, a space after it: its registration's name
+/// tag, else the default made of its name where the agency cannot be read (docs/receiver.md, 「A room's chat
+/// providers」).
+pub async fn prefix_of(receiver: &Receiver, agent: &str) -> String {
+  let tag = match registered(receiver, agent).await {
+    Ok(Some(designated)) => designated.name_tag,
+    _ => default_name_tag(agent),
+  };
+
+  format!("{tag} ")
 }
 
 impl Designated {
@@ -49,6 +69,10 @@ impl Designated {
       window_seconds: count(&agent.row, "windowSeconds"),
       owner_account: count(&agent.row, "ownerAccount"),
       default_answerer: agent.name == default,
+      name_tag: text(&agent.row, "nameTag")
+        .map(trim)
+        .filter(|tag| !tag.is_empty())
+        .unwrap_or_else(|| default_name_tag(agent.label.as_deref().unwrap_or(&agent.name))),
     }
   }
 
@@ -186,6 +210,7 @@ pub async fn default_designated(receiver: &Receiver) -> Result<Designated, NotRe
       .find(|agent| agent.default_answerer)
       .cloned()
       .unwrap_or_else(|| Designated {
+        name_tag: default_name_tag(&receiver.default_answerer()),
         name: receiver.default_answerer(),
         call_names: Vec::new(),
         window_seconds: None,

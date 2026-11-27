@@ -95,12 +95,22 @@ pub struct Relay {
   pub named: String,
 }
 
+/// What an agent's words carry before them where they go out in the owner's own account (docs/receiver.md, 「A
+/// room's chat providers」).
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NameTag {
+  /// The tag of an agent whose registration names none, its label `{name}` in it.
+  pub default: String,
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Roads {
   pub record: Record,
   pub marks: Marks,
   pub relay: Relay,
+  pub name_tag: NameTag,
   pub pictures: Pictures,
   pub gathering: Gathering,
   pub filling: Filling,

@@ -46,6 +46,13 @@ voice = "[음성]"
 [relay]
 named = "{name}: {text}"
 
+# What an agent's words carry before them where they go out in the owner's own account, so a reader of the room
+# tells them from his: the agent's own name tag where its registration names one, else this, its label {name} in
+# it; the send hands it to the chat service as the send's prefix, a space after it (docs/receiver.md, 「A room's
+# chat providers」).
+[name_tag]
+default = "🤖 {name}"
+
 # How a picture a message carried is filed under its message: one past this many bytes, or one with transparency,
 # is brought inside this many pixels on its longer side, laid on white and written as JPEG at this quality.
 [pictures]

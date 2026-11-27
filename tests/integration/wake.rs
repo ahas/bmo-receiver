@@ -520,6 +520,7 @@ async fn a_group_room_is_answered_by_the_supervisor_its_leader_names() {
 #[test]
 fn a_send_goes_out_in_the_account_of_the_leader_it_speaks_as_or_of_the_one_leader() {
   let named = |name: &str, account: Option<i64>| agents::Designated {
+    name_tag: agents::default_name_tag(name),
     name: name.to_owned(),
     call_names: vec![],
     window_seconds: None,

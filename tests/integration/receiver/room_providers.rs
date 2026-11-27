@@ -647,3 +647,26 @@ async fn an_answer_names_its_agent_as_speaker_where_the_service_takes_one_and_th
 
   assert_eq!(speakers, [Some("agent-b".to_owned()), None]);
 }
+
+#[tokio::test]
+async fn an_answer_hands_its_agents_name_tag_as_the_sends_prefix() {
+  use bmo_receiver::chat::reply::{OutgoingReply, send_reply};
+
+  let scratch = Scratch::new().await;
+  let (front, road) = front(&scratch).await;
+  let receiver = front.receiver();
+  let answer = OutgoingReply {
+    agent: Some("agent-b".to_owned()),
+    chat_id: ROOM,
+    text: "hello".to_owned(),
+    via: Some("road-a".to_owned()),
+    ..OutgoingReply::default()
+  };
+
+  assert!(send_reply(&receiver, &answer).await.is_ok());
+
+  // An agent the agency does not answer for is tagged by the policy's default made of its name.
+  let prefixes: Vec<Option<String>> = road.sent().iter().map(|held| held.prefix.clone()).collect();
+
+  assert_eq!(prefixes, [Some("\u{1F916} agent-b ".to_owned())]);
+}

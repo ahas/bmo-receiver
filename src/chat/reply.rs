@@ -196,6 +196,10 @@ async fn carry(
   request.reply_to_message_id = reply.reply_to;
   let agent = reply.agent.clone().unwrap_or_else(|| receiver.default_answerer());
 
+  // The words carry the agent's name tag where they go out in the owner's own account; a service sending them in
+  // any other voice leaves it off.
+  request.prefix = Some(crate::receiver::wake::agents::prefix_of(receiver, &agent).await);
+
   // An agent other than the default answerer speaks as itself where the service takes a speaker, so a service
   // holding a voice of that agent's own speaks through it (docs/receiver.md, 「A room's chat providers」).
   if let Road::Service(key) = &road

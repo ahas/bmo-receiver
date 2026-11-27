@@ -432,7 +432,18 @@ impl Sends {
       mode,
       speaker: going.speaker.as_ref().map(|speaker| speaker.agent.clone()),
       tag: asked.tag.clone(),
-      prefix: asked.prefix.clone(),
+      prefix: match &asked.prefix {
+        Some(prefix) => Some(prefix.clone()),
+        None => {
+          let agent = going
+            .speaker
+            .as_ref()
+            .map(|speaker| speaker.agent.clone())
+            .unwrap_or_else(|| self.receiver.default_answerer());
+
+          Some(crate::receiver::wake::agents::prefix_of(&self.receiver, &agent).await)
+        }
+      },
       reply_to_message_id: asked.reply_to_message_id,
       account_id: asked.account_id,
     };
