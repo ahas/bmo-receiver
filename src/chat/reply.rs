@@ -195,6 +195,15 @@ async fn carry(
   let mut request = ChatSendRequest::new(chat_id, send.clone());
   request.reply_to_message_id = reply.reply_to;
   let agent = reply.agent.clone().unwrap_or_else(|| receiver.default_answerer());
+
+  // An agent other than the default answerer speaks as itself where the service takes a speaker, so a service
+  // holding a voice of that agent's own speaks through it (docs/receiver.md, 「A room's chat providers」).
+  if let Road::Service(key) = &road
+    && agent != receiver.default_answerer()
+    && receiver.roads().declaration(key).await.is_some_and(|declared| declared.speakers)
+  {
+    request.speaker = Some(agent.clone());
+  }
   let kept_text = kept_line(&send);
   let road_key = road.key().to_owned();
   // The answer as the room keeps it, which goes on to the room's other providers as the same send, its fold

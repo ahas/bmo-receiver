@@ -164,6 +164,10 @@ flowchart TD
     with several and a send that speaks as none of theirs, names no account, and the service sends in its own.
     The leaders are read as the agency's list of agents is kept (「What is kept for a moment」); where that list
     cannot be read, the send names no account.
+  - A send an agent other than the default answerer speaks, an answer of its round or a line its tools put in the
+    room, names that agent as its `speaker` where the chat service declares `speakers`, so a service holding an
+    account of that agent's own to send through speaks through it; the default answerer's sends, and
+    every send to a service declaring none, name no speaker.
   - Each send carries a `tag`, and the number the provider gave it is kept beside the message. A message a
     provider hands over that is the echo of such a send, by its tag or by that number, is the message already
     kept: it is answered as held, kept no second time and wakes nobody.

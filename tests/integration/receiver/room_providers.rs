@@ -623,3 +623,27 @@ async fn a_room_on_a_service_with_several_modes_active_names_no_voice() {
 
   assert_eq!(voices(&road), vec![None], "the service answers in its own voice");
 }
+
+#[tokio::test]
+async fn an_answer_names_its_agent_as_speaker_where_the_service_takes_one_and_the_default_answerer_never() {
+  use bmo_receiver::chat::reply::{OutgoingReply, send_reply};
+
+  let scratch = Scratch::new().await;
+  let road = Arc::new(StandInChat::new("road-a").holding(&[ROOM]).owners(OWNER).speaking_for(&["agent-b"]));
+  let front = stood_on(&scratch, OWNER, vec![road.clone()]).await;
+  let receiver = front.receiver();
+  let answer = |agent: Option<String>| OutgoingReply {
+    agent,
+    chat_id: ROOM,
+    text: "hello".to_owned(),
+    via: Some("road-a".to_owned()),
+    ..OutgoingReply::default()
+  };
+
+  assert!(send_reply(&receiver, &answer(Some("agent-b".to_owned()))).await.is_ok());
+  assert!(send_reply(&receiver, &answer(Some(receiver.default_answerer()))).await.is_ok());
+
+  let speakers: Vec<Option<String>> = road.sent().iter().map(|held| held.speaker.clone()).collect();
+
+  assert_eq!(speakers, [Some("agent-b".to_owned()), None]);
+}
