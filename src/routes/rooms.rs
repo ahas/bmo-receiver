@@ -94,10 +94,34 @@ pub async fn answerers(State(served): State<Served>, Path(room): Path<i64>) -> A
 async fn answerers_json(receiver: &Receiver, room: i64) -> Result<Value, Refusal> {
   let default = agents::default_designated(receiver).await.map_err(reached)?;
   let voice = agents::voice_of(receiver, room).await.map_err(reached)?;
-  let named = agents::named_designated(receiver, room).await.map_err(reached)?;
-  let listed: Vec<Value> = named
+  // Every supervisor standing in the room, named or by its account there, the ones turned off among them, each
+  // with how it stands and the account its words go out in (docs/wake.md, 「Who reaches the session」).
+  let awake = agents::awake(receiver).await.map_err(reached)?;
+  let named = agents::named_among(receiver.db(), room, &awake).await.map_err(reached)?;
+  let accounted = agents::accounted_in(receiver, room, &awake).await;
+  let off = agents::turned_off(receiver.db(), room).await.map_err(reached)?;
+  let mut standing: Vec<&agents::Designated> = named.iter().collect();
+
+  for agent in &accounted {
+    if !standing.iter().any(|one| one.name == agent.name) {
+      standing.push(agent);
+    }
+  }
+
+  let listed: Vec<Value> = standing
     .iter()
-    .map(|agent| json!({ "agentName": agent.name, "defaultAnswerer": agent.default_answerer }))
+    .map(|agent| {
+      let by_account = accounted.iter().any(|one| one.name == agent.name);
+
+      json!({
+        "agentName": agent.name,
+        "defaultAnswerer": agent.default_answerer,
+        "named": named.iter().any(|one| one.name == agent.name),
+        "byAccount": by_account,
+        "on": !off.contains(&agent.name),
+        "voice": if by_account { "own-account" } else { "owner-account" },
+      })
+    })
     .collect();
 
   Ok(json!({

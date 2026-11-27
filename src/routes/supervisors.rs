@@ -734,6 +734,34 @@ pub async fn name_room(State(served): State<Served>, writable: WritableRoom) -> 
   answered(json!({ "supervisors": figures::answerers(receiver.db(), room).await.map_err(store)? }))
 }
 
+#[derive(serde::Deserialize)]
+struct Answering {
+  on: bool,
+}
+
+/// A supervisor standing in a room, named or by its account there, turned off so it answers nothing in the room,
+/// or on again (docs/wake.md, 「Who reaches the session」).
+pub async fn turn_in_room(
+  State(served): State<Served>,
+  Path((_, supervisor)): Path<(i64, String)>,
+  writable: WritableRoom,
+) -> Answered {
+  let room = writable.room;
+  let asked = read::<Answering>(writable.writer.body())?;
+  let receiver: Receiver = (*served.receiver).clone();
+  let agents = receiver.agents().await.map_err(unit)?;
+
+  if !agents.agents.iter().any(|agent| agent.name == supervisor) {
+    return Err(code(&SupervisorRefusal::UnknownSupervisor { supervisor }));
+  }
+
+  crate::receiver::wake::agents::turn(receiver.db(), room, &supervisor, asked.on)
+    .await
+    .map_err(store)?;
+
+  answered(json!({ "agentName": supervisor, "on": asked.on }))
+}
+
 // The supervisors the room names: they stay with the removal, and no longer answer in a room that is gone.
 async fn answering(receiver: &Receiver, room: i64) -> Vec<String> {
   figures::answerers(receiver.db(), room).await.unwrap_or_default()

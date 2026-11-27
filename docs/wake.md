@@ -22,6 +22,10 @@ its rounds.
   answers in the owner's own account, behind its name tag (`docs/receiver.md`, 「A room's chat providers」). The member list is asked of the service as
   a room's words are weighed and kept for a moment, as long as `kept.toml` keeps a service's facts of a room; a service that cannot list
   its members adds no supervisor.
+- **A supervisor standing in a room may be turned off there,** named or by its account, and on again
+  (`PUT /rooms/{roomId}/supervisors/{supervisorName}/answering`): it stays in the room, its account a member still,
+  and answers nothing there while it is off. A room whose every supervisor is off is answered by nobody, never by
+  the default answerer in their place. The supervisors that answer a room are those standing in it that are on.
 - **A user's own private chat whose person owns no awake supervisor falls back to the default answerer,** and
   the journal says once for the room that the fallback was taken.
 - **A group room is answered by its leader's BMO where it names one.** The console makes a group room naming the

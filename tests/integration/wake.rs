@@ -1240,3 +1240,35 @@ async fn a_supervisor_whose_account_stands_in_a_group_room_answers_it_when_calle
   assert_eq!(answerers.iter().map(|one| one.name.as_str()).collect::<Vec<_>>(), [AGENT]);
   assert!(!alone, "a supervisor its account called in waits for its name");
 }
+
+// "A supervisor standing in a room may be turned off there": it stays and answers nothing, and a room whose every
+// supervisor is off is answered by nobody rather than by the default answerer.
+#[tokio::test]
+async fn a_supervisor_turned_off_in_a_room_answers_nothing_there_until_it_is_on_again() {
+  let (scratch, _data, standing) = stood(&[-170]).await;
+
+  shared(&scratch, &[-170]).await;
+  standing.agency.registering(vec![
+    registration(AGENT, "Agent A", vec![ADDRESS], None),
+    registration("agent-b", "Agent B", vec!["agent-b"], None),
+  ]);
+
+  agents::turn(scratch.db(), -170, "agent-b", false).await.unwrap();
+
+  let (answerers, alone) = agents::room_designated(&standing.receiver, -170, room()).await.unwrap();
+
+  assert_eq!(answerers.iter().map(|one| one.name.as_str()).collect::<Vec<_>>(), [AGENT]);
+  assert!(alone, "the one supervisor on in a room naming it answers alone");
+
+  agents::turn(scratch.db(), -170, AGENT, false).await.unwrap();
+
+  let (answerers, _) = agents::room_designated(&standing.receiver, -170, room()).await.unwrap();
+
+  assert!(answerers.is_empty(), "a room whose every supervisor is off is answered by nobody");
+
+  agents::turn(scratch.db(), -170, "agent-b", true).await.unwrap();
+
+  let (answerers, _) = agents::room_designated(&standing.receiver, -170, room()).await.unwrap();
+
+  assert_eq!(answerers.iter().map(|one| one.name.as_str()).collect::<Vec<_>>(), ["agent-b"]);
+}

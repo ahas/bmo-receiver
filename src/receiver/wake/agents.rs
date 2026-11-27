@@ -375,7 +375,52 @@ pub async fn named_designated(receiver: &Receiver, chat_id: i64) -> Result<Vec<D
     }
   }
 
+  // One the room turned off stands in it and answers nothing there.
+  let off = turned_off(receiver.db(), chat_id).await?;
+
+  answerers.retain(|agent| !off.contains(&agent.name));
+
   Ok(answerers)
+}
+
+/// The supervisors a room turned off, each standing in it, named or by its account, and answering nothing there
+/// (docs/wake.md, 「Who reaches the session」).
+pub async fn turned_off(db: &DatabaseConnection, chat_id: i64) -> Result<Vec<String>, NotReceived> {
+  let rows = crate::all(
+    db,
+    r#"SELECT "supervisor" FROM "room_supervisors_off" WHERE "chat_id" = $1 ORDER BY "supervisor""#,
+    vec![chat_id.into()],
+  )
+  .await
+  .map_err(NotReceived::from)?;
+
+  Ok(rows.iter().filter_map(|row| row.try_get::<String>("", "supervisor").ok()).collect())
+}
+
+/// A supervisor turned off in a room, or on again.
+pub async fn turn(
+  db: &DatabaseConnection,
+  chat_id: i64,
+  supervisor: &str,
+  on: bool,
+) -> Result<(), crate::Fault> {
+  if on {
+    crate::run(
+      db,
+      r#"DELETE FROM "room_supervisors_off" WHERE "chat_id" = $1 AND "supervisor" = $2"#,
+      vec![chat_id.into(), supervisor.into()],
+    )
+    .await?;
+  } else {
+    crate::run(
+      db,
+      r#"INSERT INTO "room_supervisors_off" ("chat_id", "supervisor") VALUES ($1, $2) ON CONFLICT DO NOTHING"#,
+      vec![chat_id.into(), supervisor.into()],
+    )
+    .await?;
+  }
+
+  Ok(())
 }
 
 /// Of the awake agents given, those a room records as its answerers; none where it names nobody. A read that
@@ -485,10 +530,18 @@ pub async fn room_designated(
 
     // A room answers alone where it names one supervisor and nobody else answers it; a supervisor its account
     // called in is called by name as the default answerer of a group room is, so it never makes a room its own.
+    let off = turned_off(receiver.db(), chat_id).await?;
     let named = named_among(receiver.db(), chat_id, &awake(receiver).await?).await?;
-    let alone = answerers.len() == 1 && named.len() == 1;
+    let alone =
+      answerers.len() == 1 && named.iter().filter(|agent| !off.contains(&agent.name)).count() == 1;
 
     return Ok((answerers, alone));
+  }
+
+  // A room whose supervisors are all turned off is answered by nobody, never by the default answerer in their
+  // place.
+  if !turned_off(receiver.db(), chat_id).await?.is_empty() {
+    return Ok((Vec::new(), false));
   }
 
   let private = one_to_one_user(receiver, room).await?;

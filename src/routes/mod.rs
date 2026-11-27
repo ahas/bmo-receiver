@@ -346,6 +346,11 @@ fn table() -> Vec<(String, String, MethodRouter<Served>)> {
     ("GET", "/default-answerer", get(supervisors::default_answerer)),
     ("PUT", "/default-answerer", put(supervisors::set_default_answerer)),
     ("PUT", "/rooms/{roomId}/supervisors", put(supervisors::name_room)),
+    (
+      "PUT",
+      "/rooms/{roomId}/supervisors/{supervisorName}/answering",
+      put(supervisors::turn_in_room),
+    ),
     ("PUT", "/pinned-rooms", put(console::pin)),
     ("POST", "/pinned-rooms", post(console::pin_one)),
     ("DELETE", "/pinned-rooms/{room}", delete(console::unpin)),

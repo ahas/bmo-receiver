@@ -123,7 +123,14 @@ async fn a_rooms_answerers_are_read_as_the_wake_judges_them() {
       json!({
         "default": AGENT,
         "voice": AGENT,
-        "items": [{ "agentName": AGENT, "defaultAnswerer": true }],
+        "items": [{
+          "agentName": AGENT,
+          "defaultAnswerer": true,
+          "named": true,
+          "byAccount": false,
+          "on": true,
+          "voice": "owner-account",
+        }],
         "more": false,
       }),
     ),
