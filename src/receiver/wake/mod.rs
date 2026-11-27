@@ -367,13 +367,25 @@ pub async fn wakes(
   Ok(matches!(weighed, Weighed::Woken(_)))
 }
 
+// Whether a room is a person's one-to-one with a supervisor's own account: starting it called that supervisor, so
+// it is listened to as the room list's rooms are (docs/wake.md, 「Who reaches the session」).
+async fn own_one_to_one(receiver: &Receiver, chat_id: i64) -> bool {
+  if !receiver.roads().room_facts(chat_id).await.one_to_one() {
+    return false;
+  }
+
+  let Ok(awake) = agents::awake(receiver).await else { return false };
+
+  !agents::accounted_in(receiver, chat_id, &awake).await.is_empty()
+}
+
 // Why the room wakes no agent at all, where it wakes none: one the receiver does not listen to, one added for the
 // user alone, an archived room, or a read-only room, which only the owner's account reads (docs/receiver.md, 「A
 // read-only room」).
 async fn wakes_nobody(receiver: &Receiver, chat_id: i64) -> Result<Option<&'static str>, NotReceived> {
   // A room the console's room list does not hold is kept and not listened to (docs/wake.md, 「Who reaches the
   // session」).
-  if !receiver.listens(chat_id).await? {
+  if !receiver.listens(chat_id).await? && !own_one_to_one(receiver, chat_id).await {
     return Ok(Some("the room is not listened to"));
   }
 

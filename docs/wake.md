@@ -23,9 +23,11 @@ its rounds.
   a room's words are weighed and kept for a moment, as long as `kept.toml` keeps a service's facts of a room; a service that cannot list
   its members adds no supervisor.
 - **In a one-to-one, a supervisor's own account is the room's alone.** A person's private chat with a supervisor's
-  own account holds that account, and its supervisor answers the room alone, as a user's own private chat is answered. The default answerer's account is the service's own, which
-  every person's private chat with the service holds, so it calls nobody into a one-to-one: the person's own
-  supervisor, or the default answerer, answers that one as ever.
+  own account holds that account, and its supervisor answers the room alone, as a user's own private chat is
+  answered; the room is listened to as the room list's rooms are, since starting it called that supervisor. The
+  default answerer's account is the service's own, which every person's private chat with the service holds, so
+  it calls nobody into a one-to-one: the person's own supervisor, or the default answerer, answers that one as
+  ever.
 - **A supervisor standing in a room may be turned off there,** named or by its account, and on again
   (`PUT /rooms/{roomId}/supervisors/{supervisorName}/answering`): it stays in the room, its account a member still,
   and answers nothing there while it is off. A room whose every supervisor is off is answered by nobody, never by

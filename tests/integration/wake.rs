@@ -1320,5 +1320,16 @@ async fn a_supervisors_own_account_answers_its_one_to_one_alone_and_the_default_
   let (answerers, _) = agents::room_designated(&standing.receiver, services, facts).await.unwrap();
 
   assert!(answerers.iter().all(|one| one.name != "agent-b"), "{answerers:?}");
+
+  // A person's words in the supervisor's own one-to-one wake it though no list holds the room.
+  let facts = standing.receiver.roads().room_facts(own).await;
+
+  standing
+    .receiver
+    .message(&inbound(own, 1, 4_343, "hello there"), &Context::default(), facts)
+    .await
+    .unwrap();
+
+  assert_eq!(standing.taken.handed().iter().map(|handed| handed.chat_id).collect::<Vec<_>>(), [own]);
   assert_eq!(answerers.len(), 1, "the default answerer answers the service's own one-to-one as ever");
 }
