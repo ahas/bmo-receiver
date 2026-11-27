@@ -1861,7 +1861,7 @@ pub fn openapi() -> Value {
     "A supervisor standing in a room turned off there, so it answers nothing in the room, or on again.",
     vec![
       path_parameter("roomId"),
-      path_parameter("supervisorName"),
+      name_parameter("supervisorName"),
       parameter("account", "integer", false)
     ],
     Some(generator.subschema_for::<Answering>()),

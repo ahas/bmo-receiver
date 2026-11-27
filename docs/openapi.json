@@ -10146,8 +10146,7 @@
             "name": "supervisorName",
             "required": true,
             "schema": {
-              "format": "int64",
-              "type": "integer"
+              "type": "string"
             }
           },
           {

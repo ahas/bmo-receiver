@@ -6797,7 +6797,7 @@ export interface operations {
             header?: never;
             path: {
                 roomId: number;
-                supervisorName: number;
+                supervisorName: string;
             };
             cookie?: never;
         };
