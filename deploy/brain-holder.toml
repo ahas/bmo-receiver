@@ -3,7 +3,7 @@
 held_by = "receiver"
 
 [[memory]]
-key = "when"
+key = "receiver.when"
 type = "tip"
 recall_condition = "talk to another supervisor, or add a chat room"
 text = "Check bmo/room_list first; open a room with room_open only where none is shared, and room_add only on the owner's word."
