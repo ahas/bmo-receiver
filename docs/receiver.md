@@ -868,8 +868,8 @@ decides that before it calls, and the receiver removes what is keyed to the numb
   (`docs/wake.md`, 「Who reaches the session」); a one-to-one with somebody linked to no user is an ordinary room.
 - **In a room the console made, every supervisor answering it has a number of the console's own,** given as the
   room is stood up (`POST /supervisors`, `owner-room`), and a supervisor's words are filed under the number it
-  was given and under its own name, the label its registration carries (the deployment's sender name for the
-  configured `agent`), each message naming the agent that said it, so one room holds every speaker apart.
+  was given and under its own name, the label its registration carries (where it carries none, the deployment's
+  sender name for the configured `agent`), each message naming the agent that said it, so one room holds every speaker apart.
 - **Every agent holds one number on the record,** under the record's own key, the one it was first given in
   whichever room: its words in every room the record numbers stand under it, and its kept picture with them.
 - **Every account holds one number on the record too,** its record identity (「Console rooms and accounts」 above),

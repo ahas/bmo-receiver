@@ -228,7 +228,7 @@ impl Speech {
   // unit's rendering names it.
   async fn plain_named(&self, code: &str, mut fields: Map<String, Value>) -> Option<String> {
     if let Some(Value::String(agent)) = fields.get("agent").cloned() {
-      fields.insert("agent".to_owned(), Value::String(self.label_of(&agent).await));
+      fields.insert("agent".to_owned(), Value::String(self.name_of(&agent).await));
     }
 
     plain(&self.deployment.language, code, &fields)
@@ -374,26 +374,23 @@ impl Speech {
     Ok(message_id)
   }
 
-  /// The name an agent's words stand under in a room's record, whichever way they came to it: the deployment's
-  /// sender name for the configured agent, every other agent's label.
+  /// The name an agent's words stand under in a room's record, whichever way they came to it: the label its own
+  /// registration carries, as the console shows it; where it carries none, the deployment's sender name for the
+  /// configured agent and its registration name for every other.
   pub async fn name_of(&self, agent: &str) -> String {
-    if agent == self.deployment.agent {
-      return self.deployment.sender_name.clone();
-    }
-
-    self.label_of(agent).await
-  }
-
-  // An agent's own name: the label its registration carries, its registration name where it carries none, as the
-  // console shows it.
-  async fn label_of(&self, agent: &str) -> String {
     let listed = self.units.agency.supervisors().await.ok();
-
-    listed
+    let label = listed
       .and_then(|listed| listed.agents.into_iter().find(|one| one.name == agent))
       .and_then(|registered| registered.label)
-      .filter(|label| !label.trim().is_empty())
-      .unwrap_or_else(|| agent.to_owned())
+      .filter(|label| !label.trim().is_empty());
+
+    label.unwrap_or_else(|| {
+      if agent == self.deployment.agent {
+        self.deployment.sender_name.clone()
+      } else {
+        agent.to_owned()
+      }
+    })
   }
 
   // A line nobody asked for sent on a chat service's road, kept in the room's record under the number the road
