@@ -440,6 +440,7 @@ impl Chat for StandInChat {
         ranges: ChatNumberRanges::default(),
       },
       speakers: self.speakers,
+      registration: None,
     };
 
     Box::pin(async move { Ok(declared) })

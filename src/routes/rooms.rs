@@ -213,6 +213,7 @@ pub async fn providers(State(served): State<Served>) -> Answered {
         "startsGroups": provider.starts_groups,
         "roomModes": modes,
         "fileBytes": provider.file_bytes,
+        "registration": provider.registration,
       })
     })
     .collect();

@@ -34,6 +34,8 @@ pub struct Provider {
   pub starts_groups: bool,
   pub room_modes: Vec<RoomMode>,
   pub file_bytes: Option<u64>,
+  /// The app registration a person's own account needs on it, as it declares one.
+  pub registration: Option<bmo_chat_client::ChatRegistration>,
 }
 
 /// Every provider a room may be on: the room's record, which lists no rooms and takes no mode, then each chat
@@ -50,6 +52,7 @@ pub async fn every(roads: &Roads) -> Vec<Provider> {
     starts_groups: false,
     room_modes: vec![],
     file_bytes: record.file_bytes,
+    registration: None,
   }];
 
   for key in roads.chats().names() {
@@ -71,6 +74,7 @@ pub async fn every(roads: &Roads) -> Vec<Provider> {
         .is_some_and(|declared| added::can(declared, ChatCapability::StartGroup)),
       room_modes: declared.as_ref().map(added::offered).unwrap_or_default(),
       file_bytes: declared.as_ref().and_then(|declared| declared.dialect.limits.file_bytes),
+      registration: declared.as_ref().and_then(|declared| declared.registration.clone()),
     });
   }
 
