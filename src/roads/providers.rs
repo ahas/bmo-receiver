@@ -36,6 +36,8 @@ pub struct Provider {
   pub file_bytes: Option<u64>,
   /// The app registration a person's own account needs on it, as it declares one.
   pub registration: Option<bmo_chat_client::ChatRegistration>,
+  /// How a person's node is asked whether it holds what the provider reads a person's account through there.
+  pub node_probe: Option<bmo_chat_client::ChatNodeProbe>,
 }
 
 /// Every provider a room may be on: the room's record, which lists no rooms and takes no mode, then each chat
@@ -53,6 +55,7 @@ pub async fn every(roads: &Roads) -> Vec<Provider> {
     room_modes: vec![],
     file_bytes: record.file_bytes,
     registration: None,
+    node_probe: None,
   }];
 
   for key in roads.chats().names() {
@@ -75,6 +78,7 @@ pub async fn every(roads: &Roads) -> Vec<Provider> {
       room_modes: declared.as_ref().map(added::offered).unwrap_or_default(),
       file_bytes: declared.as_ref().and_then(|declared| declared.dialect.limits.file_bytes),
       registration: declared.as_ref().and_then(|declared| declared.registration.clone()),
+      node_probe: declared.as_ref().and_then(|declared| declared.node_probe.clone()),
     });
   }
 

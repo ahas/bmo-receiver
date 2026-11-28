@@ -441,6 +441,7 @@ impl Chat for StandInChat {
       },
       speakers: self.speakers,
       registration: None,
+      node_probe: None,
     };
 
     Box::pin(async move { Ok(declared) })

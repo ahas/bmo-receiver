@@ -69,13 +69,13 @@ async fn each_provider_offers_what_it_declares_and_the_record_offers_nothing() {
     json!([
       { "key": "record", "label": every["items"][0]["label"], "can": every["items"][0]["can"],
         "listsRooms": false, "listsContacts": false,
-        "startsChats": false, "startsGroups": false, "roomModes": [], "fileBytes": null, "registration": null },
+        "startsChats": false, "startsGroups": false, "roomModes": [], "fileBytes": null, "registration": null, "nodeProbe": null },
       { "key": "road-a", "label": "the road-a road", "can": every["items"][1]["can"],
         "listsRooms": true, "listsContacts": true,
-        "startsChats": true, "startsGroups": true, "roomModes": ["avatar", "record-only"], "fileBytes": null, "registration": null },
+        "startsChats": true, "startsGroups": true, "roomModes": ["avatar", "record-only"], "fileBytes": null, "registration": null, "nodeProbe": null },
       { "key": "road-b", "label": "the road-b road", "can": every["items"][2]["can"],
         "listsRooms": false, "listsContacts": false,
-        "startsChats": false, "startsGroups": false, "roomModes": ["record-only"], "fileBytes": null, "registration": null },
+        "startsChats": false, "startsGroups": false, "roomModes": ["record-only"], "fileBytes": null, "registration": null, "nodeProbe": null },
     ])
   );
 

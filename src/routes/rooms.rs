@@ -214,6 +214,7 @@ pub async fn providers(State(served): State<Served>) -> Answered {
         "roomModes": modes,
         "fileBytes": provider.file_bytes,
         "registration": provider.registration,
+        "nodeProbe": provider.node_probe,
       })
     })
     .collect();
